@@ -155,8 +155,9 @@ function render() {
         const logDiv = document.createElement('div');
         logDiv.className = 'log-entry';
         logDiv.textContent = log;
-        gameLogEl.prepend(logDiv);
+        gameLogEl.appendChild(logDiv);
     });
+    gameLogEl.scrollTop = gameLogEl.scrollHeight;
 
     // 按鈕狀態
     drawBtn.disabled = state.isGameOver || !isHumanTurn || human.hand.length >= 2 || state.deck.length === 0;
