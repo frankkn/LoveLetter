@@ -8,7 +8,7 @@
 }
 
 #app {
-  max-width: 1200px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 1rem;
   display: flex;
@@ -137,6 +137,62 @@ h3 {
   flex-direction: column;
   gap: 20px;
   min-width: 0;
+}
+
+.card-stats-area {
+  flex: 0 0 220px;
+  position: sticky;
+  top: 20px;
+  height: fit-content;
+}
+
+.played-card-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card-stat-row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  background: #222;
+  border-radius: 6px;
+  border-left: 3px solid #ff4d4d;
+}
+
+.card-stat-row.empty {
+  opacity: 0.45;
+  border-left-color: #555;
+}
+
+.card-stat-value {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ff4d4d;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.card-stat-name {
+  font-size: 0.9rem;
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-stat-count {
+  color: #ffa502;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
 }
 
 .sidebar-area {
@@ -509,6 +565,17 @@ h3 {
     flex: none;
     width: 100%;
     position: static;
+  }
+
+  .card-stats-area {
+    flex: none;
+    width: 100%;
+    position: static;
+  }
+
+  .played-card-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   }
 
   .log-container {

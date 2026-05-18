@@ -88,6 +88,7 @@ const mainMenuEl = document.getElementById('main-menu')!;
 const modeSelectEl = document.getElementById('mode-select')!;
 const botCountSelectEl = document.getElementById('bot-count-select')!;
 const gameSceneEl = document.getElementById('game-scene')!;
+const playedCardStatsEl = document.getElementById('played-card-stats')!;
 const opponentsContainerEl = document.getElementById('opponents-container')!;
 const playerAreaEl = document.getElementById('player-area')!;
 const playerHandEl = document.getElementById('player-hand')!;
@@ -109,10 +110,40 @@ let endGameReason = '';
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // 6. 渲染函式
+function renderPlayedCardStats() {
+    const counts = new Map<CardType, number>();
+    state.players
+        .flatMap(player => player.discardPile)
+        .forEach(card => counts.set(card.type, (counts.get(card.type) || 0) + 1));
+
+    playedCardStatsEl.innerHTML = '';
+    for (let type = CardType.Guard; type <= CardType.Princess; type++) {
+        const count = counts.get(type) || 0;
+        const row = document.createElement('div');
+        row.className = `card-stat-row ${count === 0 ? 'empty' : ''}`;
+
+        const value = document.createElement('span');
+        value.className = 'card-stat-value';
+        value.textContent = String(type);
+
+        const name = document.createElement('span');
+        name.className = 'card-stat-name';
+        name.textContent = CARD_DEFINITIONS[type].name;
+
+        const total = document.createElement('span');
+        total.className = 'card-stat-count';
+        total.textContent = `${count}/${CARD_DEFINITIONS[type].count}`;
+
+        row.append(value, name, total);
+        playedCardStatsEl.appendChild(row);
+    }
+}
+
 function render() {
     deckCountEl.textContent = `牌堆剩餘：${state.deck.length}`;
     
     const currentPlayer = state.players[state.currentTurnPlayerId];
+    renderPlayedCardStats();
     turnIndicatorEl.textContent = `當前回合：${currentPlayer.name}`;
     
     // 渲染對手區域
