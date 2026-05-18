@@ -94,6 +94,7 @@ const playerHandEl = document.getElementById('player-hand')!;
 const playerDiscardEl = document.getElementById('player-discard')!;
 const deckCountEl = document.getElementById('deck-count')!;
 const drawBtn = document.getElementById('draw-btn') as HTMLButtonElement;
+const showResultBtn = document.getElementById('show-result-btn') as HTMLButtonElement;
 const gameLogEl = document.getElementById('game-log')!;
 const turnIndicatorEl = document.getElementById('turn-indicator')!;
 
@@ -102,6 +103,7 @@ const modalOverlay = document.getElementById('modal-overlay')!;
 const modalTitle = document.getElementById('modal-title')!;
 const modalBody = document.getElementById('modal-body')!;
 const modalFooter = document.getElementById('modal-footer')!;
+let endGameReason = '';
 
 // 5. 輔助函式
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -117,9 +119,11 @@ function render() {
     opponentsContainerEl.innerHTML = '';
     state.players.slice(1).forEach(bot => {
         const botArea = document.createElement('div');
-        const isActive = state.currentTurnPlayerId === bot.id;
-        botArea.className = `area opponent-area ${bot.isProtected ? 'protected' : ''} ${!bot.isAlive ? 'eliminated' : ''} ${isActive ? 'active-turn' : ''}`;
+        const isActive = !state.isGameOver && state.currentTurnPlayerId === bot.id;
+        const isWinner = state.winner?.id === bot.id;
+        botArea.className = `area opponent-area ${bot.isProtected ? 'protected' : ''} ${!bot.isAlive ? 'eliminated' : ''} ${isActive ? 'active-turn' : ''} ${isWinner ? 'winner-area' : ''}`;
         botArea.innerHTML = `
+            ${isWinner ? '<div class="winner-crown" title="勝利者">♛</div>' : ''}
             <h3>${bot.name}</h3>
             <div class="discard-container"></div>
             <div class="hand-container">
@@ -134,7 +138,19 @@ function render() {
     // 渲染玩家區域
     const human = state.players[0];
     const isHumanTurn = state.currentTurnPlayerId === 0;
-    playerAreaEl.className = `area ${human.isProtected ? 'protected' : ''} ${!human.isAlive ? 'eliminated' : ''} ${isHumanTurn ? 'active-turn' : ''}`;
+    const isHumanActive = !state.isGameOver && isHumanTurn;
+    const isHumanWinner = state.winner?.id === human.id;
+    playerAreaEl.className = `area ${human.isProtected ? 'protected' : ''} ${!human.isAlive ? 'eliminated' : ''} ${isHumanActive ? 'active-turn' : ''} ${isHumanWinner ? 'winner-area' : ''}`;
+
+    const existingCrown = playerAreaEl.querySelector('.winner-crown');
+    existingCrown?.remove();
+    if (isHumanWinner) {
+        const crown = document.createElement('div');
+        crown.className = 'winner-crown';
+        crown.title = '勝利者';
+        crown.textContent = '♛';
+        playerAreaEl.prepend(crown);
+    }
     
     playerHandEl.innerHTML = '';
     human.hand.forEach(card => {
@@ -161,6 +177,8 @@ function render() {
 
     // 按鈕狀態
     drawBtn.disabled = state.isGameOver || !isHumanTurn || human.hand.length >= 2 || state.deck.length === 0;
+    drawBtn.style.display = state.isGameOver ? 'none' : 'block';
+    showResultBtn.style.display = state.isGameOver ? 'block' : 'none';
 }
 
 function createCardUI(card: Card, isPlayable: boolean): HTMLElement {
@@ -486,13 +504,19 @@ function checkEndConditions() {
 function endGame(winner: Player, reason: string) {
     state.isGameOver = true;
     state.winner = winner;
+    endGameReason = reason;
     addLog(`【遊戲結束】${winner.name} 獲勝！(${reason})`);
-    showModal("遊戲結束", `<h3 style="color:#ff4d4d; font-size: 2rem;">${winner.name} 獲勝！</h3><p>${reason}</p>`, `<button class="modal-confirm-btn" id="modal-restart-btn">返回主選單</button>`);
+    render();
+}
+
+function showEndGameModal() {
+    if (!state.winner) return;
+
+    showModal("遊戲結束", `<h3 style="color:#ff4d4d; font-size: 2rem;">${state.winner.name} 獲勝！</h3><p>${endGameReason}</p>`, `<button class="modal-confirm-btn" id="modal-restart-btn">返回主選單</button>`);
     document.getElementById('modal-restart-btn')!.onclick = () => {
         closeModal();
         showScene('main-menu');
     };
-    render();
 }
 
 // 8. AI 回合優化
@@ -533,6 +557,7 @@ document.getElementById('back-to-mode-btn')!.onclick = () => showScene('mode-sel
 document.getElementById('back-home-btn')!.onclick = () => {
     if (confirm("確定要放棄目前戰局並返回主選單嗎？")) showScene('main-menu');
 };
+showResultBtn.onclick = showEndGameModal;
 document.getElementById('show-rules-btn')!.onclick = () => {
     showModal("遊戲說明", `
         <div style="text-align: left; font-size: 0.9rem;">
@@ -557,6 +582,7 @@ document.querySelectorAll('.count-btn').forEach(btn => {
 
 // 10. 初始化
 function initGame(botCount: number) {
+    endGameReason = '';
     let deck = createDeck();
     deck = shuffle(deck);
     const burnedCard = deck.pop() || null;
