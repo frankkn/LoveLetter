@@ -2,9 +2,8 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: 'main' # 當 main 分支有 push 時觸發
+    branches: 'main'
 
-# 授權這個 Actions 腳本可以寫入 GitHub Pages
 permissions:
   contents: read
   pages: write
@@ -18,7 +17,7 @@ jobs:
   deploy:
     environment:
       name: github-pages
-      url: ${{ steps: deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -42,7 +41,6 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Vite 預設打包出來的資料夾名稱是 dist
           path: './dist'
 
       - name: Deploy to GitHub Pages
