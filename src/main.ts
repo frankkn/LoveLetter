@@ -59,6 +59,14 @@ export interface GameState {
     aiMemory: Record<number, Record<number, CardType>>;
 }
 
+interface PlayRollback {
+    playerId: number;
+    hand: Card[];
+    discardPile: Card[];
+    isProtected: boolean;
+    logLength: number;
+}
+
 // 2. 宣告原版 16 張卡牌資料
 const CARD_DEFINITIONS: Record<CardType, { name: string; count: number; desc: string }> = {
     [CardType.Guard]: { name: '衛兵', count: 5, desc: '猜對手手牌（衛兵除外），猜中則對方出局。' },
@@ -112,6 +120,7 @@ function shuffle<T>(array: T[]): T[] {
 
 // 3. 全域狀態
 let state: GameState;
+let selectedCardId: string | null = null;
 
 // 4. DOM 元素
 const mainMenuEl = document.getElementById('main-menu')!;
@@ -236,9 +245,20 @@ function render() {
     human.hand.forEach(card => {
         const isPlayable = isHumanTurn && human.hand.length === 2 && !state.isGameOver;
         const cardUI = createCardUI(card, isPlayable);
-        if (isPlayable) {
-            cardUI.onclick = () => handlePlayCardRequest(0, card);
-        }
+        const cardEl = cardUI.querySelector('.card');
+        cardEl?.classList.toggle('card-selected', selectedCardId === card.id);
+        cardUI.onclick = event => {
+            event.stopPropagation();
+            if (selectedCardId !== card.id) {
+                selectedCardId = card.id;
+                render();
+                return;
+            }
+            if (isPlayable) {
+                selectedCardId = null;
+                handlePlayCardRequest(0, card);
+            }
+        };
         playerHandEl.appendChild(cardUI);
     });
 
@@ -321,6 +341,39 @@ function closeModal() {
     modalOverlay.style.display = 'none';
 }
 
+function createPlayRollback(playerId: number): PlayRollback {
+    const player = state.players[playerId];
+    return {
+        playerId,
+        hand: [...player.hand],
+        discardPile: [...player.discardPile],
+        isProtected: player.isProtected,
+        logLength: state.logs.length
+    };
+}
+
+function restorePlayRollback(rollback?: PlayRollback) {
+    if (!rollback) return;
+    const player = state.players[rollback.playerId];
+    player.hand = [...rollback.hand];
+    player.discardPile = [...rollback.discardPile];
+    player.isProtected = rollback.isProtected;
+    state.logs = state.logs.slice(0, rollback.logLength);
+    selectedCardId = null;
+    closeModal();
+    render();
+}
+
+function cancelButtonHTML(): string {
+    return '<button class="modal-cancel-btn" id="modal-cancel-btn">❌ 取消返回</button>';
+}
+
+function bindCancelRollback(rollback?: PlayRollback) {
+    document.getElementById('modal-cancel-btn')?.addEventListener('click', () => {
+        restorePlayRollback(rollback);
+    });
+}
+
 // 7. 核心遊戲邏輯
 function recordGuardGuess(actor: Player, target: Player, guessedType: CardType): Card | null {
     const playedGuard = [...actor.discardPile].reverse().find(discarded => discarded.type === CardType.Guard);
@@ -374,6 +427,7 @@ function drawCard(playerId: number) {
     if (state.deck.length === 0) return;
     const player = state.players[playerId];
     player.isHandRevealed = false;
+    if (!player.isBot) selectedCardId = null;
     const card = state.deck.pop()!;
     player.hand.push(card);
     pruneInvalidKnownCardsForPlayer(playerId);
@@ -413,13 +467,14 @@ function handlePlayCardRequest(playerId: number, card: Card) {
 
 async function executePlayCard(playerId: number, card: Card) {
     const player = state.players[playerId];
+    const rollback = player.isBot ? undefined : createPlayRollback(playerId);
     player.hand = player.hand.filter(c => c.id !== card.id);
     player.discardPile.push(card);
     player.isProtected = false;
 
     addLog(`${player.name} 打出了 ${card.name} (${card.value})`);
     
-    await applyEffect(playerId, card);
+    await applyEffect(playerId, card, true, rollback);
 }
 
 async function endTurn(playerId: number) {
@@ -442,7 +497,7 @@ async function endTurn(playerId: number) {
     }
 }
 
-async function applyEffect(playerId: number, card: Card, shouldEndTurn = true) {
+async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, rollback?: PlayRollback) {
     const player = state.players[playerId];
 
     if (card.type === CardType.Princess) {
@@ -473,14 +528,15 @@ async function applyEffect(playerId: number, card: Card, shouldEndTurn = true) {
                 buttonsHTML += `<button class="target-btn" data-id="${t.id}">${t.name}</button>`;
             });
             buttonsHTML += '</div>';
-            showModal(`請選擇 ${card.name} 的目標`, buttonsHTML);
+            showModal(`請選擇 ${card.name} 的目標`, buttonsHTML, cancelButtonHTML());
+            bindCancelRollback(rollback);
             
             const btns = modalBody.querySelectorAll('.target-btn');
             btns.forEach(btn => {
                 (btn as HTMLElement).onclick = async () => {
                     const targetId = parseInt((btn as HTMLElement).dataset.id!);
                     closeModal();
-                    await resolveTargetEffect(playerId, targetId, card, shouldEndTurn);
+                    await resolveTargetEffect(playerId, targetId, card, shouldEndTurn, rollback);
                 };
             });
         }
@@ -494,7 +550,7 @@ async function applyEffect(playerId: number, card: Card, shouldEndTurn = true) {
     }
 }
 
-async function resolveTargetEffect(actorId: number, targetId: number, card: Card, shouldEndTurn = true) {
+async function resolveTargetEffect(actorId: number, targetId: number, card: Card, shouldEndTurn = true, rollback?: PlayRollback) {
     const actor = state.players[actorId];
     const target = state.players[targetId];
 
@@ -510,7 +566,8 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                     </button>`;
                 }
                 buttonsHTML += '</div>';
-                showModal(`對 ${target.name} 使用衛兵`, "<p>請猜測目標的手牌：</p>" + buttonsHTML);
+                showModal(`對 ${target.name} 使用衛兵`, "<p>請猜測目標的手牌：</p>" + buttonsHTML, cancelButtonHTML());
+                bindCancelRollback(rollback);
                 
                 const btns = modalBody.querySelectorAll('.guess-btn');
                 btns.forEach(btn => {
@@ -580,7 +637,8 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             if (!actor.isBot) {
                 const cardUI = createCardUI(target.hand[0], false);
                 cardUI.style.margin = '0 auto';
-                showModal(`神父：看見 ${target.name} 的手牌`, cardUI.outerHTML, `<button class="modal-confirm-btn" id="modal-ok-btn">我了解了</button>`);
+                showModal(`神父：看見 ${target.name} 的手牌`, cardUI.outerHTML, `<button class="modal-confirm-btn" id="modal-ok-btn">我了解了</button>${cancelButtonHTML()}`);
+                bindCancelRollback(rollback);
                 document.getElementById('modal-ok-btn')!.onclick = async () => {
                     closeModal();
                     if (shouldEndTurn) await endTurn(actorId);
@@ -936,6 +994,12 @@ document.getElementById('back-home-btn')!.onclick = () => {
     if (confirm("確定要放棄目前戰局並返回主選單嗎？")) showScene('main-menu');
 };
 showResultBtn.onclick = showEndGameModal;
+document.addEventListener('click', event => {
+    const target = event.target as HTMLElement;
+    if (!selectedCardId || target.closest('.card-wrapper, .modal-content, button')) return;
+    selectedCardId = null;
+    render();
+});
 document.getElementById('show-rules-btn')!.onclick = () => {
     showModal("遊戲說明", `
         <div style="text-align: left; font-size: 0.92rem; line-height: 1.65; max-height: 68vh; overflow-y: auto; padding-right: 0.4rem;">

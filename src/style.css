@@ -94,13 +94,6 @@ h3 {
   z-index: 1;
 }
 
-.card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 5px 15px rgba(255, 77, 77, 0.4);
-  border-color: #ff4d4d;
-  z-index: 999;
-}
-
 .card-wrapper-hovering .card {
   z-index: 999;
 }
@@ -112,12 +105,6 @@ h3 {
   justify-content: center;
   align-items: center;
   font-size: 2rem;
-  border-color: #555;
-}
-
-.card.ai-card:hover {
-  transform: none;
-  box-shadow: none;
   border-color: #555;
 }
 
@@ -205,13 +192,40 @@ h3 {
   text-align: left;
 }
 
-.card:hover .card-desc {
-  display: block;
+.card.card-selected {
+  transform: translateY(-5px) scale(1.04);
+  border-color: #ff4d4d;
+  box-shadow: 0 0 15px rgba(255, 77, 77, 0.8);
+  z-index: 999;
 }
 
-.card-wrapper-hovering .card-desc {
+.card.card-selected .card-desc {
   display: block;
   z-index: 9999;
+}
+
+@media (hover: hover) {
+  .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(255, 77, 77, 0.4);
+    border-color: #ff4d4d;
+    z-index: 999;
+  }
+
+  .card.ai-card:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: #555;
+  }
+
+  .card:hover .card-desc {
+    display: block;
+  }
+
+  .card-wrapper-hovering .card-desc {
+    display: block;
+    z-index: 9999;
+  }
 }
 
 .card-wrapper-hovering {
@@ -486,6 +500,21 @@ h3 {
   border-radius: 5px;
   cursor: pointer;
   font-weight: bold;
+}
+
+.modal-cancel-btn {
+  padding: 10px 24px;
+  margin-left: 10px;
+  background: #57606f;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.modal-cancel-btn:hover {
+  background: #6b7788;
 }
 
 /* 保護狀態視覺效果 */
