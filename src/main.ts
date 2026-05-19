@@ -437,11 +437,11 @@ function pruneInvalidKnownCardsForPlayer(playerId: number) {
     });
 }
 
-function drawCard(playerId: number) {
-    if (state.isGameOver || isResolvingTurnAction || state.currentTurnPlayerId !== playerId) return;
-    if (state.deck.length === 0) return;
+function drawCard(playerId: number): boolean {
+    if (state.isGameOver || isResolvingTurnAction || state.currentTurnPlayerId !== playerId) return false;
+    if (state.deck.length === 0) return false;
     const player = state.players[playerId];
-    if (!player.isAlive || player.hand.length >= 2) return;
+    if (!player.isAlive || player.hand.length >= 2) return false;
     player.isHandRevealed = false;
     if (!player.isBot) selectedCardId = null;
     const card = state.deck.pop()!;
@@ -449,6 +449,7 @@ function drawCard(playerId: number) {
     pruneInvalidKnownCardsForPlayer(playerId);
     addLog(`${player.name} 抽了一張牌。`);
     render();
+    return true;
 }
 
 function checkCountessConstraint(hand: Card[]): boolean {
@@ -493,16 +494,43 @@ async function executePlayCard(playerId: number, card: Card) {
     await applyEffect(playerId, card, true, rollback);
 }
 
+function getAlivePlayers(): Player[] {
+    return state.players.filter(player => player.isAlive);
+}
+
+function findNextAlivePlayerId(afterPlayerId: number): number | null {
+    if (state.players.length === 0) return null;
+
+    for (let offset = 1; offset <= state.players.length; offset++) {
+        const candidateId = (afterPlayerId + offset) % state.players.length;
+        if (state.players[candidateId].isAlive) {
+            return candidateId;
+        }
+    }
+
+    return null;
+}
+
 async function endTurn(playerId: number) {
     if (state.isGameOver) return;
     
     checkEndConditions();
 
     if (!state.isGameOver) {
-        let nextId = (playerId + 1) % state.players.length;
-        while (!state.players[nextId].isAlive) {
-            nextId = (nextId + 1) % state.players.length;
+        const survivors = getAlivePlayers();
+        if (survivors.length <= 1) {
+            if (survivors.length === 1) {
+                endGame(survivors[0], `作為最後的倖存者`);
+            }
+            return;
         }
+
+        const nextId = findNextAlivePlayerId(playerId);
+        if (nextId === null) {
+            addLog("找不到下一位存活玩家，回合停止。");
+            return;
+        }
+
         state.currentTurnPlayerId = nextId;
         selectedCardId = null;
         isResolvingTurnAction = false;
@@ -510,7 +538,7 @@ async function endTurn(playerId: number) {
 
         if (state.players[nextId].isBot) {
             // 不需要外部 setTimeout，因為 botTurn 內部會等待
-            botTurn(nextId);
+            void botTurn(nextId);
         }
     }
 }
@@ -841,13 +869,15 @@ async function discardAndDraw(targetId: number): Promise<Card | null> {
 
 function eliminate(playerId: number, reason: string) {
     const player = state.players[playerId];
+    if (!player || !player.isAlive) return;
+
     clearKnownCardForPlayer(playerId);
     player.isAlive = false;
     player.discardPile.push(...player.hand);
     player.hand = [];
     addLog(`${player.name}${reason}出局了！`);
     
-    const survivors = state.players.filter(p => p.isAlive);
+    const survivors = getAlivePlayers();
     if (survivors.length === 1) {
         endGame(survivors[0], `作為最後的倖存者`);
     }
@@ -988,12 +1018,14 @@ async function botTurn(botId: number) {
     
     // 階段 1：等待（模擬看牌準備）
     await sleep(1000);
+    if (state.isGameOver || state.currentTurnPlayerId !== botId || !state.players[botId].isAlive) return;
     
     // 階段 2：抽牌
-    drawCard(botId);
+    if (!drawCard(botId)) return;
     
     // 階段 3：模擬思考
     await sleep(1200);
+    if (state.isGameOver || state.currentTurnPlayerId !== botId || !state.players[botId].isAlive) return;
     
     const bot = state.players[botId];
     if (checkCountessConstraint(bot.hand)) {
