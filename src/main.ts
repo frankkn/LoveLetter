@@ -1,4 +1,12 @@
 import './style.css'
+import guardImage from './assets/cards/guard.png';
+import priestImage from './assets/cards/priest.png';
+import baronImage from './assets/cards/baron.png';
+import handmaidImage from './assets/cards/handmaid.png';
+import princeImage from './assets/cards/prince.png';
+import kingImage from './assets/cards/king.png';
+import countessImage from './assets/cards/countess.png';
+import princessImage from './assets/cards/princess.png';
 
 // 1. 定義型別
 export enum CardType {
@@ -60,6 +68,17 @@ const CARD_DEFINITIONS: Record<CardType, { name: string; count: number; desc: st
     [CardType.King]: { name: '國王', count: 1, desc: '與一名對手交換手牌。' },
     [CardType.Countess]: { name: '伯爵夫人', count: 1, desc: '若持有王子或國王，則必須打出此牌。' },
     [CardType.Princess]: { name: '公主', count: 1, desc: '打出或棄掉此牌時，你直接出局。' },
+};
+
+const CARD_IMAGES: Record<CardType, string> = {
+    [CardType.Guard]: guardImage,
+    [CardType.Priest]: priestImage,
+    [CardType.Baron]: baronImage,
+    [CardType.Handmaid]: handmaidImage,
+    [CardType.Prince]: princeImage,
+    [CardType.King]: kingImage,
+    [CardType.Countess]: countessImage,
+    [CardType.Princess]: princessImage
 };
 
 function createDeck(): Card[] {
@@ -256,6 +275,9 @@ function createCardUI(card: Card, isPlayable: boolean): HTMLElement {
         <div class="card-header">
             <span class="card-name">${card.name}</span>
             <div class="card-value">${card.value}</div>
+        </div>
+        <div class="card-img">
+            <img src="${CARD_IMAGES[card.type]}" alt="${card.name}" loading="lazy">
         </div>
         <div class="card-desc">${card.description}</div>
     `;
