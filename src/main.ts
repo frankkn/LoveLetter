@@ -26,6 +26,7 @@ export interface Player {
     id: number;           // 0 為人類玩家，1~3 為電腦
     name: string;         // "玩家", "電腦 A", "電腦 B", "電腦 C"
     isBot: boolean;       // 是否為電腦
+    coins: number;        // 聯賽硬幣數，先取得 4 枚者獲勝
     hand: Card[];         // 手牌 (1~2張)
     isProtected: boolean; // 侍女保護狀態
     isAlive: boolean;     // 是否還活著
@@ -141,6 +142,10 @@ function renderPlayedCardStats() {
     }
 }
 
+function getCoinIcons(coins: number): string {
+    return coins > 0 ? ` ${'🪙'.repeat(coins)}` : '';
+}
+
 function render() {
     deckCountEl.textContent = `牌堆剩餘：${state.deck.length}`;
     
@@ -157,7 +162,7 @@ function render() {
         botArea.className = `area opponent-area ${bot.isProtected ? 'protected' : ''} ${!bot.isAlive ? 'eliminated' : ''} ${isActive ? 'active-turn' : ''} ${isWinner ? 'winner-area' : ''}`;
         botArea.innerHTML = `
             ${isWinner ? '<div class="winner-crown" title="勝利者">♛</div>' : ''}
-            <h3>${bot.name}</h3>
+            <h3>${bot.name}${getCoinIcons(bot.coins)}</h3>
             <div class="discard-container"></div>
             <div class="hand-container">
                 ${bot.hand.map(() => '<div class="card ai-card">?</div>').join('')}
@@ -183,6 +188,11 @@ function render() {
         crown.title = '勝利者';
         crown.textContent = '♛';
         playerAreaEl.prepend(crown);
+    }
+
+    const humanTitle = playerAreaEl.querySelector('h3');
+    if (humanTitle) {
+        humanTitle.textContent = `${human.name}${getCoinIcons(human.coins)} 狀態`;
     }
     
     playerHandEl.innerHTML = '';
@@ -583,21 +593,110 @@ function checkEndConditions() {
     }
 }
 
+function getRankedPlayers() {
+    const sortedPlayers = [...state.players].sort((a, b) => b.coins - a.coins);
+    let currentRank = 0;
+    let lastCoins: number | null = null;
+
+    return sortedPlayers.map(player => {
+        if (lastCoins === null || player.coins < lastCoins) {
+            currentRank += 1;
+            lastCoins = player.coins;
+        }
+
+        return {
+            player,
+            rank: currentRank
+        };
+    });
+}
+
+function getLeagueChampion(): Player | null {
+    return state.players.find(player => player.coins >= 4) ?? null;
+}
+
+function createRankingHTML(): string {
+    const rows = getRankedPlayers().map(({ player, rank }) => `
+        <div style="display: grid; grid-template-columns: 4rem 1fr auto; align-items: center; gap: 0.8rem; padding: 0.75rem 0.85rem; border-radius: 8px; background: ${rank === 1 ? 'rgba(255, 176, 0, 0.18)' : 'rgba(255,255,255,0.06)'}; border: 1px solid ${rank === 1 ? 'rgba(255, 176, 0, 0.38)' : 'rgba(255,255,255,0.08)'};">
+            <strong style="color: ${rank === 1 ? '#ffb000' : '#f2f2f2'};">第 ${rank} 名</strong>
+            <span style="font-weight: 700;">${player.name}</span>
+            <span style="font-size: 1.25rem; letter-spacing: 0.08rem;">${player.coins > 0 ? '🪙'.repeat(player.coins) : '<span style="font-size: 0.9rem; color: #999;">尚未得分</span>'}</span>
+        </div>
+    `).join('');
+
+    return `
+        <div style="text-align: left; line-height: 1.6;">
+            <div style="text-align: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0 0 0.35rem; color: #ffb000; font-size: 1.65rem;">目前聯賽排行榜</h3>
+                <p style="margin: 0; color: #ddd;">先取得 4 枚硬幣的玩家，成為 Love Letter 總冠軍。</p>
+            </div>
+            <div style="display: grid; gap: 0.65rem;">
+                ${rows}
+            </div>
+        </div>
+    `;
+}
+
+function showChampionModal() {
+    const champion = getLeagueChampion();
+    if (!champion) return;
+
+    showModal("聯賽總冠軍", `
+        <div style="text-align: center; line-height: 1.6; padding: 0.35rem 0;">
+            <div style="font-size: 3rem; margin-bottom: 0.3rem;">♛</div>
+            <h3 style="margin: 0; color: #ffb000; font-size: 1.85rem;">${champion.name}</h3>
+            <p style="margin: 0.65rem 0 0; font-size: 1.05rem;">
+                最終拿滿 4 枚硬幣的 Love Letter 總冠軍大贏家！🎉
+            </p>
+            <div style="margin-top: 1rem; font-size: 1.65rem; letter-spacing: 0.12rem;">${'🪙'.repeat(champion.coins)}</div>
+        </div>
+    `, `<button class="modal-confirm-btn" id="champion-return-btn">返回</button>`);
+
+    document.getElementById('champion-return-btn')!.onclick = closeModal;
+}
+
 function endGame(winner: Player, reason: string) {
+    if (state.isGameOver) return;
+
     state.isGameOver = true;
     state.winner = winner;
     endGameReason = reason;
-    addLog(`【遊戲結束】${winner.name} 獲勝！(${reason})`);
+    winner.coins += 1;
+    addLog(`【遊戲結束】${winner.name} 獲勝並獲得 1 枚硬幣！(${reason})`);
     render();
 }
 
 function showEndGameModal() {
     if (!state.winner) return;
 
-    showModal("遊戲結束", `<h3 style="color:#ff4d4d; font-size: 2rem;">${state.winner.name} 獲勝！</h3><p>${endGameReason}</p>`, `<button class="modal-confirm-btn" id="modal-restart-btn">返回主選單</button>`);
-    document.getElementById('modal-restart-btn')!.onclick = () => {
+    const champion = getLeagueChampion();
+    const primaryButton = champion
+        ? `<button class="modal-confirm-btn" id="view-champion-btn">查看獲勝者</button>`
+        : `<button class="modal-confirm-btn" id="next-round-btn">開始下一局</button>`;
+
+    showModal("本局結果", `
+        <div style="text-align: center; margin-bottom: 1rem;">
+            <h3 style="margin: 0; color:#ff4d4d; font-size: 1.65rem;">${state.winner.name} 獲勝！</h3>
+            <p style="margin: 0.35rem 0 0;">${endGameReason}</p>
+        </div>
+        ${createRankingHTML()}
+    `, `${primaryButton}<button class="modal-confirm-btn" id="ranking-return-btn" style="margin-left: 0.65rem; background: #64748b;">返回</button>`);
+
+    const nextRoundBtn = document.getElementById('next-round-btn');
+    if (nextRoundBtn) {
+        nextRoundBtn.onclick = () => {
+            closeModal();
+            startNextRound();
+        };
+    }
+
+    const viewChampionBtn = document.getElementById('view-champion-btn');
+    if (viewChampionBtn) {
+        viewChampionBtn.onclick = showChampionModal;
+    }
+
+    document.getElementById('ranking-return-btn')!.onclick = () => {
         closeModal();
-        showScene('main-menu');
     };
 }
 
@@ -731,7 +830,7 @@ function initGame(botCount: number) {
     const burnedCard = deck.pop() || null;
 
     const players: Player[] = [
-        { id: 0, name: "玩家", isBot: false, hand: [deck.pop()!], isProtected: false, isAlive: true, discardPile: [] }
+        { id: 0, name: "玩家", isBot: false, coins: 0, hand: [deck.pop()!], isProtected: false, isAlive: true, discardPile: [] }
     ];
 
     const botNames = ["電腦 A", "電腦 B", "電腦 C"];
@@ -740,6 +839,7 @@ function initGame(botCount: number) {
             id: i + 1,
             name: botNames[i],
             isBot: true,
+            coins: 0,
             hand: [deck.pop()!],
             isProtected: false,
             isAlive: true,
@@ -759,6 +859,37 @@ function initGame(botCount: number) {
 
     showScene('game-scene');
     render();
+}
+
+function startNextRound() {
+    if (!state.winner) return;
+
+    endGameReason = '';
+    const firstPlayerId = state.winner.id;
+    let deck = createDeck();
+    deck = shuffle(deck);
+    const burnedCard = deck.pop() || null;
+
+    state.players.forEach(player => {
+        player.hand = [deck.pop()!];
+        player.isProtected = false;
+        player.isAlive = true;
+        player.discardPile = [];
+    });
+
+    state.deck = deck;
+    state.burnedCard = burnedCard;
+    state.currentTurnPlayerId = firstPlayerId;
+    state.isGameOver = false;
+    state.winner = null;
+    state.logs = [`新一局開始，${state.players[firstPlayerId].name} 作為上一局勝出者先攻！`];
+
+    showScene('game-scene');
+    render();
+
+    if (state.players[firstPlayerId].isBot) {
+        botTurn(firstPlayerId);
+    }
 }
 
 drawBtn.onclick = () => drawCard(0);
