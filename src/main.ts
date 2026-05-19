@@ -450,14 +450,33 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
         case CardType.Baron:
             addLog(`${actor.name} 與 ${target.name} 秘密比大小！`);
             await sleep(1000);
-            const aVal = actor.hand[0]?.value ?? card.value;
-            const tVal = target.hand[0].value;
+            if (actor.hand.length === 0 || target.hand.length === 0) {
+                addLog("無法比點數，因為其中一方沒有手牌。");
+                if (shouldEndTurn) await endTurn(actorId);
+                else render();
+                break;
+            }
+
+            const actorCard = actor.hand[0];
+            const targetCard = target.hand[0];
+            const aVal = actorCard.value;
+            const tVal = targetCard.value;
+            const aliveBeforeCompare = state.players.filter(p => p.isAlive).length;
+
             if (aVal > tVal) {
+                addLog(`${actor.name}(${actorCard.name} ${aVal}) 與 ${target.name}(${targetCard.name} ${tVal}) 比點數，${target.name} 點數較小攤牌出局！`);
+                if (aliveBeforeCompare === 3) {
+                    addLog(`最後兩名對決者攤牌：${actor.name} 亮出 ${actorCard.name}(${aVal})，${target.name} 亮出 ${targetCard.name}(${tVal})。`);
+                }
                 eliminate(targetId, "男爵比輸了");
             } else if (aVal < tVal) {
+                addLog(`${actor.name}(${actorCard.name} ${aVal}) 與 ${target.name}(${targetCard.name} ${tVal}) 比點數，${actor.name} 點數較小攤牌出局！`);
+                if (aliveBeforeCompare === 3) {
+                    addLog(`最後兩名對決者攤牌：${actor.name} 亮出 ${actorCard.name}(${aVal})，${target.name} 亮出 ${targetCard.name}(${tVal})。`);
+                }
                 eliminate(actorId, "男爵比輸了");
             } else {
-                addLog("點數相同，平安無事。");
+                addLog(`${actor.name}(${actorCard.name} ${aVal}) 與 ${target.name}(${targetCard.name} ${tVal}) 點數相同，平安無事。`);
                 if (shouldEndTurn) await endTurn(actorId);
                 else render();
             }
@@ -511,16 +530,19 @@ async function discardAndDraw(targetId: number) {
         return;
     }
 
-    await applyEffect(targetId, discarded, false);
-    if (state.isGameOver || !player.isAlive) return;
-
     if (state.deck.length > 0) {
         const newCard = state.deck.pop()!;
         player.hand.push(newCard);
+        addLog(`${player.name} 補抽了一張牌。`);
     } else if (state.burnedCard) {
         player.hand.push(state.burnedCard);
         state.burnedCard = null;
+        addLog(`${player.name} 補抽了燒掉的牌。`);
     }
+
+    await applyEffect(targetId, discarded, false);
+    if (state.isGameOver || !player.isAlive) return;
+
     render();
 }
 
