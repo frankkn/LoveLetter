@@ -642,15 +642,76 @@ document.getElementById('back-home-btn')!.onclick = () => {
 showResultBtn.onclick = showEndGameModal;
 document.getElementById('show-rules-btn')!.onclick = () => {
     showModal("遊戲說明", `
-        <div style="text-align: left; font-size: 0.9rem;">
-            <p>1. 每個回合抽一張牌，出一張牌。</p>
-            <p>2. 設法透過卡牌效果淘汰其他對手。</p>
-            <p>3. 牌堆空時，剩餘手牌點數最大者獲勝。</p>
-            <hr>
-            <p>8 公主: 棄掉即出局 | 7 伯爵夫人: 若持有 5,6 則必須打出</p>
-            <p>6 國王: 交換手牌 | 5 王子: 棄牌重抽</p>
-            <p>4 侍女: 一輪保護 | 3 男爵: 比大小</p>
-            <p>2 神父: 看對方手牌 | 1 衛兵: 猜對方手牌</p>
+        <div style="text-align: left; font-size: 0.92rem; line-height: 1.65; max-height: 68vh; overflow-y: auto; padding-right: 0.4rem;">
+            <section style="margin-bottom: 1.35rem;">
+                <h3 style="margin: 0 0 0.75rem; color: #ffb000; font-size: 1.15rem;">1. 卡牌種類與效果（整副牌共 16 張）</h3>
+                <table style="width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 8px; background: rgba(255,255,255,0.04);">
+                    <thead>
+                        <tr style="background: rgba(255,176,0,0.16); color: #ffd36a;">
+                            <th style="padding: 0.65rem 0.7rem; text-align: left; white-space: nowrap;">點數 / 名稱</th>
+                            <th style="padding: 0.65rem 0.7rem; text-align: center; white-space: nowrap;">張數</th>
+                            <th style="padding: 0.65rem 0.7rem; text-align: left;">詳細效果描述</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-top: 1px solid rgba(255,255,255,0.1);">
+                            <td style="padding: 0.7rem; font-weight: 700;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 1.7rem; height: 1.7rem; margin-right: 0.45rem; border-radius: 50%; background: #ff4d4d; color: white;">1</span>衛兵</td>
+                            <td style="padding: 0.7rem; text-align: center; color: #ffb000; font-weight: 700;">5張</td>
+                            <td style="padding: 0.7rem;">選擇一名對手並猜測其手牌（衛兵除外），若猜中則對方直接出局。</td>
+                        </tr>
+                        <tr style="border-top: 1px solid rgba(255,255,255,0.1);">
+                            <td style="padding: 0.7rem; font-weight: 700;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 1.7rem; height: 1.7rem; margin-right: 0.45rem; border-radius: 50%; background: #ff5a5f; color: white;">2</span>神父</td>
+                            <td style="padding: 0.7rem; text-align: center; color: #ffb000; font-weight: 700;">2張</td>
+                            <td style="padding: 0.7rem;">選擇一名對手並秘密查看他的手牌。</td>
+                        </tr>
+                        <tr style="border-top: 1px solid rgba(255,255,255,0.1);">
+                            <td style="padding: 0.7rem; font-weight: 700;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 1.7rem; height: 1.7rem; margin-right: 0.45rem; border-radius: 50%; background: #ef6f6c; color: white;">3</span>男爵</td>
+                            <td style="padding: 0.7rem; text-align: center; color: #ffb000; font-weight: 700;">2張</td>
+                            <td style="padding: 0.7rem;">選擇一名對手秘密比大小，點數較小者直接出局。</td>
+                        </tr>
+                        <tr style="border-top: 1px solid rgba(255,255,255,0.1);">
+                            <td style="padding: 0.7rem; font-weight: 700;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 1.7rem; height: 1.7rem; margin-right: 0.45rem; border-radius: 50%; background: #f28f3b; color: white;">4</span>侍女</td>
+                            <td style="padding: 0.7rem; text-align: center; color: #ffb000; font-weight: 700;">2張</td>
+                            <td style="padding: 0.7rem;">直到你的下個回合開始前，你免疫所有卡牌效果指定。</td>
+                        </tr>
+                        <tr style="border-top: 1px solid rgba(255,255,255,0.1);">
+                            <td style="padding: 0.7rem; font-weight: 700;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 1.7rem; height: 1.7rem; margin-right: 0.45rem; border-radius: 50%; background: #ffb000; color: #1a1a1a;">5</span>王子</td>
+                            <td style="padding: 0.7rem; text-align: center; color: #ffb000; font-weight: 700;">2張</td>
+                            <td style="padding: 0.7rem;">選擇任一玩家（可選自己）棄掉手牌，被迫棄牌者立刻補抽一張，且被棄掉的卡牌會立刻發動效果。</td>
+                        </tr>
+                        <tr style="border-top: 1px solid rgba(255,255,255,0.1);">
+                            <td style="padding: 0.7rem; font-weight: 700;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 1.7rem; height: 1.7rem; margin-right: 0.45rem; border-radius: 50%; background: #49a078; color: white;">6</span>國王</td>
+                            <td style="padding: 0.7rem; text-align: center; color: #ffb000; font-weight: 700;">1張</td>
+                            <td style="padding: 0.7rem;">選擇一名對手並與他秘密交換手牌。</td>
+                        </tr>
+                        <tr style="border-top: 1px solid rgba(255,255,255,0.1);">
+                            <td style="padding: 0.7rem; font-weight: 700;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 1.7rem; height: 1.7rem; margin-right: 0.45rem; border-radius: 50%; background: #5f8dd3; color: white;">7</span>伯爵夫人</td>
+                            <td style="padding: 0.7rem; text-align: center; color: #ffb000; font-weight: 700;">1張</td>
+                            <td style="padding: 0.7rem;">若手上另一張牌是[5]王子或[6]國王，則必須強制打出此牌。</td>
+                        </tr>
+                        <tr style="border-top: 1px solid rgba(255,255,255,0.1);">
+                            <td style="padding: 0.7rem; font-weight: 700;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 1.7rem; height: 1.7rem; margin-right: 0.45rem; border-radius: 50%; background: #8f5fd3; color: white;">8</span>公主</td>
+                            <td style="padding: 0.7rem; text-align: center; color: #ffb000; font-weight: 700;">1張</td>
+                            <td style="padding: 0.7rem;">此卡不論因何種原因被主動打出或被迫棄掉，你都將立刻直接出局。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section style="margin-bottom: 1.1rem;">
+                <h3 style="margin: 0 0 0.45rem; color: #ffb000; font-size: 1.08rem;">2. 遊戲流程</h3>
+                <p style="margin: 0;">遊戲開始時，會先從 16 張卡牌中隨機移除一張（銷毀牌）。每位玩家先發一張手牌。每個回合「抽一張牌，選一張牌打出」，設法透過卡牌效果淘汰其他對手。</p>
+            </section>
+
+            <section style="margin-bottom: 1.1rem;">
+                <h3 style="margin: 0 0 0.45rem; color: #ffb000; font-size: 1.08rem;">3. 勝負判定</h3>
+                <p style="margin: 0;">當牌堆沒有卡牌時，所有存活玩家攤牌比點數，點數最大者獲勝。若點數相同，則比較各自已打出牌堆的點數總和，大者獲勝。</p>
+            </section>
+
+            <section>
+                <h3 style="margin: 0 0 0.45rem; color: #ffb000; font-size: 1.08rem;">4. 次局規則</h3>
+                <p style="margin: 0;">每局遊戲結束後，由該局的勝出者擔任下一局遊戲的先攻（最先開始抽卡的人）。</p>
+            </section>
         </div>
     `, `<button class="modal-confirm-btn" onclick="this.closest('.modal-overlay').style.display='none'">關閉</button>`);
 };
