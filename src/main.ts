@@ -452,12 +452,10 @@ function handlePlayCardRequest(playerId: number, card: Card) {
         return;
     }
 
-    if (card.type === CardType.Princess && player.hand.length === 2) {
+    if (!player.isBot && card.type === CardType.Princess && player.hand.length === 2) {
         const other = player.hand.find(c => c.id !== card.id);
         if (other && other.type !== CardType.Princess) {
-           if (!player.isBot) {
-               showModal("提示", "<p>公主不能主動打出！</p>", `<button class="modal-confirm-btn" onclick="this.closest('.modal-overlay').style.display='none'">我知道了</button>`);
-           }
+           showModal("提示", "<p>公主不能主動打出！</p>", `<button class="modal-confirm-btn" onclick="this.closest('.modal-overlay').style.display='none'">我知道了</button>`);
            return;
         }
     }
@@ -519,7 +517,13 @@ async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, r
         }
 
         if (player.isBot) {
-            const target = allPotentialTargets[Math.floor(Math.random() * allPotentialTargets.length)];
+            let botTargets = allPotentialTargets;
+            if (card.type === CardType.Prince) {
+                const opponentTargets = allPotentialTargets.filter(target => target.id !== playerId);
+                botTargets = opponentTargets.length > 0 ? opponentTargets : allPotentialTargets.filter(target => target.id === playerId);
+            }
+
+            const target = botTargets[Math.floor(Math.random() * botTargets.length)];
             await sleep(1000); // 模擬選標準備
             await resolveTargetEffect(playerId, target.id, card, shouldEndTurn);
         } else {
@@ -973,6 +977,16 @@ async function botTurn(botId: number) {
         await handlePlayCardRequest(botId, bot.hand.find(c => c.type === CardType.Countess)!);
         return;
     }
+
+    const hasPrince = bot.hand.some(c => c.type === CardType.Prince);
+    const hasPrincess = bot.hand.some(c => c.type === CardType.Princess);
+    const princeOpponentTargets = state.players.filter(p => p.id !== botId && p.isAlive && !p.isProtected);
+
+    if (hasPrince && hasPrincess && princeOpponentTargets.length === 0) {
+        await handlePlayCardRequest(botId, bot.hand.find(c => c.type === CardType.Princess)!);
+        return;
+    }
+
     let playable = bot.hand.filter(c => c.type !== CardType.Princess);
     if (playable.length === 0) playable = bot.hand;
     const cardToPlay = playable[Math.floor(Math.random() * playable.length)];
