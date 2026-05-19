@@ -56,6 +56,7 @@ export interface GameState {
     isGameOver: boolean;
     winner: Player | null;
     logs: string[];
+    aiMemory: Record<number, Record<number, CardType>>;
 }
 
 // 2. 宣告原版 16 張卡牌資料
@@ -338,10 +339,32 @@ function addLog(msg: string) {
     render();
 }
 
+function createAIMemory(players: Player[]): Record<number, Record<number, CardType>> {
+    return players
+        .filter(player => player.isBot)
+        .reduce<Record<number, Record<number, CardType>>>((memory, bot) => {
+            memory[bot.id] = {};
+            return memory;
+        }, {});
+}
+
+function rememberKnownCard(observerId: number, targetId: number, cardType: CardType) {
+    if (!state.players[observerId]?.isBot) return;
+    state.aiMemory[observerId] ??= {};
+    state.aiMemory[observerId][targetId] = cardType;
+}
+
+function clearKnownCardForPlayer(playerId: number) {
+    Object.values(state.aiMemory).forEach(memory => {
+        delete memory[playerId];
+    });
+}
+
 function drawCard(playerId: number) {
     if (state.deck.length === 0) return;
     const player = state.players[playerId];
     player.isHandRevealed = false;
+    clearKnownCardForPlayer(playerId);
     const card = state.deck.pop()!;
     player.hand.push(card);
     addLog(`${player.name} 抽了一張牌。`);
@@ -510,7 +533,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                     };
                 });
             } else {
-                const guessNum = getAISmartGuess(actorId);
+                const guessNum = getAISmartGuess(actorId, targetId);
                 const playedGuard = recordGuardGuess(actor, target, guessNum as CardType);
                 const guessedName = CARD_DEFINITIONS[guessNum as CardType].name;
                 addLog(`${actor.name} 對 ${target.name} 猜測 ${guessNum} (${CARD_DEFINITIONS[guessNum as CardType].name})`);
@@ -538,6 +561,9 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             break;
 
         case CardType.Priest:
+            if (actor.isBot && target.hand[0]) {
+                rememberKnownCard(actorId, targetId, target.hand[0].type);
+            }
             card.actionHints = [
                 { text: `🎯 對 ${target.name} 使用` }
             ];
@@ -610,6 +636,8 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                     { text: `🎯 對 ${target.name} 比大小` },
                     { text: '🤝 平手', variant: 'tie' }
                 ];
+                rememberKnownCard(actorId, targetId, targetCard.type);
+                rememberKnownCard(targetId, actorId, actorCard.type);
                 addLog(`${actor.name} 與 ${target.name} 點數相同，平安無事。`);
                 if (shouldEndTurn) await endTurn(actorId);
                 else render();
@@ -642,13 +670,20 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             const temp = actor.hand;
             actor.hand = target.hand;
             target.hand = temp;
+            clearKnownCardForPlayer(actorId);
+            clearKnownCardForPlayer(targetId);
             if (shouldEndTurn) await endTurn(actorId);
             else render();
             break;
     }
 }
 
-function getAISmartGuess(botId: number): number {
+function getAISmartGuess(botId: number, targetId: number): number {
+    const rememberedType = state.aiMemory[botId]?.[targetId];
+    if (rememberedType && rememberedType !== CardType.Guard) {
+        return rememberedType;
+    }
+
     const knownCounts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 };
     state.players.forEach(p => {
         p.discardPile.forEach(c => knownCounts[c.value]++);
@@ -667,6 +702,7 @@ function getAISmartGuess(botId: number): number {
 async function discardAndDraw(targetId: number): Promise<Card | null> {
     const player = state.players[targetId];
     if (player.hand.length === 0) return null;
+    clearKnownCardForPlayer(targetId);
     const discarded = player.hand.pop()!;
     player.discardPile.push(discarded);
     addLog(`${player.name} 棄掉了 ${discarded.name}`);
@@ -695,6 +731,7 @@ async function discardAndDraw(targetId: number): Promise<Card | null> {
 
 function eliminate(playerId: number, reason: string) {
     const player = state.players[playerId];
+    clearKnownCardForPlayer(playerId);
     player.isAlive = false;
     player.discardPile.push(...player.hand);
     player.hand = [];
@@ -992,7 +1029,8 @@ function initGame(botCount: number) {
         currentTurnPlayerId: 0,
         isGameOver: false,
         winner: null,
-        logs: ["遊戲開始，玩家先攻！"]
+        logs: ["遊戲開始，玩家先攻！"],
+        aiMemory: createAIMemory(players)
     };
 
     showScene('game-scene');
@@ -1022,6 +1060,7 @@ function startNextRound() {
     state.isGameOver = false;
     state.winner = null;
     state.logs = [`新一局開始，${state.players[firstPlayerId].name} 作為上一局勝出者先攻！`];
+    state.aiMemory = createAIMemory(state.players);
 
     showScene('game-scene');
     render();
