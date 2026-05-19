@@ -499,11 +499,14 @@ function getAlivePlayers(): Player[] {
 }
 
 function findNextAlivePlayerId(afterPlayerId: number): number | null {
-    if (state.players.length === 0) return null;
+    const totalPlayers = state.players.length;
+    if (totalPlayers === 0) return null;
 
-    for (let offset = 1; offset <= state.players.length; offset++) {
-        const candidateId = (afterPlayerId + offset) % state.players.length;
-        if (state.players[candidateId].isAlive) {
+    const startIndex = ((afterPlayerId % totalPlayers) + totalPlayers) % totalPlayers;
+    for (let offset = 1; offset <= totalPlayers; offset++) {
+        const candidateId = (startIndex + offset) % totalPlayers;
+        const candidate = state.players[candidateId];
+        if (candidate?.isAlive) {
             return candidateId;
         }
     }
@@ -527,7 +530,10 @@ async function endTurn(playerId: number) {
 
         const nextId = findNextAlivePlayerId(playerId);
         if (nextId === null) {
+            selectedCardId = null;
+            isResolvingTurnAction = false;
             addLog("找不到下一位存活玩家，回合停止。");
+            render();
             return;
         }
 
@@ -1014,7 +1020,7 @@ function showEndGameModal() {
 
 // 8. AI 回合優化
 async function botTurn(botId: number) {
-    if (state.isGameOver || state.currentTurnPlayerId !== botId) return;
+    if (state.isGameOver || state.currentTurnPlayerId !== botId || !state.players[botId]?.isAlive) return;
     
     // 階段 1：等待（模擬看牌準備）
     await sleep(1000);
