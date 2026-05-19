@@ -512,6 +512,7 @@ async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, r
 
     if (card.type === CardType.Princess) {
         eliminate(playerId, "打出或棄掉了公主");
+        if (shouldEndTurn && !state.isGameOver) await endTurn(playerId);
         return;
     }
 
@@ -602,6 +603,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                             }
                             addLog("猜中了！");
                             eliminate(targetId, "被衛兵猜中手牌");
+                            if (shouldEndTurn && !state.isGameOver) await endTurn(actorId);
                         } else {
                             if (playedGuard) {
                                 playedGuard.actionHints = [
@@ -629,6 +631,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                     }
                     addLog("猜中了！");
                     eliminate(targetId, "被衛兵猜中手牌");
+                    if (shouldEndTurn && !state.isGameOver) await endTurn(actorId);
                 } else {
                     if (playedGuard) {
                         playedGuard.actionHints = [
@@ -699,6 +702,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 render();
                 await sleep(2000);
                 eliminate(targetId, "男爵比輸了");
+                if (shouldEndTurn && !state.isGameOver) await endTurn(actorId);
             } else if (aVal < tVal) {
                 card.actionHints = [
                     { text: `🎯 對 ${target.name} 比大小` },
@@ -715,6 +719,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 render();
                 await sleep(2000);
                 eliminate(actorId, "男爵比輸了");
+                if (shouldEndTurn && !state.isGameOver) await endTurn(actorId);
             } else {
                 card.actionHints = [
                     { text: `🎯 對 ${target.name} 比大小` },
@@ -837,10 +842,6 @@ function eliminate(playerId: number, reason: string) {
     const survivors = state.players.filter(p => p.isAlive);
     if (survivors.length === 1) {
         endGame(survivors[0], `作為最後的倖存者`);
-    } else {
-        if (state.currentTurnPlayerId === playerId) {
-            endTurn(playerId);
-        }
     }
 }
 
