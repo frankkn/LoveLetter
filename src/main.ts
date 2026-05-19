@@ -1019,6 +1019,68 @@ function showEndGameModal() {
 }
 
 // 8. AI 回合優化
+function getAICardPlayWeight(bot: Player, card: Card): number {
+    const remainingCard = bot.hand.find(handCard => handCard.id !== card.id);
+    let weight = 10;
+
+    switch (card.type) {
+        case CardType.Guard:
+            weight = 18;
+            break;
+        case CardType.Priest:
+            weight = 12;
+            break;
+        case CardType.Baron:
+            weight = 8;
+            if (remainingCard) {
+                if (remainingCard.value <= CardType.Guard) weight = 0.1;
+                else if (remainingCard.value <= CardType.Priest) weight = 2;
+                else if (remainingCard.value >= CardType.Prince) weight = 15;
+            }
+            break;
+        case CardType.Handmaid:
+            weight = 9;
+            break;
+        case CardType.Prince:
+            weight = 10;
+            break;
+        case CardType.King:
+            weight = 7;
+            break;
+        case CardType.Countess:
+            weight = 6;
+            break;
+        case CardType.Princess:
+            weight = 0.1;
+            break;
+    }
+
+    return weight;
+}
+
+function chooseAICardToPlay(bot: Player): Card {
+    const guard = bot.hand.find(card => card.type === CardType.Guard);
+    const baron = bot.hand.find(card => card.type === CardType.Baron);
+    if (guard && baron) return guard;
+
+    let playable = bot.hand.filter(card => card.type !== CardType.Princess);
+    if (playable.length === 0) playable = bot.hand;
+
+    const weightedCards = playable.map(card => ({
+        card,
+        weight: Math.max(0.1, getAICardPlayWeight(bot, card))
+    }));
+    const totalWeight = weightedCards.reduce((sum, item) => sum + item.weight, 0);
+    let roll = Math.random() * totalWeight;
+
+    for (const item of weightedCards) {
+        roll -= item.weight;
+        if (roll <= 0) return item.card;
+    }
+
+    return weightedCards[weightedCards.length - 1].card;
+}
+
 async function botTurn(botId: number) {
     if (state.isGameOver || state.currentTurnPlayerId !== botId || !state.players[botId]?.isAlive) return;
     
@@ -1048,9 +1110,7 @@ async function botTurn(botId: number) {
         return;
     }
 
-    let playable = bot.hand.filter(c => c.type !== CardType.Princess);
-    if (playable.length === 0) playable = bot.hand;
-    const cardToPlay = playable[Math.floor(Math.random() * playable.length)];
+    const cardToPlay = chooseAICardToPlay(bot);
     
     await handlePlayCardRequest(botId, cardToPlay);
 }
