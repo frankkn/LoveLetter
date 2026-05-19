@@ -123,14 +123,37 @@ h3 {
   line-height: 1.2;
 }
 
-.card-play-note {
-  margin-top: 4px;
-  padding-top: 4px;
-  border-top: 1px solid rgba(47, 53, 66, 0.2);
+.card-action-hints {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 5px;
+  display: grid;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.card-action-hint {
+  overflow: hidden;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: rgba(47, 53, 66, 0.09);
   color: #2f3542;
-  font-size: 0.62rem;
-  font-weight: bold;
-  line-height: 1.2;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-action-hint-danger {
+  background: rgba(214, 48, 49, 0.82);
+  color: #fff;
+}
+
+.card-action-hint-tie {
+  background: rgba(47, 53, 66, 0.78);
+  color: #fff;
 }
 
 /* 遊戲場景佈局 */

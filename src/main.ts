@@ -18,8 +18,14 @@ export interface Card {
     readonly name: string;
     readonly value: number;
     readonly description: string;
+    actionHints?: CardActionHint[];
     targetName?: string;
     guessedCardName?: string;
+}
+
+export interface CardActionHint {
+    text: string;
+    variant?: 'default' | 'danger' | 'tie';
 }
 
 export interface Player {
@@ -239,8 +245,11 @@ function createCardUI(card: Card, isPlayable: boolean): HTMLElement {
     const div = document.createElement('div');
     div.className = 'card';
     if (!isPlayable) div.style.cursor = 'default';
-    const playNote = card.targetName && card.guessedCardName
-        ? `<div class="card-play-note">🎯 對 ${card.targetName} 猜: ${card.guessedCardName}</div>`
+    const actionHints = card.actionHints ?? (card.targetName && card.guessedCardName
+        ? [{ text: `🎯 對 ${card.targetName} 猜: ${card.guessedCardName}` }]
+        : []);
+    const actionHintHTML = actionHints.length > 0
+        ? `<div class="card-action-hints">${actionHints.map(hint => `<div class="card-action-hint ${hint.variant ? `card-action-hint-${hint.variant}` : ''}">${hint.text}</div>`).join('')}</div>`
         : '';
     div.innerHTML = `
         <div class="card-header">
@@ -248,7 +257,7 @@ function createCardUI(card: Card, isPlayable: boolean): HTMLElement {
             <div class="card-value">${card.value}</div>
         </div>
         <div class="card-desc">${card.description}</div>
-        ${playNote}
+        ${actionHintHTML}
     `;
     return div;
 }
@@ -272,6 +281,9 @@ function recordGuardGuess(actor: Player, target: Player, guessedType: CardType) 
 
     playedGuard.targetName = target.name;
     playedGuard.guessedCardName = CARD_DEFINITIONS[guessedType].name;
+    playedGuard.actionHints = [
+        { text: `🎯 對 ${target.name} 猜 ${CARD_DEFINITIONS[guessedType].name}` }
+    ];
 }
 
 function addLog(msg: string) {
@@ -453,6 +465,9 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             break;
 
         case CardType.Priest:
+            card.actionHints = [
+                { text: `🎯 對 ${target.name} 使用` }
+            ];
             if (!actor.isBot) {
                 const cardUI = createCardUI(target.hand[0], false);
                 cardUI.style.margin = '0 auto';
@@ -486,6 +501,10 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             const aliveBeforeCompare = state.players.filter(p => p.isAlive).length;
 
             if (aVal > tVal) {
+                card.actionHints = [
+                    { text: `🎯 對 ${target.name} 比大小` },
+                    { text: `❌ ${target.name}輸了 (${targetCard.name})`, variant: 'danger' }
+                ];
                 if (aliveBeforeCompare === 2) {
                     actor.isHandRevealed = true;
                     target.isHandRevealed = true;
@@ -498,6 +517,10 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 await sleep(2000);
                 eliminate(targetId, "男爵比輸了");
             } else if (aVal < tVal) {
+                card.actionHints = [
+                    { text: `🎯 對 ${target.name} 比大小` },
+                    { text: `❌ ${actor.name}輸了 (${actorCard.name})`, variant: 'danger' }
+                ];
                 if (aliveBeforeCompare === 2) {
                     actor.isHandRevealed = true;
                     target.isHandRevealed = true;
@@ -510,6 +533,10 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 await sleep(2000);
                 eliminate(actorId, "男爵比輸了");
             } else {
+                card.actionHints = [
+                    { text: `🎯 對 ${target.name} 比大小` },
+                    { text: '🤝 平手', variant: 'tie' }
+                ];
                 addLog(`${actor.name} 與 ${target.name} 點數相同，平安無事。`);
                 if (shouldEndTurn) await endTurn(actorId);
                 else render();
@@ -517,14 +544,26 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             break;
 
         case CardType.Prince:
+            card.actionHints = [
+                { text: `🎯 對 ${target.name} 使用` }
+            ];
             addLog(`${actor.name} 強迫 ${target.name} 棄牌！`);
             await sleep(500);
-            await discardAndDraw(targetId);
+            const discardedByPrince = await discardAndDraw(targetId);
+            if (discardedByPrince) {
+                card.actionHints = [
+                    { text: `🎯 對 ${target.name} 使用` },
+                    { text: `🗑️ 丟棄了 ${discardedByPrince.name}` }
+                ];
+            }
             if (shouldEndTurn) await endTurn(actorId);
             else render();
             break;
 
         case CardType.King:
+            card.actionHints = [
+                { text: `🎯 對 ${target.name} 交換手牌` }
+            ];
             addLog(`${actor.name} 與 ${target.name} 交換手牌！`);
             await sleep(500);
             const temp = actor.hand;
@@ -552,16 +591,16 @@ function getAISmartGuess(botId: number): number {
     return possibleGuesses.length > 0 ? possibleGuesses[Math.floor(Math.random() * possibleGuesses.length)] : 2;
 }
 
-async function discardAndDraw(targetId: number) {
+async function discardAndDraw(targetId: number): Promise<Card | null> {
     const player = state.players[targetId];
-    if (player.hand.length === 0) return;
+    if (player.hand.length === 0) return null;
     const discarded = player.hand.pop()!;
     player.discardPile.push(discarded);
     addLog(`${player.name} 棄掉了 ${discarded.name}`);
 
     if (discarded.type === CardType.Princess) {
         eliminate(targetId, "棄掉了公主");
-        return;
+        return discarded;
     }
 
     if (state.deck.length > 0) {
@@ -575,9 +614,10 @@ async function discardAndDraw(targetId: number) {
     }
 
     await applyEffect(targetId, discarded, false);
-    if (state.isGameOver || !player.isAlive) return;
+    if (state.isGameOver || !player.isAlive) return discarded;
 
     render();
+    return discarded;
 }
 
 function eliminate(playerId: number, reason: string) {
