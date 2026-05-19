@@ -245,25 +245,35 @@ function createCardUI(card: Card, isPlayable: boolean): HTMLElement {
     const wrapper = document.createElement('div');
     wrapper.className = 'card-wrapper';
     if (!isPlayable) wrapper.style.cursor = 'default';
+
     const actionHints = card.actionHints ?? (card.targetName && card.guessedCardName
         ? [{ text: `🎯 對 ${card.targetName} 猜: ${card.guessedCardName}` }]
         : []);
-    const actionHintHTML = actionHints.length > 0
-        ? `<div class="card-action-hints">${actionHints.map(hint => `<div class="card-action-hint ${hint.variant ? `card-action-hint-${hint.variant}` : ''}">${hint.text}</div>`).join('')}</div>`
-        : '';
-    wrapper.innerHTML = `
-        <div class="card">
-            <div class="card-header">
-                <span class="card-name">${card.name}</span>
-                <div class="card-value">${card.value}</div>
-            </div>
-            <div class="card-desc">${card.description}</div>
+
+    const cardDiv = document.createElement('div');
+    cardDiv.className = 'card';
+    cardDiv.innerHTML = `
+        <div class="card-header">
+            <span class="card-name">${card.name}</span>
+            <div class="card-value">${card.value}</div>
         </div>
-        ${actionHintHTML}
+        <div class="card-desc">${card.description}</div>
     `;
+    wrapper.appendChild(cardDiv);
+
+    if (actionHints.length > 0) {
+        const hintsDiv = document.createElement('div');
+        hintsDiv.className = 'card-action-hints';
+        hintsDiv.innerHTML = actionHints.map(hint => `
+            <div class="card-action-hint ${hint.variant ? `card-action-hint-${hint.variant}` : ''}">
+                ${hint.text}
+            </div>
+        `).join('');
+        wrapper.appendChild(hintsDiv);
+    }
+
     if (!isPlayable) {
-        const cardEl = wrapper.querySelector('.card') as HTMLElement;
-        cardEl.style.cursor = 'default';
+        cardDiv.style.cursor = 'default';
     }
     return wrapper;
 }
@@ -281,15 +291,16 @@ function closeModal() {
 }
 
 // 7. 核心遊戲邏輯
-function recordGuardGuess(actor: Player, target: Player, guessedType: CardType) {
+function recordGuardGuess(actor: Player, target: Player, guessedType: CardType): Card | null {
     const playedGuard = [...actor.discardPile].reverse().find(discarded => discarded.type === CardType.Guard);
-    if (!playedGuard) return;
+    if (!playedGuard) return null;
 
     playedGuard.targetName = target.name;
     playedGuard.guessedCardName = CARD_DEFINITIONS[guessedType].name;
     playedGuard.actionHints = [
         { text: `🎯 對 ${target.name} 猜 ${CARD_DEFINITIONS[guessedType].name}` }
     ];
+    return playedGuard;
 }
 
 function addLog(msg: string) {
@@ -442,13 +453,26 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 btns.forEach(btn => {
                     (btn as HTMLElement).onclick = async () => {
                         const val = parseInt((btn as HTMLElement).dataset.value!);
-                        recordGuardGuess(actor, target, val as CardType);
+                        const playedGuard = recordGuardGuess(actor, target, val as CardType);
+                        const guessedName = CARD_DEFINITIONS[val as CardType].name;
                         closeModal();
                         addLog(`${actor.name} 對 ${target.name} 猜測 ${val}`);
                         if (target.hand[0].value === val) {
+                            if (playedGuard) {
+                                playedGuard.actionHints = [
+                                    { text: `🎯 對 ${target.name} 猜 ${guessedName}` },
+                                    { text: `💥 猜中了！${target.name}出局`, variant: 'danger' }
+                                ];
+                            }
                             addLog("猜中了！");
                             eliminate(targetId, "被衛兵猜中手牌");
                         } else {
+                            if (playedGuard) {
+                                playedGuard.actionHints = [
+                                    { text: `🎯 對 ${target.name} 猜 ${guessedName}` },
+                                    { text: '❌ 猜錯了', variant: 'tie' }
+                                ];
+                            }
                             addLog("猜錯了。");
                             if (shouldEndTurn) await endTurn(actorId);
                             else render();
@@ -457,12 +481,25 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 });
             } else {
                 const guessNum = getAISmartGuess(actorId);
-                recordGuardGuess(actor, target, guessNum as CardType);
+                const playedGuard = recordGuardGuess(actor, target, guessNum as CardType);
+                const guessedName = CARD_DEFINITIONS[guessNum as CardType].name;
                 addLog(`${actor.name} 對 ${target.name} 猜測 ${guessNum} (${CARD_DEFINITIONS[guessNum as CardType].name})`);
                 if (target.hand[0].value === guessNum) {
+                    if (playedGuard) {
+                        playedGuard.actionHints = [
+                            { text: `🎯 對 ${target.name} 猜 ${guessedName}` },
+                            { text: `💥 猜中了！${target.name}出局`, variant: 'danger' }
+                        ];
+                    }
                     addLog("猜中了！");
                     eliminate(targetId, "被衛兵猜中手牌");
                 } else {
+                    if (playedGuard) {
+                        playedGuard.actionHints = [
+                            { text: `🎯 對 ${target.name} 猜 ${guessedName}` },
+                            { text: '❌ 猜錯了', variant: 'tie' }
+                        ];
+                    }
                     addLog("猜錯了。");
                     if (shouldEndTurn) await endTurn(actorId);
                     else render();

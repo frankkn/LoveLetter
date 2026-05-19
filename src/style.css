@@ -162,7 +162,8 @@ h3 {
 }
 
 .card-action-hint {
-  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
   padding: 3px 5px;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.08);
@@ -171,8 +172,8 @@ h3 {
   font-weight: 700;
   line-height: 1.2;
   text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-all;
 }
 
 .card-action-hint-danger {
