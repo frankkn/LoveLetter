@@ -693,6 +693,7 @@ async function executePlayCard(playerId: number, card: Card) {
     player.isProtected = false;
 
     addLog(`${player.name} 打出了 ${card.name} (${card.value})`);
+    syncOnlineGameState();
     
     await applyEffect(playerId, card, true, rollback);
     if (modalOverlay.style.display !== 'flex') {
@@ -1697,7 +1698,15 @@ function createOnlineGameStateData(): OnlineGameStateData {
 
 function syncOnlineGameState() {
     if (!isOnlineGameActive() || isApplyingOnlineState) return;
-    activeGameRoom?.send('sync_game_state', createOnlineGameStateData());
+
+    const room = activeGameRoom;
+    if (!room) return;
+
+    try {
+        room.send('sync_game_state', createOnlineGameStateData());
+    } catch (error) {
+        console.warn('Failed to sync online game state:', error);
+    }
 }
 
 function syncOnlineGameStateThenRender() {
