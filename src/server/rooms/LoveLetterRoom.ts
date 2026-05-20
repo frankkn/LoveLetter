@@ -19,6 +19,7 @@ class LobbyException extends ServerError {
 
 export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
     private password: string | null = null;
+    private initialGameData: unknown | null = null;
 
     async onCreate(options: CreateRoomOptions = {}) {
         this.maxClients = 4;
@@ -73,7 +74,15 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
                 throw new LobbyException("Cannot initialize the game before it starts.");
             }
 
+            this.initialGameData = data;
             this.broadcast("init_game_data", data);
+        });
+
+        this.onMessage("request_game_data", client => {
+            this.getPlayerOrThrow(client.sessionId);
+            if (this.initialGameData) {
+                client.send("init_game_data", this.initialGameData);
+            }
         });
 
         console.log(`[LoveLetterRoom] Created room ${this.roomId}. Password protected: ${state.hasPassword}`);

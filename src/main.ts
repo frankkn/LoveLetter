@@ -1530,6 +1530,7 @@ function applyOnlineGameData(data: OnlineGameData) {
     };
 
     onlineGameInitialized = true;
+    closeModal();
     showScene('game-scene');
     render();
 }
@@ -1538,10 +1539,15 @@ function initOnlineGame(roomState: RoomWaitViewState) {
     if (onlineGameInitialized) return;
 
     const selfPlayer = roomState.players.find(player => player.id === roomState.selfId);
-    if (!selfPlayer?.isHost) return;
+    if (!selfPlayer?.isHost) {
+        activeGameRoom?.send('request_game_data');
+        return;
+    }
 
-    const gameData = createInitialOnlineGameData(roomState);
-    activeGameRoom?.send('init_game_data', gameData);
+    window.setTimeout(() => {
+        const gameData = createInitialOnlineGameData(roomState);
+        activeGameRoom?.send('init_game_data', gameData);
+    }, 100);
 }
 
 function renderLobbyList(rooms: LobbyRoomSummary[]) {
