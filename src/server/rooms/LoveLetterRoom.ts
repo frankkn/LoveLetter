@@ -87,7 +87,7 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
             }
 
             this.latestGameState = data;
-            this.broadcast("sync_game_state", data, { except: client });
+            this.broadcast("sync_game_state", data);
         });
 
         this.onMessage("request_game_data", client => {

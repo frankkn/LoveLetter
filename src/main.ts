@@ -459,7 +459,6 @@ function render() {
     drawBtn.disabled = state.isGameOver || isResolvingTurnAction || !isHumanTurn || !human.isAlive || human.hand.length >= 2 || state.deck.length === 0;
     drawBtn.style.display = state.isGameOver ? 'none' : 'block';
     showResultBtn.style.display = state.isGameOver ? 'block' : 'none';
-    syncOnlineGameState();
 }
 
 function createCardUI(card: Card, isPlayable: boolean): HTMLElement {
@@ -640,6 +639,7 @@ function drawCard(playerId: number): boolean {
     pruneInvalidKnownCardsForPlayer(playerId);
     addLog(`${player.name} 抽了一張牌。`);
     render();
+    syncOnlineGameState();
     return true;
 }
 
@@ -684,6 +684,9 @@ async function executePlayCard(playerId: number, card: Card) {
     addLog(`${player.name} 打出了 ${card.name} (${card.value})`);
     
     await applyEffect(playerId, card, true, rollback);
+    if (modalOverlay.style.display !== 'flex') {
+        syncOnlineGameState();
+    }
 }
 
 function getAlivePlayers(): Player[] {
@@ -729,6 +732,7 @@ function handoffTurnIfCurrentPlayerWasEliminated(eliminatedPlayerId: number) {
     state.currentTurnPlayerId = nextId;
     selectedCardId = null;
     render();
+    syncOnlineGameState();
 
     if (state.players[nextId].isBot) {
         queueBotTurn(nextId);
@@ -756,6 +760,7 @@ async function finishEffectTurn(actorId: number, shouldEndTurn: boolean) {
     if (!shouldEndTurn) {
         isResolvingTurnAction = false;
         render();
+        syncOnlineGameState();
         return;
     }
 
@@ -784,6 +789,7 @@ async function endTurn(playerId: number) {
             isResolvingTurnAction = false;
             addLog("找不到下一位存活玩家，回合停止。");
             render();
+            syncOnlineGameState();
             return;
         }
 
@@ -791,6 +797,7 @@ async function endTurn(playerId: number) {
         selectedCardId = null;
         isResolvingTurnAction = false;
         render();
+        syncOnlineGameState();
 
         if (state.players[nextId].isBot) {
             // 不需要外部 setTimeout，因為 botTurn 內部會等待
@@ -817,7 +824,10 @@ async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, r
         if (allPotentialTargets.length === 0) {
             addLog("沒有合法的目標，效果失效。");
             if (shouldEndTurn) await endTurn(playerId);
-            else render();
+            else {
+                render();
+                syncOnlineGameState();
+            }
             return;
         }
 
@@ -853,7 +863,10 @@ async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, r
             addLog(`${player.name} 獲得了侍女的保護。`);
         }
         if (shouldEndTurn) await endTurn(playerId);
-        else render();
+        else {
+            render();
+            syncOnlineGameState();
+        }
     }
 }
 
@@ -903,7 +916,10 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                             }
                             addLog("猜錯了。");
                             if (shouldEndTurn) await endTurn(actorId);
-                            else render();
+                            else {
+                                render();
+                                syncOnlineGameState();
+                            }
                         }
                     };
                 });
@@ -931,7 +947,10 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                     }
                     addLog("猜錯了。");
                     if (shouldEndTurn) await endTurn(actorId);
-                    else render();
+                    else {
+                        render();
+                        syncOnlineGameState();
+                    }
                 }
             }
             break;
@@ -950,12 +969,18 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 document.getElementById('modal-ok-btn')!.onclick = async () => {
                     closeModal();
                     if (shouldEndTurn) await endTurn(actorId);
-                    else render();
+                    else {
+                        render();
+                        syncOnlineGameState();
+                    }
                 };
             } else {
                 addLog(`${actor.name} 看了一下 ${target.name} 的手牌。`);
                 if (shouldEndTurn) await endTurn(actorId);
-                else render();
+                else {
+                    render();
+                    syncOnlineGameState();
+                }
             }
             break;
 
@@ -965,7 +990,10 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             if (actor.hand.length === 0 || target.hand.length === 0) {
                 addLog("無法比點數，因為其中一方沒有手牌。");
                 if (shouldEndTurn) await endTurn(actorId);
-                else render();
+                else {
+                    render();
+                    syncOnlineGameState();
+                }
                 break;
             }
 
@@ -997,6 +1025,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                     addLog(`${actor.name} 與 ${target.name} 比點數，${target.name} 點數較小，攤牌 ${targetCard.name}(${tVal}) 出局！`);
                 }
                 render();
+                syncOnlineGameState();
                 await sleep(2000);
                 eliminate(targetId, "男爵比輸了");
                 await finishEffectTurn(actorId, shouldEndTurn);
@@ -1014,6 +1043,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                     addLog(`${actor.name} 與 ${target.name} 比點數，${actor.name} 點數較小，攤牌 ${actorCard.name}(${aVal}) 出局！`);
                 }
                 render();
+                syncOnlineGameState();
                 await sleep(2000);
                 eliminate(actorId, "男爵比輸了");
                 await finishEffectTurn(actorId, shouldEndTurn);
@@ -1026,7 +1056,10 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 rememberKnownCard(targetId, actorId, actorCard.type);
                 addLog(`${actor.name} 與 ${target.name} 點數相同，平安無事。`);
                 if (shouldEndTurn) await endTurn(actorId);
-                else render();
+                else {
+                    render();
+                    syncOnlineGameState();
+                }
             }
             break;
 
@@ -1051,7 +1084,10 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 ];
             }
             if (shouldEndTurn) await endTurn(actorId);
-            else render();
+            else {
+                render();
+                syncOnlineGameState();
+            }
             break;
 
         case CardType.King:
@@ -1088,7 +1124,10 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 );
             }
             if (shouldEndTurn) await endTurn(actorId);
-            else render();
+            else {
+                render();
+                syncOnlineGameState();
+            }
             break;
     }
 }
@@ -1145,7 +1184,10 @@ async function discardAndDraw(targetId: number): Promise<Card | null> {
     await applyEffect(targetId, discarded, false);
     if (state.isGameOver || !player.isAlive) return discarded;
 
-    render();
+    if (modalOverlay.style.display !== 'flex') {
+        render();
+        syncOnlineGameState();
+    }
     return discarded;
 }
 
@@ -1165,6 +1207,8 @@ function eliminate(playerId: number, reason: string) {
     } else {
         handoffTurnIfCurrentPlayerWasEliminated(playerId);
     }
+
+    syncOnlineGameState();
 }
 
 function checkEndConditions() {
@@ -1261,6 +1305,7 @@ function endGame(winner: Player, reason: string) {
     winner.coins += 1;
     addLog(`【遊戲結束】${winner.name} 獲勝並獲得 1 枚硬幣！(${reason})`);
     render();
+    syncOnlineGameState();
 }
 
 function showEndGameModal() {
@@ -1578,35 +1623,40 @@ function syncOnlineGameState() {
 }
 
 function applyOnlineGameState(data: OnlineGameStateData) {
-    endGameReason = '';
-    queuedBotTurnId = null;
-    selectedCardId = null;
-    isResolvingTurnAction = false;
     isApplyingOnlineState = true;
 
-    const selfSessionId = activeGameRoom?.sessionId;
-    const roomPlayers = currentRoomWaitState?.players ?? [];
-    const selfIndex = roomPlayers.findIndex(player => player.id === selfSessionId);
-    localPlayerId = selfIndex >= 0 ? selfIndex : localPlayerId;
+    try {
+        endGameReason = '';
+        queuedBotTurnId = null;
+        selectedCardId = null;
+        isResolvingTurnAction = false;
 
-    const players = data.players.map(cloneOnlinePlayer);
+        const selfSessionId = activeGameRoom?.sessionId;
+        const roomPlayers = currentRoomWaitState?.players ?? [];
+        const selfIndex = roomPlayers.findIndex(player => player.id === selfSessionId);
+        localPlayerId = selfIndex >= 0 ? selfIndex : localPlayerId;
 
-    state = {
-        deck: [...data.deck],
-        burnedCard: data.burnedCard,
-        players,
-        currentTurnPlayerId: data.currentTurnPlayerId,
-        isGameOver: data.isGameOver,
-        winner: data.winner ? players.find(player => player.id === data.winner?.id) ?? cloneOnlinePlayer(data.winner) : null,
-        logs: [...data.logs],
-        aiMemory: {}
-    };
+        const players = data.players.map(cloneOnlinePlayer);
 
-    onlineGameInitialized = true;
-    closeModal();
-    showScene('game-scene');
-    render();
-    isApplyingOnlineState = false;
+        state = {
+            deck: [...data.deck],
+            burnedCard: data.burnedCard,
+            players,
+            currentTurnPlayerId: data.currentTurnPlayerId,
+            isGameOver: data.isGameOver,
+            winner: data.winner ? players.find(player => player.id === data.winner?.id) ?? cloneOnlinePlayer(data.winner) : null,
+            logs: [...data.logs],
+            aiMemory: {}
+        };
+
+        onlineGameInitialized = true;
+        closeModal();
+        showScene('game-scene');
+        render();
+        window.requestAnimationFrame(() => render());
+    } finally {
+        isApplyingOnlineState = false;
+    }
 }
 
 function applyOnlineGameData(data: OnlineGameData) {
@@ -2079,6 +2129,7 @@ function startNextRound() {
 
     showScene('game-scene');
     render();
+    syncOnlineGameState();
 
     if (state.players[firstPlayerId].isBot) {
         queueBotTurn(firstPlayerId);
