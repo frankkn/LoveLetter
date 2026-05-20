@@ -416,6 +416,12 @@ function render() {
     const isHumanTurn = state.currentTurnPlayerId === human.id;
     const isHumanActive = !state.isGameOver && isHumanTurn;
     const isHumanWinner = state.winner?.id === human.id;
+    const canDraw = !state.isGameOver &&
+        !isResolvingTurnAction &&
+        isHumanTurn &&
+        human.isAlive &&
+        human.hand.length < 2 &&
+        state.deck.length > 0;
     playerAreaEl.className = `area ${human.isProtected ? 'protected' : ''} ${!human.isAlive ? 'eliminated' : ''} ${isHumanActive ? 'active-turn' : ''} ${isHumanWinner ? 'winner-area' : ''}`;
 
     const existingCrown = playerAreaEl.querySelector('.winner-crown');
@@ -435,7 +441,7 @@ function render() {
     
     playerHandEl.innerHTML = '';
     human.hand.forEach(card => {
-        const isPlayable = isHumanTurn && human.hand.length === 2 && !state.isGameOver;
+        const isPlayable = isHumanTurn && human.hand.length === 2 && !state.isGameOver && !isResolvingTurnAction;
         const cardUI = createCardUI(card, isPlayable);
         const cardEl = cardUI.querySelector('.card');
         cardEl?.classList.toggle('card-selected', selectedCardId === card.id);
@@ -468,8 +474,8 @@ function render() {
     gameLogEl.scrollTop = gameLogEl.scrollHeight;
 
     // 按鈕狀態
-    drawBtn.disabled = state.isGameOver || isResolvingTurnAction || !isHumanTurn || !human.isAlive || human.hand.length >= 2 || state.deck.length === 0;
-    drawBtn.style.display = state.isGameOver ? 'none' : 'block';
+    drawBtn.disabled = !canDraw;
+    drawBtn.style.display = canDraw ? 'block' : 'none';
     showResultBtn.style.display = state.isGameOver ? 'block' : 'none';
 }
 
@@ -640,10 +646,20 @@ function getKnownGuardTarget(botId: number, potentialTargets: Player[]): Player 
 }
 
 function drawCard(playerId: number): boolean {
-    if (state.isGameOver || isResolvingTurnAction || state.currentTurnPlayerId !== playerId) return false;
-    if (state.deck.length === 0) return false;
     const player = state.players[playerId];
-    if (!player.isAlive || player.hand.length >= 2) return false;
+    if (
+        !player ||
+        state.isGameOver ||
+        isResolvingTurnAction ||
+        state.currentTurnPlayerId !== playerId ||
+        state.deck.length === 0 ||
+        !player.isAlive ||
+        player.hand.length >= 2
+    ) {
+        render();
+        return false;
+    }
+
     player.isHandRevealed = false;
     if (!player.isBot) selectedCardId = null;
     const card = state.deck.pop()!;
@@ -1750,13 +1766,21 @@ async function handlePendingForcedEffect() {
 }
 
 function applyOnlineGameState(data: OnlineGameStateData) {
+    const shouldPreserveLocalInteraction = Boolean(
+        isOnlineGameActive() &&
+        isResolvingTurnAction &&
+        state.currentTurnPlayerId === localPlayerId &&
+        modalOverlay.style.display === 'flex'
+    );
     isApplyingOnlineState = true;
 
     try {
         endGameReason = '';
         queuedBotTurnId = null;
-        selectedCardId = null;
-        isResolvingTurnAction = false;
+        if (!shouldPreserveLocalInteraction) {
+            selectedCardId = null;
+            isResolvingTurnAction = false;
+        }
 
         const selfSessionId = activeGameRoom?.sessionId;
         const roomPlayers = currentRoomWaitState?.players ?? [];
@@ -1781,7 +1805,9 @@ function applyOnlineGameState(data: OnlineGameStateData) {
         } : null;
 
         onlineGameInitialized = true;
-        closeModal();
+        if (!shouldPreserveLocalInteraction) {
+            closeModal();
+        }
         showScene('game-scene');
         render();
         window.requestAnimationFrame(() => render());
