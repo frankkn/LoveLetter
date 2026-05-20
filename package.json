@@ -6,15 +6,17 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "typescript": "^5.2.2",
     "vite": "^5.0.0"
   },
   "dependencies": {
     "@colyseus/schema": "^4.0.25",
-    "colyseus": "^0.17.10",
-    "colyseus.js": "^0.16.22"
+    "@colyseus/sdk": "^0.17.42",
+    "colyseus": "^0.17.10"
   }
 }

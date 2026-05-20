@@ -1,0 +1,19 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "rootDir": ".",
+        "outDir": ".temp/colyseus-test",
+        "noEmit": false,
+        "allowImportingTsExtensions": false,
+        "isolatedModules": false,
+        "useDefineForClassFields": false,
+        "types": ["node"]
+    },
+    "include": [
+        "src/server/**/*.ts",
+        "tests/support/**/*.ts"
+    ]
+}

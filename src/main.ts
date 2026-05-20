@@ -1,5 +1,5 @@
 import './style.css'
-import { Client, type Room, type RoomAvailable } from 'colyseus.js';
+import { Client, type Room, type RoomAvailable } from '@colyseus/sdk';
 import guardImage from './assets/cards/guard.png';
 import priestImage from './assets/cards/priest.png';
 import baronImage from './assets/cards/baron.png';
@@ -8,6 +8,7 @@ import princeImage from './assets/cards/prince.png';
 import kingImage from './assets/cards/king.png';
 import countessImage from './assets/cards/countess.png';
 import princessImage from './assets/cards/princess.png';
+import { GameRoomState } from './server/schema/GameRoomState.js';
 
 // 1. 定義型別
 export enum CardType {
@@ -137,6 +138,10 @@ interface LobbyRoomMetadata {
     isGameStarted?: boolean;
 }
 
+type LobbyRoomAddMessage =
+    | RoomAvailable<LobbyRoomMetadata>
+    | [string, RoomAvailable<LobbyRoomMetadata>];
+
 interface RoomWaitPlayerView {
     id: string;
     name: string;
@@ -169,7 +174,7 @@ interface SyncedRoomState {
 const colyseusEndpoint = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.hostname}:2567`;
 const colyseusClient = new Client(colyseusEndpoint);
 let lobbyRoom: Room | null = null;
-let activeGameRoom: Room<SyncedRoomState> | null = null;
+let activeGameRoom: Room<unknown, SyncedRoomState> | null = null;
 let lobbyRooms: LobbyRoomSummary[] = [];
 let currentRoomWaitState: RoomWaitViewState | null = null;
 
@@ -1387,7 +1392,8 @@ function toLobbyRoomSummary(room: RoomAvailable<LobbyRoomMetadata>): LobbyRoomSu
     };
 }
 
-function upsertLobbyRoom(room: RoomAvailable<LobbyRoomMetadata>) {
+function upsertLobbyRoom(message: LobbyRoomAddMessage) {
+    const room = Array.isArray(message) ? message[1] : message;
     if (room.name !== 'love_letter') return;
 
     const summary = toLobbyRoomSummary(room);
@@ -1470,6 +1476,7 @@ function renderLobbyList(rooms: LobbyRoomSummary[]) {
 function renderRoomWaitArea(roomState: RoomWaitViewState | SyncedRoomState) {
     const normalizedState = normalizeRoomWaitState(roomState);
     currentRoomWaitState = normalizedState;
+    roomWaitSceneEl.dataset.gameStarted = normalizedState.isGameStarted ? 'true' : 'false';
 
     if (normalizedState.isGameStarted) {
         console.log("房間狀態變更：遊戲開始，準備加載遊戲戰場");
@@ -1538,7 +1545,7 @@ function openCreateRoomModal() {
             const room = await colyseusClient.create<SyncedRoomState>('love_letter', {
                 name: playerName,
                 password: usePassword && password.length > 0 ? password : undefined
-            });
+            }, GameRoomState);
             closeModal();
             bindGameRoom(room);
         } catch (error) {
@@ -1561,7 +1568,7 @@ async function joinLobbyRoom(roomId: string) {
         const room = await colyseusClient.joinById<SyncedRoomState>(roomId, {
             name: playerName,
             password: password || undefined
-        });
+        }, GameRoomState);
         bindGameRoom(room);
     } catch (error) {
         showModal('加入房間失敗', `<p>${escapeHTML(error instanceof Error ? error.message : '無法加入房間。')}</p>`, '<button class="modal-confirm-btn" id="join-room-error-ok-btn">確定</button>');
@@ -1569,7 +1576,7 @@ async function joinLobbyRoom(roomId: string) {
     }
 }
 
-function bindGameRoom(room: Room<SyncedRoomState>) {
+function bindGameRoom(room: Room<unknown, SyncedRoomState>) {
     activeGameRoom?.removeAllListeners();
     activeGameRoom = room;
 
@@ -1608,7 +1615,7 @@ async function connectLobbyRoom() {
                 .map(toLobbyRoomSummary);
             renderLobbyList(lobbyRooms);
         });
-        lobbyRoom.onMessage<RoomAvailable<LobbyRoomMetadata>>('+', upsertLobbyRoom);
+        lobbyRoom.onMessage<LobbyRoomAddMessage>('+', upsertLobbyRoom);
         lobbyRoom.onMessage<RoomAvailable<LobbyRoomMetadata> | string>('-', message => {
             removeLobbyRoom(typeof message === 'string' ? message : message.roomId);
         });

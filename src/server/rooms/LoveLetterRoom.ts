@@ -1,6 +1,6 @@
 import { type Client, Room, ServerError } from "colyseus";
-import { GameRoomState } from "../schema/GameRoomState";
-import { PlayerState } from "../schema/PlayerState";
+import { GameRoomState } from "../schema/GameRoomState.js";
+import { PlayerState } from "../schema/PlayerState.js";
 
 interface CreateRoomOptions {
     password?: string;
@@ -45,7 +45,7 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
                 throw new LobbyException("Only the host can start the game.", 403);
             }
 
-            const players = Array.from(this.state.players.values());
+            const players = Array.from(this.state.players.values()) as PlayerState[];
             if (players.length < 2 || players.length > 4) {
                 throw new LobbyException("The game requires 2 to 4 players.");
             }

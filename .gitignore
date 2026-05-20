@@ -33,6 +33,7 @@ lerna-debug.log*
 
 # Test / coverage
 coverage/
+test-results/
 
 # Misc
 .cache/
