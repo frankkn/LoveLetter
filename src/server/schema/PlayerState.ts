@@ -12,4 +12,7 @@ export class PlayerState extends Schema {
 
     @type("boolean")
     isHost = false;
+
+    @type("boolean")
+    isConnected = true;
 }

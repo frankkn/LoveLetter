@@ -123,15 +123,48 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
         player.name = options.name?.trim() || `Player ${this.state.players.size + 1}`;
         player.isHost = this.state.players.size === 0;
         player.isReady = false;
+        player.isConnected = true;
 
         this.state.players.set(client.sessionId, player);
 
         console.log(`[LoveLetterRoom] ${player.name} joined room ${this.roomId}. Host: ${player.isHost}`);
     }
 
-    onLeave(client: Client, consented?: boolean | number) {
+    async onLeave(client: Client, consented?: boolean | number) {
         const leavingPlayer = this.state.players.get(client.sessionId);
         if (!leavingPlayer) return;
+
+        if (this.state.isGameStarted) {
+            leavingPlayer.isConnected = false;
+            leavingPlayer.isReady = false;
+
+            console.log(
+                `[LoveLetterRoom] ${leavingPlayer.name} disconnected during game ${this.roomId}. ` +
+                `Consented/code: ${String(consented)}. Keeping player slot for game-state stability.`
+            );
+
+            if (consented === true) return;
+
+            try {
+                await this.allowReconnection(client, 20);
+                const reconnectedPlayer = this.state.players.get(client.sessionId);
+                if (reconnectedPlayer) {
+                    reconnectedPlayer.isConnected = true;
+                    console.log(`[LoveLetterRoom] ${reconnectedPlayer.name} reconnected to room ${this.roomId}.`);
+                }
+            } catch {
+                const timedOutPlayer = this.state.players.get(client.sessionId);
+                if (timedOutPlayer) {
+                    timedOutPlayer.isConnected = false;
+                    timedOutPlayer.isReady = false;
+                    console.log(
+                        `[LoveLetterRoom] ${timedOutPlayer.name} did not reconnect to room ${this.roomId} within 20 seconds. ` +
+                        `Player slot remains reserved.`
+                    );
+                }
+            }
+            return;
+        }
 
         const wasHost = leavingPlayer.isHost;
         this.state.players.delete(client.sessionId);

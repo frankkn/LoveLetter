@@ -721,6 +721,16 @@ h3 {
   color: #ffd36a;
 }
 
+.room-player-row.offline-player {
+  border-color: rgba(148, 163, 184, 0.28);
+  opacity: 0.72;
+}
+
+.player-status.offline {
+  background: rgba(148, 163, 184, 0.16);
+  color: #cbd5e1;
+}
+
 .host-badge,
 .room-count-badge {
   background: rgba(255, 77, 77, 0.18);

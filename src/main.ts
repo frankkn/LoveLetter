@@ -155,6 +155,7 @@ interface RoomWaitPlayerView {
     name: string;
     isReady: boolean;
     isHost: boolean;
+    isConnected?: boolean;
 }
 
 interface RoomWaitViewState {
@@ -169,6 +170,7 @@ interface SyncedRoomPlayerState {
     name: string;
     isReady: boolean;
     isHost: boolean;
+    isConnected?: boolean;
 }
 
 interface SyncedRoomState {
@@ -1577,22 +1579,44 @@ function removeLobbyRoom(roomId: string) {
     renderLobbyList(lobbyRooms);
 }
 
+function toRoomWaitPlayerView(player: Partial<SyncedRoomPlayerState> | null | undefined): RoomWaitPlayerView | null {
+    if (!player || typeof player.id !== 'string' || player.id.length === 0) return null;
+
+    return {
+        id: player.id,
+        name: typeof player.name === 'string' && player.name.trim().length > 0 ? player.name : '玩家',
+        isReady: Boolean(player.isReady),
+        isHost: Boolean(player.isHost),
+        isConnected: player.isConnected ?? true
+    };
+}
+
 function getSyncedPlayers(state: SyncedRoomState): RoomWaitPlayerView[] {
     const players = state.players;
+    let playerList: unknown[] = [];
+
     if (players instanceof Map) {
-        return Array.from(players.values());
+        playerList = Array.from(players.values());
+    } else if ('values' in players && typeof players.values === 'function') {
+        playerList = Array.from(players.values());
+    } else if (players && typeof players === 'object') {
+        playerList = Object.values(players);
     }
 
-    if ('values' in players && typeof players.values === 'function') {
-        return Array.from(players.values());
-    }
-
-    return Object.values(players);
+    return playerList
+        .map(player => toRoomWaitPlayerView(player as Partial<SyncedRoomPlayerState>))
+        .filter((player): player is RoomWaitPlayerView => player !== null);
 }
 
 function normalizeRoomWaitState(roomState: RoomWaitViewState | SyncedRoomState): RoomWaitViewState {
     if (Array.isArray((roomState as RoomWaitViewState).players)) {
-        return roomState as RoomWaitViewState;
+        const viewState = roomState as RoomWaitViewState;
+        return {
+            ...viewState,
+            players: viewState.players
+                .map(player => toRoomWaitPlayerView(player))
+                .filter((player): player is RoomWaitPlayerView => player !== null)
+        };
     }
 
     const syncedState = roomState as SyncedRoomState;
@@ -1830,14 +1854,18 @@ function renderRoomWaitArea(roomState: RoomWaitViewState | SyncedRoomState) {
             `;
         }
 
-        const statusText = player.isReady || player.isHost ? '\u2714\ufe0f \u5df2\u6e96\u5099' : '\u23f3 \u6e96\u5099\u4e2d';
+        const isConnected = player.isConnected ?? true;
+        const statusText = !isConnected
+            ? '\u26a0\ufe0f \u96e2\u7dda\uff0c\u7b49\u5f85\u91cd\u9023'
+            : player.isReady || player.isHost ? '\u2714\ufe0f \u5df2\u6e96\u5099' : '\u23f3 \u6e96\u5099\u4e2d';
+        const statusClass = !isConnected ? 'waiting offline' : (player.isReady || player.isHost ? 'ready' : 'waiting');
         return `
-            <div class="room-player-row ${player.id === normalizedState.selfId ? 'self-player' : ''}">
+            <div class="room-player-row ${player.id === normalizedState.selfId ? 'self-player' : ''} ${!isConnected ? 'offline-player' : ''}">
                 <div class="room-player-name">
                     <strong>${escapeHTML(player.name)}</strong>
                     ${player.isHost ? '<span class="host-badge">\ud83d\udc51 \u623f\u4e3b</span>' : ''}
                 </div>
-                <span class="player-status ${player.isReady || player.isHost ? 'ready' : 'waiting'}">${statusText}</span>
+                <span class="player-status ${statusClass}">${statusText}</span>
             </div>
         `;
     }).join('');
@@ -1845,7 +1873,7 @@ function renderRoomWaitArea(roomState: RoomWaitViewState | SyncedRoomState) {
     const selfPlayer = normalizedState.players.find(player => player.id === normalizedState.selfId);
     const isHost = selfPlayer?.isHost ?? false;
     const guestsReady = normalizedState.players
-        .filter(player => !player.isHost)
+        .filter(player => !player.isHost && (player.isConnected ?? true))
         .every(player => player.isReady);
     readyToggleBtn.textContent = normalizedState.isGameStarted
         ? '\u904a\u6232\u5df2\u958b\u59cb'
