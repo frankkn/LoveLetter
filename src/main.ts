@@ -182,6 +182,44 @@ let activeGameRoom: Room<unknown, SyncedRoomState> | null = null;
 let lobbyRooms: LobbyRoomSummary[] = [];
 let currentRoomWaitState: RoomWaitViewState | null = null;
 
+async function leaveRoomIfConnected(room: Room | null) {
+    if (!room) return;
+
+    room.removeAllListeners();
+    await room.leave();
+}
+
+async function resetClientState() {
+    const leavingGameRoom = activeGameRoom;
+    const leavingLobbyRoom = lobbyRoom;
+
+    activeGameRoom = null;
+    lobbyRoom = null;
+
+    try {
+        await leaveRoomIfConnected(leavingGameRoom);
+    } catch (error) {
+        console.warn('Failed to leave active game room during client reset:', error);
+    }
+
+    try {
+        await leaveRoomIfConnected(leavingLobbyRoom);
+    } catch (error) {
+        console.warn('Failed to leave lobby room during client reset:', error);
+    }
+
+    lobbyRooms = [];
+    currentRoomWaitState = null;
+    selectedCardId = null;
+    isResolvingTurnAction = false;
+    queuedBotTurnId = null;
+    localPlayerId = 0;
+    onlineGameInitialized = false;
+    isApplyingOnlineState = false;
+    endGameReason = '';
+    closeModal();
+}
+
 // 4. DOM 元素
 const mainMenuEl = document.getElementById('main-menu')!;
 const modeSelectEl = document.getElementById('mode-select')!;
@@ -1820,12 +1858,14 @@ async function connectLobbyRoom() {
 }
 
 async function leaveCurrentRoom() {
-    if (activeGameRoom) {
-        const leavingRoom = activeGameRoom;
-        activeGameRoom = null;
-        await leavingRoom.leave();
-    }
+    const leavingRoom = activeGameRoom;
+    activeGameRoom = null;
+    await leaveRoomIfConnected(leavingRoom);
+
     currentRoomWaitState = null;
+    onlineGameInitialized = false;
+    isApplyingOnlineState = false;
+    selectedCardId = null;
     renderLobbyList(lobbyRooms);
     showScene('lobby-scene');
 }
@@ -1851,7 +1891,10 @@ function showScene(sceneId: 'main-menu' | 'mode-select' | 'bot-count-select' | '
 }
 
 document.getElementById('start-game-btn')!.onclick = () => showScene('mode-select');
-document.getElementById('back-to-menu-btn')!.onclick = () => showScene('main-menu');
+document.getElementById('back-to-menu-btn')!.onclick = async () => {
+    await resetClientState();
+    showScene('main-menu');
+};
 document.getElementById('local-mode-btn')!.onclick = () => showScene('bot-count-select');
 document.getElementById('online-mode-btn')!.onclick = async () => {
     showScene('lobby-scene');
@@ -1863,8 +1906,11 @@ document.getElementById('create-room-btn')!.onclick = openCreateRoomModal;
 document.getElementById('refresh-room-list-btn')!.onclick = () => void connectLobbyRoom();
 document.getElementById('leave-room-btn')!.onclick = leaveCurrentRoom;
 readyToggleBtn.onclick = toggleReadyOrStartGame;
-document.getElementById('back-home-btn')!.onclick = () => {
-    if (confirm("確定要放棄目前戰局並返回主選單嗎？")) showScene('main-menu');
+document.getElementById('back-home-btn')!.onclick = async () => {
+    if (confirm("確定要放棄目前戰局並返回主選單嗎？")) {
+        await resetClientState();
+        showScene('main-menu');
+    }
 };
 showResultBtn.onclick = showEndGameModal;
 document.addEventListener('click', event => {
