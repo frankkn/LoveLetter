@@ -143,7 +143,10 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
                 `Consented/code: ${String(consented)}. Keeping player slot for game-state stability.`
             );
 
-            if (consented === true) return;
+            if (consented === true) {
+                this.disposeStartedRoomIfEveryoneLeft("all players left voluntarily");
+                return;
+            }
 
             try {
                 await this.allowReconnection(client, 20);
@@ -162,6 +165,7 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
                         `Player slot remains reserved.`
                     );
                 }
+                this.disposeStartedRoomIfEveryoneLeft("all players disconnected");
             }
             return;
         }
@@ -200,5 +204,15 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
         nextHost.isReady = false;
 
         console.log(`[LoveLetterRoom] Host transferred to ${nextHost.name} in room ${this.roomId}.`);
+    }
+
+    private disposeStartedRoomIfEveryoneLeft(reason: string) {
+        if (!this.state.isGameStarted) return;
+
+        const players = Array.from(this.state.players.values()) as PlayerState[];
+        if (players.length === 0 || players.some(player => player.isConnected)) return;
+
+        console.log(`[LoveLetterRoom] Disposing room ${this.roomId}: ${reason}.`);
+        this.disconnect();
     }
 }

@@ -139,6 +139,7 @@ interface LobbyRoomSummary {
     playerCount: number;
     maxClients: number;
     hasPassword: boolean;
+    isGameStarted: boolean;
 }
 
 interface LobbyRoomMetadata {
@@ -1561,13 +1562,18 @@ function toLobbyRoomSummary(room: RoomAvailable<LobbyRoomMetadata>): LobbyRoomSu
         roomId: room.roomId,
         playerCount: room.clients,
         maxClients: room.maxClients,
-        hasPassword: room.metadata?.hasPassword ?? false
+        hasPassword: room.metadata?.hasPassword ?? false,
+        isGameStarted: room.metadata?.isGameStarted ?? false
     };
 }
 
 function upsertLobbyRoom(message: LobbyRoomAddMessage) {
     const room = Array.isArray(message) ? message[1] : message;
     if (room.name !== 'love_letter') return;
+    if (room.metadata?.isGameStarted) {
+        removeLobbyRoom(room.roomId);
+        return;
+    }
 
     const summary = toLobbyRoomSummary(room);
     const existingIndex = lobbyRooms.findIndex(candidate => candidate.roomId === summary.roomId);
@@ -2019,7 +2025,7 @@ async function connectLobbyRoom() {
         lobbyRoom.onMessage<RoomAvailable<LobbyRoomMetadata>[] | { rooms?: RoomAvailable<LobbyRoomMetadata>[] }>('rooms', message => {
             const rooms = Array.isArray(message) ? message : message.rooms ?? [];
             lobbyRooms = rooms
-                .filter(room => room.name === 'love_letter')
+                .filter(room => room.name === 'love_letter' && !room.metadata?.isGameStarted)
                 .map(toLobbyRoomSummary);
             renderLobbyList(lobbyRooms);
         });
