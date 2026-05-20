@@ -207,6 +207,28 @@ function createPlayedCardStatsHTML(): string {
     `;
 }
 
+function createStatsModalBodyHTML(bodyHTML: string): string {
+    return `
+        ${bodyHTML}
+        ${createPlayedCardStatsHTML()}
+    `;
+}
+
+function waitForStatsModalConfirm(title: string, bodyHTML: string, confirmText = '確定'): Promise<void> {
+    return new Promise(resolve => {
+        showModal(
+            title,
+            createStatsModalBodyHTML(bodyHTML),
+            `<button class="modal-confirm-btn" id="modal-stats-confirm-btn">${confirmText}</button>`
+        );
+
+        document.getElementById('modal-stats-confirm-btn')!.onclick = () => {
+            closeModal();
+            resolve();
+        };
+    });
+}
+
 function createTargetSelectModalBodyHTML(card: Card, targets: Player[]): string {
     const helperTextByType: Partial<Record<CardType, string>> = {
         [CardType.Guard]: '選擇要猜測手牌的對象。下方同步顯示目前出牌統計，方便推測目標手牌。',
@@ -717,7 +739,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                     </button>`;
                 }
                 buttonsHTML += '</div>';
-                showModal(`對 ${target.name} 使用衛兵`, "<p>請猜測目標的手牌：</p>" + buttonsHTML, cancelButtonHTML());
+                showModal(`對 ${target.name} 使用衛兵`, createStatsModalBodyHTML("<p>請猜測目標的手牌：</p>" + buttonsHTML), cancelButtonHTML());
                 bindCancelRollback(rollback);
                 
                 const btns = modalBody.querySelectorAll('.guess-btn');
@@ -790,7 +812,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             if (!actor.isBot) {
                 const cardUI = createCardUI(target.hand[0], false);
                 cardUI.style.margin = '0 auto';
-                showModal(`神父：看見 ${target.name} 的手牌`, cardUI.outerHTML, `<button class="modal-confirm-btn" id="modal-ok-btn">我了解了</button>`);
+                showModal(`神父：看見 ${target.name} 的手牌`, createStatsModalBodyHTML(cardUI.outerHTML), `<button class="modal-confirm-btn" id="modal-ok-btn">我了解了</button>`);
                 document.getElementById('modal-ok-btn')!.onclick = async () => {
                     closeModal();
                     if (shouldEndTurn) await endTurn(actorId);
@@ -811,6 +833,14 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 if (shouldEndTurn) await endTurn(actorId);
                 else render();
                 break;
+            }
+
+            if (!actor.isBot || !target.isBot) {
+                await waitForStatsModalConfirm(
+                    '男爵對決提示',
+                    `<p>${actor.name} 將與 ${target.name} 秘密比大小。</p><p>按下開始後會公開比牌結果並繼續結算。</p>`,
+                    '開始比牌'
+                );
             }
 
             const actorCard = actor.hand[0];
@@ -872,6 +902,13 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             ];
             addLog(`${actor.name} 強迫 ${target.name} 棄牌！`);
             await sleep(500);
+            if (!target.isBot) {
+                await waitForStatsModalConfirm(
+                    '王子效果',
+                    `<p>${actor.name} 指定 ${target.name} 棄掉目前手牌並重抽。</p>`,
+                    '繼續'
+                );
+            }
             const discardedByPrince = await discardAndDraw(targetId);
             if (discardedByPrince) {
                 card.actionHints = [
@@ -889,6 +926,13 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             ];
             addLog(`${actor.name} 與 ${target.name} 交換手牌！`);
             await sleep(500);
+            if (!actor.isBot || !target.isBot) {
+                await waitForStatsModalConfirm(
+                    '國王交換手牌',
+                    `<p>${actor.name} 即將與 ${target.name} 交換手牌。</p>`,
+                    '確認交換'
+                );
+            }
             const actorTransferredCard = actor.hand[0];
             const targetTransferredCard = target.hand[0];
             const temp = actor.hand;
@@ -901,6 +945,13 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             }
             if (targetTransferredCard) {
                 rememberKnownCard(targetId, actorId, targetTransferredCard.type);
+            }
+            if (!actor.isBot || !target.isBot) {
+                await waitForStatsModalConfirm(
+                    '國王交換完成',
+                    `<p>${actor.name} 已與 ${target.name} 完成手牌交換。</p>`,
+                    '我了解了'
+                );
             }
             if (shouldEndTurn) await endTurn(actorId);
             else render();
