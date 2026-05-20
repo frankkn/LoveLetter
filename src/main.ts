@@ -261,7 +261,7 @@ function getCoinIcons(coins: number): string {
 function render() {
     deckCountEl.textContent = `牌堆剩餘：${state.deck.length}`;
     
-    const currentPlayer = state.players[state.currentTurnPlayerId];
+    const currentPlayer = state.players[state.currentTurnPlayerId] ?? getAlivePlayers()[0] ?? state.players[0];
     renderPlayedCardStats();
     turnIndicatorEl.textContent = `當前回合：${currentPlayer.name}`;
     
@@ -599,6 +599,35 @@ function findNextAlivePlayerId(afterPlayerId: number): number | null {
     }
 
     return null;
+}
+
+function handoffTurnIfCurrentPlayerWasEliminated(eliminatedPlayerId: number) {
+    if (
+        state.isGameOver ||
+        isResolvingTurnAction ||
+        state.currentTurnPlayerId !== eliminatedPlayerId
+    ) {
+        return;
+    }
+
+    const survivors = getAlivePlayers();
+    if (survivors.length <= 1) {
+        if (survivors.length === 1) {
+            endGame(survivors[0], `場上只剩下最後一名存活者`);
+        }
+        return;
+    }
+
+    const nextId = findNextAlivePlayerId(eliminatedPlayerId);
+    if (nextId === null) return;
+
+    state.currentTurnPlayerId = nextId;
+    selectedCardId = null;
+    render();
+
+    if (state.players[nextId].isBot) {
+        queueBotTurn(nextId);
+    }
 }
 
 function queueBotTurn(botId: number) {
@@ -1028,6 +1057,8 @@ function eliminate(playerId: number, reason: string) {
     const survivors = getAlivePlayers();
     if (survivors.length === 1) {
         endGame(survivors[0], `作為最後的倖存者`);
+    } else {
+        handoffTurnIfCurrentPlayerWasEliminated(playerId);
     }
 }
 
@@ -1241,7 +1272,13 @@ async function botTurn(botId: number) {
     if (state.isGameOver || state.currentTurnPlayerId !== botId || !state.players[botId].isAlive) return;
     
     // 階段 2：抽牌
-    if (!drawCard(botId)) return;
+    if (!drawCard(botId)) {
+        checkEndConditions();
+        if (!state.isGameOver) {
+            await endTurn(botId);
+        }
+        return;
+    }
     
     // 階段 3：模擬思考
     await sleep(1200);
