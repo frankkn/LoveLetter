@@ -478,6 +478,29 @@ function pruneInvalidKnownCardsForPlayer(playerId: number) {
     });
 }
 
+function getKnownGuardTarget(botId: number, potentialTargets: Player[]): Player | null {
+    const memory = state.aiMemory[botId];
+    if (!memory) return null;
+
+    const potentialTargetIds = new Set(potentialTargets.map(target => target.id));
+    for (const [targetIdText, rememberedType] of Object.entries(memory)) {
+        const targetId = Number(targetIdText);
+        const target = state.players[targetId];
+        const targetStillHasRememberedCard = target?.hand.some(card => card.type === rememberedType);
+
+        if (!target?.isAlive || !targetStillHasRememberedCard) {
+            delete memory[targetId];
+            continue;
+        }
+
+        if (rememberedType !== CardType.Guard && potentialTargetIds.has(targetId)) {
+            return target;
+        }
+    }
+
+    return null;
+}
+
 function drawCard(playerId: number): boolean {
     if (state.isGameOver || isResolvingTurnAction || state.currentTurnPlayerId !== playerId) return false;
     if (state.deck.length === 0) return false;
@@ -527,6 +550,7 @@ async function executePlayCard(playerId: number, card: Card) {
     const rollback = player.isBot ? undefined : createPlayRollback(playerId);
     isResolvingTurnAction = true;
     player.hand = player.hand.filter(c => c.id !== card.id);
+    pruneInvalidKnownCardsForPlayer(playerId);
     player.discardPile.push(card);
     player.isProtected = false;
 
@@ -648,7 +672,10 @@ async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, r
                 botTargets = opponentTargets.length > 0 ? opponentTargets : allPotentialTargets.filter(target => target.id === playerId);
             }
 
-            const target = botTargets[Math.floor(Math.random() * botTargets.length)];
+            const knownGuardTarget = card.type === CardType.Guard
+                ? getKnownGuardTarget(playerId, botTargets)
+                : null;
+            const target = knownGuardTarget ?? botTargets[Math.floor(Math.random() * botTargets.length)];
             await sleep(1000); // 模擬選標準備
             await resolveTargetEffect(playerId, target.id, card, shouldEndTurn);
         } else {
@@ -1126,6 +1153,15 @@ function getAICardPlayWeight(bot: Player, card: Card): number {
 
 function chooseAICardToPlay(bot: Player): Card {
     const guard = bot.hand.find(card => card.type === CardType.Guard);
+    if (guard) {
+        const guardTargets = state.players.filter(player => (
+            player.id !== bot.id &&
+            player.isAlive &&
+            !player.isProtected
+        ));
+        if (getKnownGuardTarget(bot.id, guardTargets)) return guard;
+    }
+
     const baron = bot.hand.find(card => card.type === CardType.Baron);
     if (guard && baron) return guard;
 
