@@ -192,6 +192,7 @@ let activeGameRoom: Room<unknown, SyncedRoomState> | null = null;
 let lobbyRooms: LobbyRoomSummary[] = [];
 let currentRoomWaitState: RoomWaitViewState | null = null;
 let pendingForcedEffect: PendingForcedEffect | null = null;
+let resolvingForcedEffect: PendingForcedEffect | null = null;
 let isHandlingPendingForcedEffect = false;
 
 async function leaveRoomIfConnected(room: Room | null) {
@@ -223,6 +224,7 @@ async function resetClientState() {
     lobbyRooms = [];
     currentRoomWaitState = null;
     pendingForcedEffect = null;
+    resolvingForcedEffect = null;
     isHandlingPendingForcedEffect = false;
     selectedCardId = null;
     isResolvingTurnAction = false;
@@ -1938,14 +1940,22 @@ function isLocalForcedEffect(effect: PendingForcedEffect | null) {
     return effect?.reactorId === localPlayerId;
 }
 
+function isResolvingThisForcedEffect(effect: PendingForcedEffect | null) {
+    return isSamePendingForcedEffect(resolvingForcedEffect, effect);
+}
+
 function isResolvingLocalForcedEffect(incomingPendingForcedEffect: PendingForcedEffect | null) {
     return Boolean(
         isOnlineGameActive() &&
         isResolvingTurnAction &&
-        isLocalForcedEffect(pendingForcedEffect) &&
+        (
+            isLocalForcedEffect(resolvingForcedEffect) ||
+            isLocalForcedEffect(pendingForcedEffect)
+        ) &&
         (
             isHandlingPendingForcedEffect ||
             incomingPendingForcedEffect === null ||
+            isResolvingThisForcedEffect(incomingPendingForcedEffect) ||
             isSamePendingForcedEffect(pendingForcedEffect, incomingPendingForcedEffect)
         )
     );
@@ -1957,14 +1967,13 @@ async function handlePendingForcedEffect() {
 
     isHandlingPendingForcedEffect = true;
     const effect = pendingForcedEffect;
+    pendingForcedEffect = null;
+    resolvingForcedEffect = effect;
     isResolvingTurnAction = true;
-    syncOnlineGameState();
 
     try {
         await applyEffect(effect.reactorId, effect.card, false, undefined, true);
-        if (isSamePendingForcedEffect(pendingForcedEffect, effect)) {
-            pendingForcedEffect = null;
-        }
+        pendingForcedEffect = null;
         if (effect.shouldEndTurnAfterResolution && !state.isGameOver) {
             await endTurn(effect.returnTurnPlayerId);
         } else {
@@ -1974,6 +1983,8 @@ async function handlePendingForcedEffect() {
         }
     } finally {
         isResolvingTurnAction = false;
+        resolvingForcedEffect = null;
+        pendingForcedEffect = null;
         isHandlingPendingForcedEffect = false;
         if (!state.isGameOver && pendingForcedEffect === null) {
             syncOnlineGameState();
@@ -1992,15 +2003,20 @@ function applyOnlineGameState(data: OnlineGameStateData) {
     const incomingPendingForcedEffect = data.pendingForcedEffect
         ? clonePendingForcedEffect(data.pendingForcedEffect)
         : null;
+    const isRemoteForcedEffectCompletion = Boolean(
+        isResolvingTurnAction &&
+        pendingForcedEffect &&
+        incomingPendingForcedEffect === null
+    );
     const shouldPreserveLocalInteraction = Boolean(
         isOnlineGameActive() &&
         (
             (
                 isResolvingTurnAction &&
                 (
-                    data.currentTurnPlayerId === localPlayerId ||
+                    (data.currentTurnPlayerId === localPlayerId && !isRemoteForcedEffectCompletion) ||
                     isResolvingLocalForcedEffect(incomingPendingForcedEffect) ||
-                    (data.currentTurnPlayerId !== localPlayerId && isLocalForcedEffect(pendingForcedEffect))
+                    (data.currentTurnPlayerId !== localPlayerId && (isLocalForcedEffect(pendingForcedEffect) || isLocalForcedEffect(resolvingForcedEffect)))
                 )
             ) ||
             (
@@ -2476,6 +2492,7 @@ function initGame(botCount: number) {
     onlineGameInitialized = false;
     isApplyingOnlineState = false;
     pendingForcedEffect = null;
+    resolvingForcedEffect = null;
     isHandlingPendingForcedEffect = false;
     queuedBotTurnId = null;
     selectedCardId = null;
@@ -2526,6 +2543,7 @@ function startNextRound() {
     selectedCardId = null;
     isResolvingTurnAction = false;
     pendingForcedEffect = null;
+    resolvingForcedEffect = null;
     isHandlingPendingForcedEffect = false;
     const firstPlayerId = state.winner.id;
     let deck = createDeck();
