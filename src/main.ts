@@ -921,8 +921,9 @@ async function endTurn(playerId: number) {
     }
 }
 
-async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, rollback?: PlayRollback) {
+async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, rollback?: PlayRollback, isForcedResolution = false) {
     const player = state.players[playerId];
+    const canControlInteractiveEffect = isLocalEffectController(playerId) || (isForcedResolution && playerId === localPlayerId);
 
     if (card.type === CardType.Princess) {
         eliminate(playerId, "打出或棄掉了公主");
@@ -964,7 +965,7 @@ async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, r
             const target = knownGuardTarget ?? botTargets[Math.floor(Math.random() * botTargets.length)];
             await sleep(1000); // 模擬選標準備
             await resolveTargetEffect(playerId, target.id, card, shouldEndTurn);
-        } else if (isLocalEffectController(playerId)) {
+        } else if (canControlInteractiveEffect) {
             await new Promise<void>(resolve => {
                 showModal(`請選擇 ${card.name} 的目標`, createTargetSelectModalBodyHTML(card, allPotentialTargets), cancelButtonHTML());
                 bindCancelRollback(rollback);
@@ -1909,24 +1910,64 @@ function isForcedEffectCard(card: Card) {
     return card.type !== CardType.Princess && card.type !== CardType.Handmaid;
 }
 
+function clonePendingForcedEffect(effect: PendingForcedEffect): PendingForcedEffect {
+    return {
+        ...effect,
+        card: { ...effect.card }
+    };
+}
+
+function isSamePendingForcedEffect(a: PendingForcedEffect | null, b: PendingForcedEffect | null) {
+    return Boolean(
+        a &&
+        b &&
+        a.reactorId === b.reactorId &&
+        a.returnTurnPlayerId === b.returnTurnPlayerId &&
+        a.shouldEndTurnAfterResolution === b.shouldEndTurnAfterResolution &&
+        a.card.id === b.card.id
+    );
+}
+
+function isResolvingLocalForcedEffect(incomingPendingForcedEffect: PendingForcedEffect | null) {
+    return Boolean(
+        isOnlineGameActive() &&
+        isResolvingTurnAction &&
+        pendingForcedEffect?.reactorId === localPlayerId &&
+        (
+            isHandlingPendingForcedEffect ||
+            incomingPendingForcedEffect === null ||
+            isSamePendingForcedEffect(pendingForcedEffect, incomingPendingForcedEffect)
+        )
+    );
+}
+
 async function handlePendingForcedEffect() {
     if (!pendingForcedEffect || isHandlingPendingForcedEffect) return;
     if (pendingForcedEffect.reactorId !== localPlayerId) return;
 
     isHandlingPendingForcedEffect = true;
     const effect = pendingForcedEffect;
-    pendingForcedEffect = null;
+    isResolvingTurnAction = true;
+    syncOnlineGameState();
 
     try {
-        await applyEffect(effect.reactorId, effect.card, false);
+        await applyEffect(effect.reactorId, effect.card, false, undefined, true);
+        if (isSamePendingForcedEffect(pendingForcedEffect, effect)) {
+            pendingForcedEffect = null;
+        }
         if (effect.shouldEndTurnAfterResolution && !state.isGameOver) {
             await endTurn(effect.returnTurnPlayerId);
         } else {
+            isResolvingTurnAction = false;
             render();
             syncOnlineGameState();
         }
     } finally {
+        isResolvingTurnAction = false;
         isHandlingPendingForcedEffect = false;
+        if (!state.isGameOver && pendingForcedEffect === null) {
+            syncOnlineGameState();
+        }
     }
 }
 
@@ -1938,17 +1979,22 @@ function applyOnlineGameState(data: OnlineGameStateData) {
         localPlayerId = selfIndex;
     }
 
+    const incomingPendingForcedEffect = data.pendingForcedEffect
+        ? clonePendingForcedEffect(data.pendingForcedEffect)
+        : null;
     const shouldPreserveLocalInteraction = Boolean(
         isOnlineGameActive() &&
         isResolvingTurnAction &&
-        data.currentTurnPlayerId === localPlayerId
+        (
+            data.currentTurnPlayerId === localPlayerId ||
+            isResolvingLocalForcedEffect(incomingPendingForcedEffect)
+        )
     );
 
     if (shouldPreserveLocalInteraction) {
-        pendingForcedEffect = data.pendingForcedEffect ? {
-            ...data.pendingForcedEffect,
-            card: { ...data.pendingForcedEffect.card }
-        } : pendingForcedEffect;
+        if (!isResolvingLocalForcedEffect(incomingPendingForcedEffect)) {
+            pendingForcedEffect = incomingPendingForcedEffect ?? pendingForcedEffect;
+        }
         onlineGameInitialized = true;
         return;
     }
@@ -1973,10 +2019,7 @@ function applyOnlineGameState(data: OnlineGameStateData) {
             logs: [...data.logs],
             aiMemory: {}
         };
-        pendingForcedEffect = data.pendingForcedEffect ? {
-            ...data.pendingForcedEffect,
-            card: { ...data.pendingForcedEffect.card }
-        } : null;
+        pendingForcedEffect = incomingPendingForcedEffect;
 
         onlineGameInitialized = true;
         closeModal();
