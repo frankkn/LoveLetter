@@ -244,6 +244,7 @@ const currentRoomIdEl = document.getElementById('current-room-id')!;
 const roomPlayerCountEl = document.getElementById('room-player-count')!;
 const roomPlayerListEl = document.getElementById('room-player-list')!;
 const readyToggleBtn = document.getElementById('ready-toggle-btn') as HTMLButtonElement;
+const cardStatsAreaEl = document.querySelector('.card-stats-area') as HTMLElement;
 const playedCardStatsEl = document.getElementById('played-card-stats')!;
 const opponentsContainerEl = document.getElementById('opponents-container')!;
 const playerAreaEl = document.getElementById('player-area')!;
@@ -261,6 +262,14 @@ const modalTitle = document.getElementById('modal-title')!;
 const modalBody = document.getElementById('modal-body')!;
 const modalFooter = document.getElementById('modal-footer')!;
 let endGameReason = '';
+
+const mobileStatsToggleBtn = document.createElement('button');
+mobileStatsToggleBtn.type = 'button';
+mobileStatsToggleBtn.className = 'mobile-stats-toggle';
+mobileStatsToggleBtn.textContent = '📊 出牌統計';
+mobileStatsToggleBtn.setAttribute('aria-controls', 'played-card-stats');
+mobileStatsToggleBtn.setAttribute('aria-expanded', 'false');
+document.body.appendChild(mobileStatsToggleBtn);
 
 // 5. 輔助函式
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -2106,8 +2115,18 @@ function toggleReadyOrStartGame() {
 }
 
 // 9. 選單邏輯
+function setMobileStatsOpen(isOpen: boolean) {
+    gameSceneEl.classList.toggle('mobile-stats-open', isOpen);
+    document.body.classList.toggle('mobile-stats-open', isOpen);
+    mobileStatsToggleBtn.setAttribute('aria-expanded', String(isOpen));
+}
+
 function showScene(sceneId: 'main-menu' | 'mode-select' | 'bot-count-select' | 'lobby-scene' | 'room-wait-scene' | 'game-scene') {
     [mainMenuEl, modeSelectEl, botCountSelectEl, lobbySceneEl, roomWaitSceneEl, gameSceneEl].forEach(el => el.style.display = 'none');
+    document.body.classList.toggle('game-scene-active', sceneId === 'game-scene');
+    if (sceneId !== 'game-scene') {
+        setMobileStatsOpen(false);
+    }
     document.getElementById(sceneId)!.style.display = 'flex';
 }
 
@@ -2127,6 +2146,11 @@ document.getElementById('create-room-btn')!.onclick = openCreateRoomModal;
 document.getElementById('refresh-room-list-btn')!.onclick = () => void connectLobbyRoom();
 document.getElementById('leave-room-btn')!.onclick = leaveCurrentRoom;
 readyToggleBtn.onclick = toggleReadyOrStartGame;
+mobileStatsToggleBtn.onclick = event => {
+    event.stopPropagation();
+    setMobileStatsOpen(!gameSceneEl.classList.contains('mobile-stats-open'));
+};
+cardStatsAreaEl.addEventListener('click', event => event.stopPropagation());
 document.getElementById('back-home-btn')!.onclick = async () => {
     if (confirm("確定要放棄目前戰局並返回主選單嗎？")) {
         await resetClientState();
@@ -2136,6 +2160,9 @@ document.getElementById('back-home-btn')!.onclick = async () => {
 showResultBtn.onclick = showEndGameModal;
 document.addEventListener('click', event => {
     const target = event.target as HTMLElement;
+    if (gameSceneEl.classList.contains('mobile-stats-open') && !target.closest('.card-stats-area, .mobile-stats-toggle')) {
+        setMobileStatsOpen(false);
+    }
     if (!selectedCardId || target.closest('.card-wrapper, .modal-content, button')) return;
     selectedCardId = null;
     render();

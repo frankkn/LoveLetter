@@ -311,6 +311,10 @@ h3 {
   overflow: visible !important;
 }
 
+.mobile-stats-toggle {
+  display: none;
+}
+
 .played-card-stats {
   display: flex;
   flex-direction: column;
@@ -1004,6 +1008,19 @@ h3 {
     flex-direction: column;
   }
 
+  #game-scene::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    display: none;
+    background: rgba(0, 0, 0, 0.48);
+    z-index: 8998;
+  }
+
+  #game-scene.mobile-stats-open::before {
+    display: block;
+  }
+
   .sidebar-area {
     flex: none;
     width: 100%;
@@ -1011,14 +1028,70 @@ h3 {
   }
 
   .card-stats-area {
-    flex: none;
-    width: 100%;
-    position: static;
+    display: none;
+    position: fixed;
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    z-index: 8999;
+    width: auto;
+    max-height: min(68vh, 520px);
+    padding: 0.85rem;
+    border: 1px solid rgba(255, 176, 0, 0.58);
+    border-radius: 14px 14px 10px 10px;
+    background: rgba(35, 35, 35, 0.98);
+    box-shadow: 0 -16px 40px rgba(0, 0, 0, 0.52);
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #game-scene.mobile-stats-open .card-stats-area {
+    display: block;
+  }
+
+  .card-stats-area h3 {
+    position: sticky;
+    top: -0.85rem;
+    z-index: 1;
+    margin: -0.85rem -0.85rem 0.75rem;
+    padding: 0.85rem;
+    background: rgba(35, 35, 35, 0.98);
+    border-bottom: 1px solid #444;
   }
 
   .played-card-stats {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+  }
+
+  .mobile-stats-toggle {
+    display: none;
+    position: fixed;
+    right: max(0.85rem, env(safe-area-inset-right));
+    bottom: calc(0.85rem + env(safe-area-inset-bottom));
+    z-index: 9000;
+    min-height: 44px;
+    padding: 0.7rem 0.95rem;
+    border: 1px solid rgba(255, 176, 0, 0.75);
+    border-radius: 999px;
+    background: #ffb000;
+    color: #1c1400;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
+    font-weight: 900;
+    letter-spacing: 0;
+  }
+
+  body.game-scene-active .mobile-stats-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  body.game-scene-active.mobile-stats-open .mobile-stats-toggle {
+    background: #ff4d4d;
+    border-color: rgba(255, 255, 255, 0.32);
+    color: #fff;
   }
 
   .log-container {
