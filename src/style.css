@@ -1068,7 +1068,7 @@ h3 {
 
   .main-battle-area {
     order: 2;
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     width: 100%;
     min-height: 0;
     gap: 5px;
@@ -1200,9 +1200,9 @@ h3 {
   }
 
   .log-container {
-    height: clamp(156px, 28dvh, 240px);
-    min-height: 138px;
-    max-height: 260px;
+    height: 120px;
+    min-height: 104px;
+    max-height: 130px;
     padding: 0.45rem 0.55rem;
     border-left-width: 3px;
     font-size: 0.78rem;
@@ -1226,9 +1226,9 @@ h3 {
   #opponents-container {
     flex: 0 0 auto;
     width: 100%;
-    min-height: 128px;
-    height: 128px;
-    max-height: 140px;
+    min-height: 162px;
+    height: 162px;
+    max-height: 170px;
     gap: 5px;
     margin-bottom: 0;
     display: grid;
@@ -1240,12 +1240,18 @@ h3 {
   .opponent-area {
     min-width: 0;
     max-width: none;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-rows: 16px 52px 74px;
+    align-items: stretch;
+    gap: 3px;
     padding: 4px;
     border-radius: 8px;
     overflow: hidden !important;
   }
 
   .opponent-area h3 {
+    min-width: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1256,20 +1262,51 @@ h3 {
     text-overflow: ellipsis;
   }
 
-  .opponent-area .hand-container,
   .opponent-area .discard-container {
+    grid-row: 2;
+    box-sizing: border-box;
     min-height: 0;
-    margin-bottom: 3px;
+    height: 52px;
+    max-height: 52px;
+    margin-bottom: 0;
+    padding: 2px 3px;
+    gap: 2px;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.22);
+    overflow: hidden !important;
+  }
+
+  .opponent-area .hand-container {
+    grid-row: 3;
+    box-sizing: border-box;
+    min-height: 0;
+    height: 74px;
+    margin-bottom: 0;
     padding: 3px;
-    gap: 3px;
+    gap: 4px;
     flex-wrap: nowrap;
     align-items: center;
     justify-content: center;
     overflow: hidden !important;
   }
 
-  .opponent-area .discard-container {
-    max-height: 30px;
+  .opponent-area .discard-container .card-wrapper {
+    width: 35px;
+    flex: 0 0 35px;
+  }
+
+  .opponent-area .discard-container .card {
+    width: 35px;
+    height: 50px;
+    padding: 1px;
+    border-radius: 4px;
+  }
+
+  .opponent-area .discard-container .card-header,
+  .opponent-area .discard-container .card-desc {
+    display: none !important;
   }
 
   .opponent-area .card-wrapper {
@@ -1328,6 +1365,7 @@ h3 {
     width: 100%;
     box-sizing: border-box;
     min-height: 0;
+    margin-top: auto;
     padding: 0.4rem;
     overflow: visible !important;
   }
