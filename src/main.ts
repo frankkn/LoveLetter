@@ -1516,6 +1516,11 @@ function endGame(winner: Player, reason: string) {
     queuedBotTurnId = null;
     selectedCardId = null;
     isResolvingTurnAction = false;
+    pendingForcedEffectsQueue = [];
+    resolvingForcedEffect = null;
+    pendingBaronDuel = null;
+    activeBaronDuelModalKey = null;
+    isHandlingPendingForcedEffect = false;
     state.isGameOver = true;
     state.winner = winner;
     endGameReason = reason;
@@ -1523,6 +1528,7 @@ function endGame(winner: Player, reason: string) {
     addLog(`【遊戲結束】${winner.name} 獲勝並獲得 1 枚硬幣！(${reason})`);
     render();
     syncOnlineGameState();
+    showEndGameModal();
 }
 
 function showEndGameModal() {
@@ -2208,6 +2214,46 @@ function applyOnlineGameState(data: OnlineGameStateData) {
     const incomingPendingBaronDuel = data.pendingBaronDuel
         ? clonePendingBaronDuel(data.pendingBaronDuel)
         : null;
+
+    if (data.isGameOver) {
+        isApplyingOnlineState = true;
+
+        try {
+            queuedBotTurnId = null;
+            selectedCardId = null;
+            isResolvingTurnAction = false;
+            pendingForcedEffectsQueue = [];
+            resolvingForcedEffect = null;
+            pendingBaronDuel = null;
+            activeBaronDuelModalKey = null;
+            isHandlingPendingForcedEffect = false;
+
+            const players = restoreLocalPrivateHints(data.players.map(cloneOnlinePlayer));
+
+            state = {
+                deck: [...data.deck],
+                burnedCard: data.burnedCard,
+                players,
+                currentTurnPlayerId: data.currentTurnPlayerId,
+                isGameOver: true,
+                winner: data.winner ? players.find(player => player.id === data.winner?.id) ?? cloneOnlinePlayer(data.winner) : null,
+                logs: [...data.logs],
+                aiMemory: {}
+            };
+
+            onlineGameInitialized = true;
+            closeModal();
+            showScene('game-scene');
+            render();
+            showEndGameModal();
+            window.requestAnimationFrame(() => render());
+        } finally {
+            isApplyingOnlineState = false;
+        }
+
+        return;
+    }
+
     const shouldPreserveBaronDuelInteraction = Boolean(
         isOnlineGameActive() &&
         isResolvingTurnAction &&
