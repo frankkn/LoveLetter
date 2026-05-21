@@ -1003,6 +1003,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
     switch (card.type) {
         case CardType.Guard:
             if (!actor.isBot && isLocalEffectController(actorId)) {
+                await new Promise<void>(resolve => {
                 let buttonsHTML = '<div class="guess-grid">';
                 for (let i = 2; i <= 8; i++) {
                     const def = CARD_DEFINITIONS[i as CardType];
@@ -1047,7 +1048,9 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                                 syncOnlineGameState();
                             }
                         }
+                        resolve();
                     };
+                });
                 });
             } else if (!actor.isBot) {
                 render();
@@ -1107,6 +1110,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             addLog(`${actor.name} \u770B\u4E86\u4E00\u4E0B ${target.name} \u7684\u624B\u724C\u3002`);
             syncOnlineGameState();
             if (!actor.isBot) {
+                await new Promise<void>(resolve => {
                 const cardUI = createCardUI(target.hand[0], false);
                 cardUI.style.margin = '0 auto';
                 showModal(`神父：看見 ${target.name} 的手牌`, createStatsModalBodyHTML(cardUI.outerHTML), `<button class="modal-confirm-btn" id="modal-ok-btn">我了解了</button>`);
@@ -1117,7 +1121,9 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                         render();
                         syncOnlineGameState();
                     }
+                    resolve();
                 };
+                });
             } else {
                 if (shouldEndTurn) await endTurn(actorId);
                 else {
@@ -1928,11 +1934,15 @@ function isSamePendingForcedEffect(a: PendingForcedEffect | null, b: PendingForc
     );
 }
 
+function isLocalForcedEffect(effect: PendingForcedEffect | null) {
+    return effect?.reactorId === localPlayerId;
+}
+
 function isResolvingLocalForcedEffect(incomingPendingForcedEffect: PendingForcedEffect | null) {
     return Boolean(
         isOnlineGameActive() &&
         isResolvingTurnAction &&
-        pendingForcedEffect?.reactorId === localPlayerId &&
+        isLocalForcedEffect(pendingForcedEffect) &&
         (
             isHandlingPendingForcedEffect ||
             incomingPendingForcedEffect === null ||
@@ -1984,15 +1994,24 @@ function applyOnlineGameState(data: OnlineGameStateData) {
         : null;
     const shouldPreserveLocalInteraction = Boolean(
         isOnlineGameActive() &&
-        isResolvingTurnAction &&
         (
-            data.currentTurnPlayerId === localPlayerId ||
-            isResolvingLocalForcedEffect(incomingPendingForcedEffect)
+            (
+                isResolvingTurnAction &&
+                (
+                    data.currentTurnPlayerId === localPlayerId ||
+                    isResolvingLocalForcedEffect(incomingPendingForcedEffect) ||
+                    (data.currentTurnPlayerId !== localPlayerId && isLocalForcedEffect(pendingForcedEffect))
+                )
+            ) ||
+            (
+                isLocalForcedEffect(incomingPendingForcedEffect) &&
+                isLocalForcedEffect(pendingForcedEffect)
+            )
         )
     );
 
     if (shouldPreserveLocalInteraction) {
-        if (!isResolvingLocalForcedEffect(incomingPendingForcedEffect)) {
+        if (!isResolvingLocalForcedEffect(incomingPendingForcedEffect) && !isLocalForcedEffect(pendingForcedEffect)) {
             pendingForcedEffect = incomingPendingForcedEffect ?? pendingForcedEffect;
         }
         onlineGameInitialized = true;
