@@ -1266,7 +1266,7 @@ h3 {
   }
 
   #opponents-container {
-    flex: 1 1 52%;
+    flex: 1.7 1 64%;
     width: 100%;
     min-height: 0;
     height: auto;
@@ -1286,7 +1286,7 @@ h3 {
     max-width: none;
     box-sizing: border-box;
     display: grid;
-    grid-template-rows: 16px minmax(0, 1fr) 86px;
+    grid-template-rows: 16px minmax(0, 1fr) 58px;
     height: 100%;
     align-items: stretch;
     gap: 3px;
@@ -1312,7 +1312,7 @@ h3 {
     box-sizing: border-box;
     display: grid;
     grid-template-columns: repeat(2, minmax(50px, 1fr));
-    grid-auto-rows: minmax(124px, auto);
+    grid-auto-rows: minmax(118px, auto);
     align-content: start;
     justify-items: center;
     min-height: 0;
@@ -1332,8 +1332,8 @@ h3 {
     min-height: 0;
     height: 100%;
     margin-bottom: 0;
-    padding: 3px;
-    gap: 4px;
+    padding: 2px;
+    gap: 2px;
     flex-wrap: nowrap;
     align-items: center;
     justify-content: center;
@@ -1397,13 +1397,13 @@ h3 {
   }
 
   .opponent-area .card-wrapper {
-    width: 50px;
+    width: 36px;
     gap: 0;
   }
 
   .opponent-area .card {
-    width: 50px;
-    height: 70px;
+    width: 36px;
+    height: 50px;
     padding: 2px;
     border-radius: 5px;
     gap: 1px;
@@ -1448,7 +1448,7 @@ h3 {
   }
 
   #player-area {
-    flex: 1 1 48%;
+    flex: 0.95 1 36%;
     width: 100%;
     box-sizing: border-box;
     min-height: 0;
@@ -1456,7 +1456,7 @@ h3 {
     margin-top: auto;
     padding: 0.35rem;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 138px;
+    grid-template-columns: minmax(0, 1fr) 122px;
     grid-template-rows: auto minmax(0, 1fr);
     gap: 4px 6px;
     align-items: stretch;
@@ -1480,7 +1480,7 @@ h3 {
     padding: 0.25rem;
     display: grid;
     grid-template-columns: repeat(3, minmax(50px, 1fr));
-    grid-auto-rows: minmax(126px, auto);
+    grid-auto-rows: minmax(112px, auto);
     align-content: start;
     justify-items: center;
     gap: 3px;
@@ -1504,28 +1504,28 @@ h3 {
   }
 
   #player-hand .card-wrapper {
-    width: 62px;
+    width: 56px;
     gap: 2px;
   }
 
   #player-hand .card {
-    width: 62px;
-    height: 88px;
+    width: 56px;
+    height: 80px;
     padding: 4px;
     border-radius: 8px;
     gap: 3px;
   }
 
   #player-discard .card-wrapper {
-    width: 54px;
-    min-height: 120px;
+    width: 50px;
+    min-height: 108px;
     gap: 3px;
     align-items: center;
   }
 
   #player-discard .card {
-    width: 50px;
-    height: 70px;
+    width: 46px;
+    height: 64px;
     padding: 2px;
     border-radius: 4px;
     gap: 1px;
