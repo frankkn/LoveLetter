@@ -193,6 +193,8 @@ let lobbyRooms: LobbyRoomSummary[] = [];
 let currentRoomWaitState: RoomWaitViewState | null = null;
 let pendingForcedEffect: PendingForcedEffect | null = null;
 let resolvingForcedEffect: PendingForcedEffect | null = null;
+let pendingBaronDuel: PendingBaronDuel | null = null;
+let activeBaronDuelModalKey: string | null = null;
 let isHandlingPendingForcedEffect = false;
 
 async function leaveRoomIfConnected(room: Room | null) {
@@ -225,6 +227,8 @@ async function resetClientState() {
     currentRoomWaitState = null;
     pendingForcedEffect = null;
     resolvingForcedEffect = null;
+    pendingBaronDuel = null;
+    activeBaronDuelModalKey = null;
     isHandlingPendingForcedEffect = false;
     selectedCardId = null;
     isResolvingTurnAction = false;
@@ -1148,7 +1152,40 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 break;
             }
 
-            if (!actor.isBot || !target.isBot) {
+            const actorCard = actor.hand[0];
+            const targetCard = target.hand[0];
+
+            if (isOnlineGameActive() && !pendingBaronDuel) {
+                pendingBaronDuel = {
+                    actorId,
+                    targetId,
+                    actorCard,
+                    targetCard,
+                    sourceCardId: card.id,
+                    confirmedPlayerIds: [
+                        ...(actor.isBot ? [actorId] : []),
+                        ...(target.isBot ? [targetId] : [])
+                    ]
+                };
+                render();
+                syncOnlineGameState();
+            }
+
+            if (isOnlineGameActive() && pendingBaronDuel && isSameBaronDuel(pendingBaronDuel, {
+                actorId,
+                targetId,
+                actorCard,
+                targetCard,
+                sourceCardId: card.id,
+                confirmedPlayerIds: []
+            })) {
+                if (isLocalBaronDuelParticipant(pendingBaronDuel) && !hasConfirmedBaronDuel(pendingBaronDuel, localPlayerId)) {
+                    await showBaronDuelModal(clonePendingBaronDuel(pendingBaronDuel));
+                }
+                await waitForBaronDuelConfirmations(pendingBaronDuel);
+                pendingBaronDuel = null;
+                syncOnlineGameState();
+            } else if (!actor.isBot || !target.isBot) {
                 await waitForStatsModalConfirm(
                     '男爵對決提示',
                     `<p>${actor.name} 將與 ${target.name} 秘密比大小。</p><p>按下開始後會公開比牌結果並繼續結算。</p>`,
@@ -1156,8 +1193,6 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 );
             }
 
-            const actorCard = actor.hand[0];
-            const targetCard = target.hand[0];
             const aVal = actorCard.value;
             const tVal = targetCard.value;
             const aliveBeforeCompare = state.players.filter(p => p.isAlive).length;
@@ -1688,10 +1723,20 @@ interface PendingForcedEffect {
     shouldEndTurnAfterResolution: boolean;
 }
 
+interface PendingBaronDuel {
+    actorId: number;
+    targetId: number;
+    actorCard: Card;
+    targetCard: Card;
+    sourceCardId: string;
+    confirmedPlayerIds: number[];
+}
+
 interface OnlineGameStateData extends OnlineGameData {
     isGameOver: boolean;
     winner: Player | null;
     pendingForcedEffect: PendingForcedEffect | null;
+    pendingBaronDuel: PendingBaronDuel | null;
 }
 
 function getConnectionErrorMessage(error: unknown): string {
@@ -1888,6 +1933,12 @@ function createOnlineGameStateData(): OnlineGameStateData {
         pendingForcedEffect: pendingForcedEffect ? {
             ...pendingForcedEffect,
             card: cloneCardForOnlineSync(pendingForcedEffect.card)
+        } : null,
+        pendingBaronDuel: pendingBaronDuel ? {
+            ...pendingBaronDuel,
+            actorCard: cloneCardForOnlineSync(pendingBaronDuel.actorCard),
+            targetCard: cloneCardForOnlineSync(pendingBaronDuel.targetCard),
+            confirmedPlayerIds: [...pendingBaronDuel.confirmedPlayerIds]
         } : null
     };
 }
@@ -1925,6 +1976,15 @@ function clonePendingForcedEffect(effect: PendingForcedEffect): PendingForcedEff
     };
 }
 
+function clonePendingBaronDuel(duel: PendingBaronDuel): PendingBaronDuel {
+    return {
+        ...duel,
+        actorCard: { ...duel.actorCard },
+        targetCard: { ...duel.targetCard },
+        confirmedPlayerIds: [...duel.confirmedPlayerIds]
+    };
+}
+
 function isSamePendingForcedEffect(a: PendingForcedEffect | null, b: PendingForcedEffect | null) {
     return Boolean(
         a &&
@@ -1934,6 +1994,97 @@ function isSamePendingForcedEffect(a: PendingForcedEffect | null, b: PendingForc
         a.shouldEndTurnAfterResolution === b.shouldEndTurnAfterResolution &&
         a.card.id === b.card.id
     );
+}
+
+function getBaronDuelKey(duel: PendingBaronDuel | null) {
+    return duel ? `${duel.actorId}:${duel.targetId}:${duel.sourceCardId}:${duel.actorCard.id}:${duel.targetCard.id}` : null;
+}
+
+function isSameBaronDuel(a: PendingBaronDuel | null, b: PendingBaronDuel | null) {
+    const aKey = getBaronDuelKey(a);
+    const bKey = getBaronDuelKey(b);
+    return Boolean(aKey && bKey && aKey === bKey);
+}
+
+function isLocalBaronDuelParticipant(duel: PendingBaronDuel | null) {
+    return Boolean(duel && (duel.actorId === localPlayerId || duel.targetId === localPlayerId));
+}
+
+function hasConfirmedBaronDuel(duel: PendingBaronDuel | null, playerId: number) {
+    return Boolean(duel?.confirmedPlayerIds.includes(playerId));
+}
+
+function confirmLocalBaronDuel(duel: PendingBaronDuel) {
+    if (!pendingBaronDuel || !isSameBaronDuel(pendingBaronDuel, duel)) return;
+    if (!pendingBaronDuel.confirmedPlayerIds.includes(localPlayerId)) {
+        pendingBaronDuel.confirmedPlayerIds = [...pendingBaronDuel.confirmedPlayerIds, localPlayerId];
+    }
+    syncOnlineGameState();
+}
+
+function areBaronDuelParticipantsConfirmed(duel: PendingBaronDuel | null) {
+    return Boolean(
+        duel &&
+        duel.confirmedPlayerIds.includes(duel.actorId) &&
+        duel.confirmedPlayerIds.includes(duel.targetId)
+    );
+}
+
+function createBaronDuelBodyHTML(duel: PendingBaronDuel) {
+    const actor = state.players[duel.actorId];
+    const target = state.players[duel.targetId];
+
+    return `
+        <p>${actor.name} 與 ${target.name} 展開男爵對決。</p>
+        <div class="duel-card-row">
+            <div>
+                <strong>${actor.name}</strong>
+                ${createCardUI(duel.actorCard, false).outerHTML}
+            </div>
+            <div>
+                <strong>${target.name}</strong>
+                ${createCardUI(duel.targetCard, false).outerHTML}
+            </div>
+        </div>
+    `;
+}
+
+async function showBaronDuelModal(duel: PendingBaronDuel) {
+    const duelKey = getBaronDuelKey(duel);
+    if (!duelKey || activeBaronDuelModalKey === duelKey) return;
+
+    activeBaronDuelModalKey = duelKey;
+    isResolvingTurnAction = true;
+    try {
+        await waitForStatsModalConfirm('男爵對決', createBaronDuelBodyHTML(duel), '確認對決');
+        confirmLocalBaronDuel(duel);
+    } finally {
+        if (activeBaronDuelModalKey === duelKey) {
+            activeBaronDuelModalKey = null;
+        }
+    }
+}
+
+async function handlePendingBaronDuel() {
+    if (!pendingBaronDuel || !isLocalBaronDuelParticipant(pendingBaronDuel)) return;
+    if (hasConfirmedBaronDuel(pendingBaronDuel, localPlayerId)) return;
+
+    await showBaronDuelModal(clonePendingBaronDuel(pendingBaronDuel));
+}
+
+function waitForBaronDuelConfirmations(duel: PendingBaronDuel): Promise<void> {
+    return new Promise(resolve => {
+        const wait = () => {
+            if (!pendingBaronDuel || !isSameBaronDuel(pendingBaronDuel, duel) || areBaronDuelParticipantsConfirmed(pendingBaronDuel)) {
+                resolve();
+                return;
+            }
+
+            window.setTimeout(wait, 100);
+        };
+
+        wait();
+    });
 }
 
 function isLocalForcedEffect(effect: PendingForcedEffect | null) {
@@ -2003,6 +2154,16 @@ function applyOnlineGameState(data: OnlineGameStateData) {
     const incomingPendingForcedEffect = data.pendingForcedEffect
         ? clonePendingForcedEffect(data.pendingForcedEffect)
         : null;
+    const incomingPendingBaronDuel = data.pendingBaronDuel
+        ? clonePendingBaronDuel(data.pendingBaronDuel)
+        : null;
+    const shouldPreserveBaronDuelInteraction = Boolean(
+        isOnlineGameActive() &&
+        isResolvingTurnAction &&
+        isLocalBaronDuelParticipant(pendingBaronDuel) &&
+        incomingPendingBaronDuel &&
+        isSameBaronDuel(pendingBaronDuel, incomingPendingBaronDuel)
+    );
     const isRemoteForcedEffectCompletion = Boolean(
         isResolvingTurnAction &&
         pendingForcedEffect &&
@@ -2025,6 +2186,13 @@ function applyOnlineGameState(data: OnlineGameStateData) {
             )
         )
     );
+
+    if (shouldPreserveBaronDuelInteraction) {
+        pendingBaronDuel = incomingPendingBaronDuel;
+        onlineGameInitialized = true;
+        void handlePendingBaronDuel();
+        return;
+    }
 
     if (shouldPreserveLocalInteraction) {
         if (!isResolvingLocalForcedEffect(incomingPendingForcedEffect) && !isLocalForcedEffect(pendingForcedEffect)) {
@@ -2055,9 +2223,12 @@ function applyOnlineGameState(data: OnlineGameStateData) {
             aiMemory: {}
         };
         pendingForcedEffect = incomingPendingForcedEffect;
+        pendingBaronDuel = incomingPendingBaronDuel;
 
         onlineGameInitialized = true;
-        closeModal();
+        if (!isLocalBaronDuelParticipant(pendingBaronDuel)) {
+            closeModal();
+        }
         showScene('game-scene');
         render();
         window.requestAnimationFrame(() => render());
@@ -2066,6 +2237,7 @@ function applyOnlineGameState(data: OnlineGameStateData) {
     }
 
     void handlePendingForcedEffect();
+    void handlePendingBaronDuel();
 }
 
 function applyOnlineGameData(data: OnlineGameData) {
@@ -2073,7 +2245,8 @@ function applyOnlineGameData(data: OnlineGameData) {
         ...data,
         isGameOver: false,
         winner: null,
-        pendingForcedEffect: null
+        pendingForcedEffect: null,
+        pendingBaronDuel: null
     });
 }
 
@@ -2493,6 +2666,8 @@ function initGame(botCount: number) {
     isApplyingOnlineState = false;
     pendingForcedEffect = null;
     resolvingForcedEffect = null;
+    pendingBaronDuel = null;
+    activeBaronDuelModalKey = null;
     isHandlingPendingForcedEffect = false;
     queuedBotTurnId = null;
     selectedCardId = null;
@@ -2544,6 +2719,8 @@ function startNextRound() {
     isResolvingTurnAction = false;
     pendingForcedEffect = null;
     resolvingForcedEffect = null;
+    pendingBaronDuel = null;
+    activeBaronDuelModalKey = null;
     isHandlingPendingForcedEffect = false;
     const firstPlayerId = state.winner.id;
     let deck = createDeck();
