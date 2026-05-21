@@ -2347,6 +2347,7 @@ function applyOnlineGameState(data: OnlineGameStateData) {
         pendingForcedEffectsQueue = incomingPendingForcedEffectsQueue;
         pendingBaronDuel = incomingPendingBaronDuel;
         nextRoundReadyPlayerIds = [...(data.nextRoundReadyPlayerIds ?? [])];
+        hasShownEndGameModal = false;
 
         onlineGameInitialized = true;
         if (!isLocalBaronDuelParticipant(pendingBaronDuel)) {
