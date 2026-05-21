@@ -1224,16 +1224,18 @@ h3 {
   }
 
   #opponents-container {
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     width: 100%;
-    min-height: 162px;
-    height: 162px;
-    max-height: 170px;
+    min-height: 220px;
+    height: auto;
+    max-height: none;
     gap: 5px;
     margin-bottom: 0;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     align-content: start;
+    align-items: stretch;
+    grid-auto-rows: 1fr;
     overflow: hidden !important;
   }
 
@@ -1242,7 +1244,8 @@ h3 {
     max-width: none;
     box-sizing: border-box;
     display: grid;
-    grid-template-rows: 16px 52px 74px;
+    grid-template-rows: 16px minmax(116px, 1fr) 74px;
+    height: 100%;
     align-items: stretch;
     gap: 3px;
     padding: 4px;
@@ -1265,15 +1268,16 @@ h3 {
   .opponent-area .discard-container {
     grid-row: 2;
     box-sizing: border-box;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-content: start;
+    justify-items: center;
     min-height: 0;
-    height: 52px;
-    max-height: 52px;
+    height: 140px;
+    max-height: 140px;
     margin-bottom: 0;
-    padding: 2px 3px;
+    padding: 3px;
     gap: 2px;
-    flex-wrap: nowrap;
-    align-items: center;
-    justify-content: center;
     background: rgba(0, 0, 0, 0.22);
     overflow: hidden !important;
   }
@@ -1293,20 +1297,54 @@ h3 {
   }
 
   .opponent-area .discard-container .card-wrapper {
-    width: 35px;
-    flex: 0 0 35px;
+    width: 34px;
+    min-height: 56px;
+    gap: 1px;
   }
 
   .opponent-area .discard-container .card {
-    width: 35px;
-    height: 50px;
+    width: 32px;
+    height: 44px;
     padding: 1px;
     border-radius: 4px;
   }
 
-  .opponent-area .discard-container .card-header,
   .opponent-area .discard-container .card-desc {
     display: none !important;
+  }
+
+  .opponent-area .discard-container .card-header {
+    display: flex;
+    min-height: 10px;
+    justify-content: flex-end;
+  }
+
+  .opponent-area .discard-container .card-name {
+    display: none;
+  }
+
+  .opponent-area .discard-container .card-value {
+    width: 12px;
+    height: 12px;
+    flex-basis: 12px;
+    font-size: 0.45rem;
+  }
+
+  .opponent-area .discard-container .card-action-hints {
+    display: grid !important;
+    gap: 1px;
+    width: 100%;
+  }
+
+  .opponent-area .discard-container .card-action-hint {
+    display: block;
+    min-height: 0;
+    padding: 1px 2px;
+    border-radius: 3px;
+    font-size: 0.44rem;
+    line-height: 1.05;
+    white-space: normal;
+    word-break: break-all;
   }
 
   .opponent-area .card-wrapper {
@@ -1346,7 +1384,7 @@ h3 {
     font-size: 0.5rem;
   }
 
-  .opponent-area .card-action-hints,
+  .opponent-area .hand-container .card-action-hints,
   .opponent-area .card-desc {
     display: none !important;
   }

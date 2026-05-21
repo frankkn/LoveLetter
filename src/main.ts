@@ -944,7 +944,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                         const playedGuard = recordGuardGuess(actor, target, val as CardType);
                         const guessedName = CARD_DEFINITIONS[val as CardType].name;
                         closeModal();
-                        addLog(`${actor.name} 對 ${target.name} 猜測 ${val}`);
+                        addLog(`${actor.name} 對 ${target.name} 猜測 ${val} (${guessedName})`);
                         if (target.hand[0].value === val) {
                             if (playedGuard) {
                                 playedGuard.actionHints = [
