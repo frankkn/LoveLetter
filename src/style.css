@@ -953,6 +953,27 @@ h3 {
   font-variant-numeric: tabular-nums;
 }
 
+.duel-card-row {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 1.5rem;
+  margin: 1rem 0 0.25rem;
+}
+
+.duel-card-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 112px;
+}
+
+.duel-card-column strong {
+  color: #ffa502;
+  font-size: 0.92rem;
+}
+
 .target-btn {
   padding: 10px;
   background: #333;
@@ -1035,6 +1056,18 @@ h3 {
   html,
   body {
     height: 100%;
+  }
+
+  .modal-content {
+    width: calc(100% - 1rem);
+    max-height: calc(100dvh - 1rem);
+    padding: 1rem;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+
+  .duel-card-row {
+    gap: 0.75rem;
   }
 
   body.game-scene-active {

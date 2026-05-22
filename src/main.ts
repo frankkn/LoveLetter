@@ -1238,9 +1238,15 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 syncOnlineGameState();
             } else if (!actor.isBot || !target.isBot) {
                 await waitForStatsModalConfirm(
-                    '男爵對決提示',
-                    `<p>${actor.name} 將與 ${target.name} 秘密比大小。</p><p>按下開始後會公開比牌結果並繼續結算。</p>`,
-                    '開始比牌'
+                    '男爵對決',
+                    createHandRevealBodyHTML(
+                        `${actor.name} 與 ${target.name} 展開男爵對決。`,
+                        actor.name,
+                        actorCard,
+                        target.name,
+                        targetCard
+                    ),
+                    '確認對決'
                 );
             }
 
@@ -1367,7 +1373,13 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             } else if (!actor.isBot || !target.isBot) {
                 await waitForStatsModalConfirm(
                     '國王交換手牌',
-                    `<p>${actor.name} 即將與 ${target.name} 交換手牌。</p>`,
+                    createHandRevealBodyHTML(
+                        `${actor.name} 即將與 ${target.name} 交換手牌。`,
+                        actor.name,
+                        actor.hand[0],
+                        target.name,
+                        target.hand[0]
+                    ),
                     '確認交換'
                 );
             }
@@ -1387,7 +1399,13 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             if (!actor.isBot || !target.isBot) {
                 await waitForStatsModalConfirm(
                     '國王交換完成',
-                    `<p>${actor.name} 已與 ${target.name} 完成手牌交換。</p>`,
+                    createHandRevealBodyHTML(
+                        `${actor.name} 已與 ${target.name} 完成手牌交換。`,
+                        actor.name,
+                        actor.hand[0],
+                        target.name,
+                        target.hand[0]
+                    ),
                     '我了解了'
                 );
             }
@@ -2175,23 +2193,33 @@ function areBaronDuelParticipantsConfirmed(duel: PendingBaronDuel | null) {
     );
 }
 
+function createHandRevealBodyHTML(message: string, actorName: string, actorCard: Card, targetName: string, targetCard: Card) {
+    return `
+        <p>${message}</p>
+        <div class="duel-card-row">
+            <div class="duel-card-column">
+                <strong>${actorName}</strong>
+                ${createCardUI(actorCard, false).outerHTML}
+            </div>
+            <div class="duel-card-column">
+                <strong>${targetName}</strong>
+                ${createCardUI(targetCard, false).outerHTML}
+            </div>
+        </div>
+    `;
+}
+
 function createBaronDuelBodyHTML(duel: PendingBaronDuel) {
     const actor = state.players[duel.actorId];
     const target = state.players[duel.targetId];
 
-    return `
-        <p>${actor.name} 與 ${target.name} 展開男爵對決。</p>
-        <div class="duel-card-row">
-            <div>
-                <strong>${actor.name}</strong>
-                ${createCardUI(duel.actorCard, false).outerHTML}
-            </div>
-            <div>
-                <strong>${target.name}</strong>
-                ${createCardUI(duel.targetCard, false).outerHTML}
-            </div>
-        </div>
-    `;
+    return createHandRevealBodyHTML(
+        `${actor.name} 與 ${target.name} 展開男爵對決。`,
+        actor.name,
+        duel.actorCard,
+        target.name,
+        duel.targetCard
+    );
 }
 
 async function showBaronDuelModal(duel: PendingBaronDuel) {
