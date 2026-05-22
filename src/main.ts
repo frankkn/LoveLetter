@@ -410,7 +410,9 @@ function render() {
     
     // 渲染對手區域
     opponentsContainerEl.innerHTML = '';
-    state.players.filter(player => player.id !== localPlayer.id).forEach(bot => {
+    const opponents = state.players.filter(player => player.id !== localPlayer.id);
+    opponentsContainerEl.dataset.opponentCount = String(opponents.length);
+    opponents.forEach(bot => {
         const botArea = document.createElement('div');
         const isActive = !state.isGameOver && state.currentTurnPlayerId === bot.id;
         const isWinner = state.winner?.id === bot.id;
