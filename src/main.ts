@@ -61,6 +61,7 @@ export interface GameState {
     winner: Player | null;
     logs: string[];
     aiMemory: Record<number, Record<number, CardType>>;
+    aiExcludedGuesses: Record<number, Record<number, CardType[]>>;
 }
 
 interface PlayRollback {
@@ -666,15 +667,45 @@ function createAIMemory(players: Player[]): Record<number, Record<number, CardTy
         }, {});
 }
 
+function createAIExcludedGuesses(players: Player[]): Record<number, Record<number, CardType[]>> {
+    return players
+        .filter(player => player.isBot)
+        .reduce<Record<number, Record<number, CardType[]>>>((exclusions, bot) => {
+            exclusions[bot.id] = {};
+            return exclusions;
+        }, {});
+}
+
 function rememberKnownCard(observerId: number, targetId: number, cardType: CardType) {
     if (!state.players[observerId]?.isBot) return;
     state.aiMemory[observerId] ??= {};
     state.aiMemory[observerId][targetId] = cardType;
 }
 
+function rememberGuardMiss(targetId: number, guessedType: CardType) {
+    if (guessedType === CardType.Guard) return;
+
+    state.players
+        .filter(player => player.isBot)
+        .forEach(bot => {
+            state.aiExcludedGuesses[bot.id] ??= {};
+            const excludedTypes = state.aiExcludedGuesses[bot.id][targetId] ?? [];
+            if (!excludedTypes.includes(guessedType)) {
+                state.aiExcludedGuesses[bot.id][targetId] = [...excludedTypes, guessedType];
+            }
+        });
+}
+
 function clearKnownCardForPlayer(playerId: number) {
     Object.values(state.aiMemory).forEach(memory => {
         delete memory[playerId];
+    });
+    clearExcludedGuardGuessesForPlayer(playerId);
+}
+
+function clearExcludedGuardGuessesForPlayer(playerId: number) {
+    Object.values(state.aiExcludedGuesses).forEach(exclusions => {
+        delete exclusions[playerId];
     });
 }
 
@@ -722,6 +753,11 @@ function getRememberedCardType(observerId: number, targetId: number): CardType |
     return rememberedType;
 }
 
+function getExcludedGuardGuesses(observerId: number, targetId: number): Set<CardType> {
+    const excludedTypes = state.aiExcludedGuesses[observerId]?.[targetId] ?? [];
+    return new Set(excludedTypes.filter(type => type !== CardType.Guard));
+}
+
 function getBaronLegalTargets(bot: Player): Player[] {
     return state.players.filter(player => (
         player.id !== bot.id &&
@@ -763,6 +799,7 @@ function drawCard(playerId: number): boolean {
     if (!player.isBot) selectedCardId = null;
     const card = state.deck.pop()!;
     player.hand.push(card);
+    clearExcludedGuardGuessesForPlayer(playerId);
     pruneInvalidKnownCardsForPlayer(playerId);
     addLog(`${player.name} 抽了一張牌。`);
     render();
@@ -1053,6 +1090,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                             eliminate(targetId, "被衛兵猜中手牌");
                             if (shouldEndTurn && !state.isGameOver) await endTurn(actorId);
                         } else {
+                            rememberGuardMiss(targetId, val as CardType);
                             if (playedGuard) {
                                 playedGuard.actionHints = [
                                     { text: `🎯 對 ${target.name} 猜 ${guessedName}` },
@@ -1088,6 +1126,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                     eliminate(targetId, "被衛兵猜中手牌");
                     if (shouldEndTurn && !state.isGameOver) await endTurn(actorId);
                 } else {
+                    rememberGuardMiss(targetId, guessNum as CardType);
                     if (playedGuard) {
                         playedGuard.actionHints = [
                             { text: `🎯 對 ${target.name} 猜 ${guessedName}` },
@@ -1378,13 +1417,24 @@ function getAISmartGuess(botId: number, targetId: number): number {
     });
     state.players[botId].hand.forEach(c => knownCounts[c.value]++);
 
+    const excludedGuesses = getExcludedGuardGuesses(botId, targetId);
     const possibleGuesses: number[] = [];
     for (let i = 2; i <= 8; i++) {
-        if (knownCounts[i] < CARD_DEFINITIONS[i as CardType].count) {
+        if (!excludedGuesses.has(i as CardType) && knownCounts[i] < CARD_DEFINITIONS[i as CardType].count) {
             possibleGuesses.push(i);
         }
     }
-    return possibleGuesses.length > 0 ? possibleGuesses[Math.floor(Math.random() * possibleGuesses.length)] : 2;
+    if (possibleGuesses.length > 0) {
+        return possibleGuesses[Math.floor(Math.random() * possibleGuesses.length)];
+    }
+
+    const fallbackGuesses: number[] = [];
+    for (let i = 2; i <= 8; i++) {
+        if (!excludedGuesses.has(i as CardType)) {
+            fallbackGuesses.push(i);
+        }
+    }
+    return fallbackGuesses.length > 0 ? fallbackGuesses[Math.floor(Math.random() * fallbackGuesses.length)] : 2;
 }
 
 async function discardAndDraw(targetId: number, returnTurnPlayerId: number, shouldEndTurnAfterResolution: boolean): Promise<PrinceDiscardResult> {
@@ -2391,7 +2441,8 @@ function applyOnlineGameState(data: OnlineGameStateData) {
                 isGameOver: true,
                 winner: data.winner ? players.find(player => player.id === data.winner?.id) ?? cloneOnlinePlayer(data.winner) : null,
                 logs: [...data.logs],
-                aiMemory: {}
+                aiMemory: {},
+                aiExcludedGuesses: {}
             };
 
             onlineGameInitialized = true;
@@ -2494,7 +2545,8 @@ function applyOnlineGameState(data: OnlineGameStateData) {
             isGameOver: data.isGameOver,
             winner: data.winner ? players.find(player => player.id === data.winner?.id) ?? cloneOnlinePlayer(data.winner) : null,
             logs: [...data.logs],
-            aiMemory: {}
+            aiMemory: {},
+            aiExcludedGuesses: {}
         };
         pendingForcedEffectsQueue = incomingPendingForcedEffectsQueue;
         pendingBaronDuel = incomingPendingBaronDuel;
@@ -2987,7 +3039,8 @@ function initGame(botCount: number) {
         isGameOver: false,
         winner: null,
         logs: ["遊戲開始，玩家先攻！"],
-        aiMemory: createAIMemory(players)
+        aiMemory: createAIMemory(players),
+        aiExcludedGuesses: createAIExcludedGuesses(players)
     };
 
     showScene('game-scene');
@@ -3102,6 +3155,7 @@ function startNextRound() {
     state.winner = null;
     state.logs = [`新一局開始，${state.players[firstPlayerId].name} 作為上一局勝出者先攻！`];
     state.aiMemory = createAIMemory(state.players);
+    state.aiExcludedGuesses = createAIExcludedGuesses(state.players);
 
     showScene('game-scene');
     render();
