@@ -6,6 +6,14 @@
     <meta name="format-detection" content="telephone=no" />
     <link rel="icon" type="image/png" sizes="192x192" href="%BASE_URL%icons/icon-192.png" />
     <title>情書 (Love Letter) - TS 版</title>
+    <script>
+      // Unregister any leftover PWA service workers from previous versions.
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          regs.forEach(r => r.unregister());
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="app">
