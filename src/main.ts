@@ -212,6 +212,7 @@ let activeKingExchangeModalKey: string | null = null;
 let isHandlingPendingForcedEffect = false;
 let hasShownEndGameModal = false;
 let nextRoundReadyPlayerIds: number[] = [];
+let restartReadyPlayerIds: number[] = [];
 
 async function leaveRoomIfConnected(room: Room | null) {
     if (!room) return;
@@ -246,6 +247,7 @@ function resetLocalClientState() {
     isHandlingPendingForcedEffect = false;
     hasShownEndGameModal = false;
     nextRoundReadyPlayerIds = [];
+    restartReadyPlayerIds = [];
     selectedCardId = null;
     isResolvingTurnAction = false;
     queuedBotTurnId = null;
@@ -1727,8 +1729,9 @@ function showChampionModal() {
             </p>
             <div style="margin-top: 1rem; font-size: 1.65rem;">${getCoinIcons(champion.coins)}</div>
         </div>
-    `, `<button class="modal-confirm-btn" id="champion-return-btn">返回</button>`);
+    `, `<button class="modal-confirm-btn" id="champion-restart-btn" style="background: #16a34a;">重新開始</button><button class="modal-confirm-btn" id="champion-return-btn" style="margin-left: 0.65rem; background: #64748b;">返回</button>`);
 
+    document.getElementById('champion-restart-btn')!.onclick = () => requestRestart();
     document.getElementById('champion-return-btn')!.onclick = closeModal;
 }
 
@@ -2004,6 +2007,7 @@ interface OnlineGameStateData extends OnlineGameData {
     pendingBaronDuel: PendingBaronDuel | null;
     pendingKingExchange?: PendingKingExchange | null;
     nextRoundReadyPlayerIds?: number[];
+    restartReadyPlayerIds?: number[];
 }
 
 function getConnectionErrorMessage(error: unknown): string {
@@ -2213,7 +2217,8 @@ function createOnlineGameStateData(): OnlineGameStateData {
             ...pendingKingExchange,
             confirmedPlayerIds: [...pendingKingExchange.confirmedPlayerIds]
         } : null,
-        nextRoundReadyPlayerIds: [...nextRoundReadyPlayerIds]
+        nextRoundReadyPlayerIds: [...nextRoundReadyPlayerIds],
+        restartReadyPlayerIds: [...restartReadyPlayerIds]
     };
 }
 
@@ -2554,7 +2559,10 @@ function applyOnlineGameState(data: OnlineGameStateData) {
     // Drop syncs from prior rounds. With 3+ players, the "next round" sync race can produce
     // late game-over syncs that arrive after a newer round has already begun locally; without
     // this guard those stale syncs would rewind a player's UI to the previous round's result.
-    if (state && typeof data.roundIndex === 'number' && data.roundIndex < state.roundIndex) {
+    // IMPORTANT: only apply this guard when already in an initialized game session. A fresh
+    // init_game_data arriving after a champion game (roundIndex=0) must never be blocked by
+    // a stale state.roundIndex leftover from the previous league.
+    if (onlineGameInitialized && state && typeof data.roundIndex === 'number' && data.roundIndex < state.roundIndex) {
         return;
     }
 
@@ -2596,6 +2604,10 @@ function applyOnlineGameState(data: OnlineGameStateData) {
                 ...nextRoundReadyPlayerIds,
                 ...(data.nextRoundReadyPlayerIds ?? [])
             ]));
+            restartReadyPlayerIds = Array.from(new Set([
+                ...restartReadyPlayerIds,
+                ...(data.restartReadyPlayerIds ?? [])
+            ]));
 
             const players = restoreLocalPrivateHints(data.players.map(cloneOnlinePlayer));
 
@@ -2620,6 +2632,8 @@ function applyOnlineGameState(data: OnlineGameStateData) {
             render();
             if (shouldShowEndGameModal) {
                 showEndGameModal();
+            } else if (restartReadyPlayerIds.includes(localPlayerId) && modalOverlay.style.display !== 'flex') {
+                showRestartWaitingModal();
             } else if (nextRoundReadyPlayerIds.includes(localPlayerId) && modalOverlay.style.display !== 'flex') {
                 showNextRoundWaitingModal();
             }
@@ -2629,6 +2643,7 @@ function applyOnlineGameState(data: OnlineGameStateData) {
         }
 
         startNextRoundIfReadyAndHost();
+        startNewLeagueIfReadyAndHost();
         return;
     }
 
@@ -3375,6 +3390,76 @@ function showNextRoundWaitingModal() {
     };
 }
 
+// ── Restart (重新開始) ──────────────────────────────────────────────────────
+
+function getRestartWaitingPlayerNames(): string[] {
+    const readyIds = new Set(restartReadyPlayerIds);
+    return getConnectedOnlinePlayerIds()
+        .filter(playerId => !readyIds.has(playerId))
+        .map(playerId => state.players[playerId]?.name ?? `玩家 ${playerId + 1}`);
+}
+
+function areAllConnectedPlayersReadyForRestart(): boolean {
+    const connectedPlayerIds = getConnectedOnlinePlayerIds();
+    return connectedPlayerIds.length > 0 && connectedPlayerIds.every(playerId => restartReadyPlayerIds.includes(playerId));
+}
+
+function showRestartWaitingModal() {
+    const waitingNames = getRestartWaitingPlayerNames();
+    const waitingListHTML = waitingNames.length > 0
+        ? waitingNames.map(name => `<li>等待 ${escapeHTML(name)} 確認重新開始</li>`).join('')
+        : '<li>所有玩家已確認，正在重新開始...</li>';
+
+    showModal('等待重新開始', `
+        <div style="text-align: left; line-height: 1.7;">
+            <p style="margin-top: 0;">你已確認重新開始全新聯賽（所有硬幣歸零）。請等待其他玩家確認。</p>
+            <ul style="margin: 0.5rem 0 0; padding-left: 1.25rem;">${waitingListHTML}</ul>
+        </div>
+    `, '<button class="modal-confirm-btn" id="restart-wait-cancel-btn" style="background: #64748b;">取消</button>');
+
+    document.getElementById('restart-wait-cancel-btn')!.onclick = () => {
+        restartReadyPlayerIds = restartReadyPlayerIds.filter(id => id !== localPlayerId);
+        syncOnlineGameState();
+        showChampionModal();
+    };
+}
+
+function requestRestart() {
+    if (!state.isGameOver) return;
+
+    if (!isOnlineGameActive()) {
+        // Single-player: reset coins immediately and start a new league
+        startNewLeague();
+        return;
+    }
+
+    if (!restartReadyPlayerIds.includes(localPlayerId)) {
+        restartReadyPlayerIds = [...restartReadyPlayerIds, localPlayerId];
+    }
+
+    showRestartWaitingModal();
+    syncOnlineGameState();
+    startNewLeagueIfReadyAndHost();
+}
+
+function startNewLeagueIfReadyAndHost() {
+    if (!isOnlineGameActive() || !state.isGameOver || !areAllConnectedPlayersReadyForRestart() || !isLocalRoomHost()) return;
+
+    closeModal();
+    startNewLeague();
+}
+
+/** Reset all player coins to 0 and start a fresh first round. */
+function startNewLeague() {
+    state.players.forEach(player => {
+        player.coins = 0;
+    });
+    restartReadyPlayerIds = [];
+    startNextRound();
+}
+
+// ── Next round ─────────────────────────────────────────────────────────────
+
 function requestNextRound() {
     if (!state.winner) return;
 
@@ -3404,6 +3489,7 @@ function startNextRound() {
 
     endGameReason = '';
     nextRoundReadyPlayerIds = [];
+    restartReadyPlayerIds = [];
     queuedBotTurnId = null;
     selectedCardId = null;
     isResolvingTurnAction = false;
