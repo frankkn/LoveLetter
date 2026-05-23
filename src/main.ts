@@ -1,4 +1,5 @@
 import './style.css'
+import { t, setLang, getLang, type LangCode, createRulesBodyHTML } from './i18n.js';
 import { Client, type Room, type RoomAvailable } from '@colyseus/sdk';
 import guardImage from './assets/cards/guard.png';
 import priestImage from './assets/cards/priest.png';
@@ -295,7 +296,52 @@ const showResultBtn = document.getElementById('show-result-btn') as HTMLButtonEl
 const showLogBtn = document.getElementById('show-log-btn') as HTMLButtonElement;
 const gameLogEl = document.getElementById('game-log')!;
 const turnIndicatorEl = document.getElementById('turn-indicator')!;
-showLogBtn.textContent = '查看對戰紀錄';
+// ── i18n helpers ───────────────────────────────────────────────────────────
+
+const CARD_KEY: Record<number, string> = {
+    1: 'guard', 2: 'priest', 3: 'baron', 4: 'handmaid',
+    5: 'prince', 6: 'king',  7: 'countess', 8: 'princess'
+};
+
+function getCardName(type: number): string {
+    return t(`card.${CARD_KEY[type] ?? type}`);
+}
+
+function getCardDesc(type: number): string {
+    return t(`card.desc.${CARD_KEY[type] ?? type}`);
+}
+
+function applyStaticTranslations(): void {
+    document.querySelectorAll<HTMLElement>('[data-i18n]').forEach(el => {
+        el.textContent = t(el.dataset.i18n!);
+    });
+    document.documentElement.lang = getLang() === 'zh' ? 'zh-TW' : 'en';
+}
+
+function showLanguageModal(): void {
+    const currentKey = getLang() === 'zh' ? 'lang.zh' : 'lang.en';
+    showModal(
+        t('modal.language'),
+        `<div style="text-align:center;padding:0.5rem 0 0.25rem;">
+            <p style="margin:0 0 1rem;color:#ccc;">${t('lang.current' as string, t(currentKey))}</p>
+            <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;">
+                <button id="lang-zh-btn" class="menu-btn primary" style="min-width:8rem;${getLang()==='zh'?'border:2px solid #ffb000;':''}">${t('lang.zh')}</button>
+                <button id="lang-en-btn" class="menu-btn primary" style="min-width:8rem;${getLang()==='en'?'border:2px solid #ffb000;':''}">${t('lang.en')}</button>
+            </div>
+        </div>`,
+        `<button class="modal-confirm-btn" id="lang-modal-cancel-btn" style="background:#64748b;">${t('btn.cancel')}</button>`
+    );
+
+    const applyAndClose = (lang: LangCode) => {
+        setLang(lang);
+        applyStaticTranslations();
+        closeModal();
+    };
+
+    document.getElementById('lang-zh-btn')!.onclick = () => applyAndClose('zh');
+    document.getElementById('lang-en-btn')!.onclick = () => applyAndClose('en');
+    document.getElementById('lang-modal-cancel-btn')!.onclick = closeModal;
+}
 
 // Modal 相關
 const modalOverlay = document.getElementById('modal-overlay')!;
@@ -307,7 +353,7 @@ let endGameReason = '';
 const mobileStatsToggleBtn = document.createElement('button');
 mobileStatsToggleBtn.type = 'button';
 mobileStatsToggleBtn.className = 'mobile-stats-toggle';
-mobileStatsToggleBtn.textContent = '📊 出牌統計';
+mobileStatsToggleBtn.dataset.i18n = 'game.statsToggle';
 mobileStatsToggleBtn.setAttribute('aria-controls', 'played-card-stats');
 mobileStatsToggleBtn.setAttribute('aria-expanded', 'false');
 document.body.appendChild(mobileStatsToggleBtn);
@@ -334,7 +380,7 @@ function renderPlayedCardStats() {
 
         const name = document.createElement('span');
         name.className = 'card-stat-name';
-        name.textContent = CARD_DEFINITIONS[type].name;
+        name.textContent = getCardName(type);
 
         const total = document.createElement('span');
         total.className = 'card-stat-count';
@@ -358,15 +404,15 @@ function createPlayedCardStatsHTML(): string {
         return `
             <div class="modal-card-stat-row ${count === 0 ? 'empty' : ''}">
                 <span class="modal-card-stat-value">${type}</span>
-                <span class="modal-card-stat-name">${def.name}</span>
+                <span class="modal-card-stat-name">${getCardName(type)}</span>
                 <span class="modal-card-stat-count">${count}/${def.count}</span>
             </div>
         `;
     }).join('');
 
     return `
-        <section class="modal-card-stats" aria-label="出牌統計">
-            <h3>出牌統計</h3>
+        <section class="modal-card-stats" aria-label="${t('game.stats')}">
+            <h3>${t('game.stats')}</h3>
             <div class="modal-card-stats-grid">${rows}</div>
         </section>
     `;
@@ -379,7 +425,8 @@ function createStatsModalBodyHTML(bodyHTML: string): string {
     `;
 }
 
-function waitForStatsModalConfirm(title: string, bodyHTML: string, confirmText = '確定'): Promise<void> {
+function waitForStatsModalConfirm(title: string, bodyHTML: string, confirmText?: string): Promise<void> {
+    confirmText ??= t('btn.confirm');
     return new Promise(resolve => {
         showModal(
             title,
@@ -395,19 +442,21 @@ function waitForStatsModalConfirm(title: string, bodyHTML: string, confirmText =
 }
 
 function createTargetSelectModalBodyHTML(card: Card, targets: Player[]): string {
-    const helperTextByType: Partial<Record<CardType, string>> = {
-        [CardType.Guard]: '選擇要猜測手牌的對象。下方同步顯示目前出牌統計，方便推測目標手牌。',
-        [CardType.Priest]: '選擇要查看手牌的對象。下方同步顯示目前出牌統計，方便推測牌況。',
-        [CardType.Baron]: '選擇要秘密比大小的對象。下方同步顯示目前出牌統計，方便判斷剩餘牌況。',
-        [CardType.Prince]: '選擇要強迫棄牌並重抽的對象。下方同步顯示目前出牌統計，方便判斷風險。',
-        [CardType.King]: '選擇要交換手牌的對象。下方同步顯示目前出牌統計，方便評估交換風險。'
+    const hintKeyByType: Partial<Record<CardType, string>> = {
+        [CardType.Guard]:   'target.hint.guard',
+        [CardType.Priest]:  'target.hint.priest',
+        [CardType.Baron]:   'target.hint.baron',
+        [CardType.Prince]:  'target.hint.prince',
+        [CardType.King]:    'target.hint.king',
     };
+    const hintKey = hintKeyByType[card.type];
+    const hint = hintKey ? t(hintKey) : t('target.hint.default', getCardName(card.type));
     const buttonsHTML = targets.map(target => (
         `<button class="target-btn" data-id="${target.id}">${target.name}</button>`
     )).join('');
 
     return `
-        <p class="modal-helper-text">${helperTextByType[card.type] ?? `選擇 ${card.name} 的目標。下方同步顯示目前出牌統計，方便判斷剩餘牌況。`}</p>
+        <p class="modal-helper-text">${hint}</p>
         ${createPlayedCardStatsHTML()}
         <div class="target-list">${buttonsHTML}</div>
     `;
@@ -419,23 +468,23 @@ function coinIconHTML(): string {
 
 function getCoinIcons(coins: number): string {
     return coins > 0
-        ? `<span class="coin-icons" aria-label="${coins} 枚硬幣" style="display:inline-flex;align-items:center;gap:0.12em;line-height:1;vertical-align:-0.12em;">${coinIconHTML().repeat(coins)}</span>`
+        ? `<span class="coin-icons" aria-label="${t('coins.label', String(coins))}" style="display:inline-flex;align-items:center;gap:0.12em;line-height:1;vertical-align:-0.12em;">${coinIconHTML().repeat(coins)}</span>`
         : '';
 }
 
 function getPlayerTitleHTML(player: Player, suffix = ''): string {
-    const statusBadge = player.isAlive ? '' : '<span class="player-status-badge">已出局</span>';
+    const statusBadge = player.isAlive ? '' : `<span class="player-status-badge">${t('game.eliminated')}</span>`;
     const title = `${escapeHTML(player.name)}${suffix ? ` ${escapeHTML(suffix)}` : ''}`;
     return `<span class="player-title-name">${title}</span>${getCoinIcons(player.coins)}${statusBadge}`;
 }
 
 function render() {
-    deckCountEl.textContent = `牌堆剩餘：${state.deck.length}`;
+    deckCountEl.textContent = `${t('game.deckLabel')}${state.deck.length}`;
     
     const currentPlayer = state.players[state.currentTurnPlayerId] ?? getAlivePlayers()[0] ?? state.players[0];
     const localPlayer = state.players[localPlayerId] ?? state.players[0];
     renderPlayedCardStats();
-    turnIndicatorEl.textContent = `當前回合：${currentPlayer.name}`;
+    turnIndicatorEl.textContent = `${t('game.turnLabel')}${currentPlayer.name}`;
     
     // 渲染對手區域
     opponentsContainerEl.innerHTML = '';
@@ -450,7 +499,7 @@ function render() {
         const shouldRevealHand = state.isGameOver || bot.isHandRevealed;
         botArea.className = `area opponent-area ${bot.isProtected ? 'protected' : ''} ${!bot.isAlive ? 'eliminated' : ''} ${isActive ? 'active-turn' : ''} ${isWinner ? 'winner-area' : ''}`;
         botArea.innerHTML = `
-            ${isWinner ? '<div class="winner-crown" title="勝利者">♛</div>' : ''}
+            ${isWinner ? `<div class="winner-crown" title="${t('game.winner')}">♛</div>` : ''}
             <h3>${getPlayerTitleHTML(bot)}</h3>
             <div class="discard-container"></div>
             <div class="hand-container"></div>
@@ -489,14 +538,14 @@ function render() {
     if (isHumanWinner) {
         const crown = document.createElement('div');
         crown.className = 'winner-crown';
-        crown.title = '勝利者';
+        crown.title = t('game.winner');
         crown.textContent = '♛';
         playerAreaEl.prepend(crown);
     }
 
     const humanTitle = playerAreaEl.querySelector('h3');
     if (humanTitle) {
-        humanTitle.innerHTML = getPlayerTitleHTML(human, '狀態');
+        humanTitle.innerHTML = getPlayerTitleHTML(human, t('player.statusSuffix'));
     }
     
     playerHandEl.innerHTML = '';
@@ -551,20 +600,20 @@ function createCardUI(card: Card, isPlayable: boolean): HTMLElement {
         ? card.privateActionHints
         : undefined;
     const actionHints = visiblePrivateHints ?? card.actionHints ?? (card.targetName && card.guessedCardName
-        ? [{ text: `🎯 對 ${card.targetName} 猜: ${card.guessedCardName}` }]
+        ? [{ text: t('hint.guardGuess', card.targetName!, card.guessedCardName!) }]
         : []);
 
     const cardDiv = document.createElement('div');
     cardDiv.className = 'card';
     cardDiv.innerHTML = `
         <div class="card-header">
-            <span class="card-name">${card.name}</span>
+            <span class="card-name">${getCardName(card.type)}</span>
             <div class="card-value">${card.value}</div>
         </div>
         <div class="card-img">
-            <img src="${CARD_IMAGES[card.type]}" alt="${card.name}" loading="lazy">
+            <img src="${CARD_IMAGES[card.type]}" alt="${getCardName(card.type)}" loading="lazy">
         </div>
-        <div class="card-desc">${card.description}</div>
+        <div class="card-desc">${getCardDesc(card.type)}</div>
     `;
     cardDiv.addEventListener('pointerenter', () => {
         wrapper.classList.add('card-wrapper-hovering');
@@ -659,7 +708,7 @@ function restorePlayRollback(rollback?: PlayRollback) {
 }
 
 function cancelButtonHTML(): string {
-    return '<button class="modal-cancel-btn" id="modal-cancel-btn">❌ 取消返回</button>';
+    return `<button class="modal-cancel-btn" id="modal-cancel-btn">❌ ${t('btn.cancel')}</button>`;
 }
 
 function bindCancelRollback(rollback?: PlayRollback) {
@@ -674,9 +723,9 @@ function recordGuardGuess(actor: Player, target: Player, guessedType: CardType):
     if (!playedGuard) return null;
 
     playedGuard.targetName = target.name;
-    playedGuard.guessedCardName = CARD_DEFINITIONS[guessedType].name;
+    playedGuard.guessedCardName = getCardName(guessedType);
     playedGuard.actionHints = [
-        { text: `🎯 對 ${target.name} 猜 ${CARD_DEFINITIONS[guessedType].name}` }
+        { text: t('hint.guardGuess', target.name, getCardName(guessedType)) }
     ];
     return playedGuard;
 }
@@ -875,7 +924,7 @@ function drawCard(playerId: number): boolean {
     player.hand.push(card);
     clearExcludedGuardGuessesForPlayer(playerId);
     pruneInvalidKnownCardsForPlayer(playerId);
-    addLog(`${player.name} 抽了一張牌。`);
+    addLog(t('log.drew', player.name));
     render();
     syncOnlineGameState();
     return true;
@@ -894,7 +943,7 @@ async function handlePlayCardRequest(playerId: number, card: Card) {
     
     if (checkCountessConstraint(player.hand) && card.type !== CardType.Countess) {
         if (!player.isBot) {
-            showModal("提示", "<p>當手中持有王子或國王時，必須先打出伯爵夫人！</p>", `<button class="modal-confirm-btn" onclick="this.closest('.modal-overlay').style.display='none'">我知道了</button>`);
+            showModal(t('modal.hint'), `<p>${t('warn.countess')}</p>`, `<button class="modal-confirm-btn" onclick="this.closest('.modal-overlay').style.display='none'">${t('btn.ok')}</button>`);
         }
         return;
     }
@@ -902,7 +951,7 @@ async function handlePlayCardRequest(playerId: number, card: Card) {
     if (!player.isBot && card.type === CardType.Princess && player.hand.length === 2) {
         const other = player.hand.find(c => c.id !== card.id);
         if (other && other.type !== CardType.Princess) {
-           showModal("提示", "<p>公主不能主動打出！</p>", `<button class="modal-confirm-btn" onclick="this.closest('.modal-overlay').style.display='none'">我知道了</button>`);
+           showModal(t('modal.hint'), `<p>${t('warn.princess')}</p>`, `<button class="modal-confirm-btn" onclick="this.closest('.modal-overlay').style.display='none'">${t('btn.ok')}</button>`);
            return;
         }
     }
@@ -932,7 +981,7 @@ async function executePlayCard(playerId: number, card: Card) {
     player.discardPile.push(card);
     player.isProtected = false;
 
-    addLog(`${player.name} 打出了 ${card.name} (${card.value})`);
+    addLog(t('log.played', player.name, getCardName(card.type), String(card.value)));
 
     // For human plays of target-selecting cards, defer the broadcast until the actor
     // actually picks a target. Otherwise opponents would briefly see the card in the
@@ -980,7 +1029,7 @@ function handoffTurnIfCurrentPlayerWasEliminated(eliminatedPlayerId: number) {
     const survivors = getAlivePlayers();
     if (survivors.length <= 1) {
         if (survivors.length === 1) {
-            endGame(survivors[0], `場上只剩下最後一名存活者`);
+            endGame(survivors[0], t('reason.onlyPlayer'));
         }
         syncOnlineGameStateThenRender();
         return;
@@ -1044,7 +1093,7 @@ async function endTurn(playerId: number) {
         const survivors = getAlivePlayers();
         if (survivors.length <= 1) {
             if (survivors.length === 1) {
-                endGame(survivors[0], `作為最後的倖存者`);
+                endGame(survivors[0], t('reason.lastSurvivor'));
             }
             return;
         }
@@ -1053,7 +1102,7 @@ async function endTurn(playerId: number) {
         if (nextId === null) {
             selectedCardId = null;
             isResolvingTurnAction = false;
-            addLog("找不到下一位存活玩家，回合停止。");
+            addLog(t('log.noNextPlayer'));
             syncOnlineGameStateThenRender();
             return;
         }
@@ -1075,7 +1124,7 @@ async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, r
     const canControlInteractiveEffect = isLocalEffectController(playerId) || (isForcedResolution && playerId === localPlayerId);
 
     if (card.type === CardType.Princess) {
-        eliminate(playerId, "打出或棄掉了公主");
+        eliminate(playerId, t('reason.princessPlayed'));
         if (shouldEndTurn && !state.isGameOver) await endTurn(playerId);
         return;
     }
@@ -1087,7 +1136,7 @@ async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, r
         }
 
         if (allPotentialTargets.length === 0) {
-            addLog("沒有合法的目標，效果失效。");
+            addLog(t('log.noLegalTarget'));
             if (shouldEndTurn) await endTurn(playerId);
             else {
                 render();
@@ -1119,7 +1168,7 @@ async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, r
             await resolveTargetEffect(playerId, target.id, card, shouldEndTurn);
         } else if (canControlInteractiveEffect) {
             await new Promise<void>(resolve => {
-                showModal(`請選擇 ${card.name} 的目標`, createTargetSelectModalBodyHTML(card, allPotentialTargets), cancelButtonHTML());
+                showModal(t('modal.selectTarget', getCardName(card.type)), createTargetSelectModalBodyHTML(card, allPotentialTargets), cancelButtonHTML());
                 bindCancelRollback(rollback);
 
                 const btns = modalBody.querySelectorAll('.target-btn');
@@ -1144,7 +1193,7 @@ async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, r
     } else {
         if (card.type === CardType.Handmaid) {
             player.isProtected = true;
-            addLog(`${player.name} 獲得了侍女的保護。`);
+            addLog(t('log.handmaidProtected', player.name));
         }
         if (shouldEndTurn) await endTurn(playerId);
         else {
@@ -1164,43 +1213,42 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 await new Promise<void>(resolve => {
                 let buttonsHTML = '<div class="guess-grid">';
                 for (let i = 2; i <= 8; i++) {
-                    const def = CARD_DEFINITIONS[i as CardType];
                     buttonsHTML += `<button class="guess-btn" data-value="${i}">
                         <span style="font-weight:bold;">${i}</span>
-                        <span>${def.name}</span>
+                        <span>${getCardName(i)}</span>
                     </button>`;
                 }
                 buttonsHTML += '</div>';
-                showModal(`對 ${target.name} 使用衛兵`, createStatsModalBodyHTML("<p>請猜測目標的手牌：</p>" + buttonsHTML), cancelButtonHTML());
+                showModal(t('modal.guardTarget', target.name), createStatsModalBodyHTML(t('guard.prompt') + buttonsHTML), cancelButtonHTML());
                 bindCancelRollback(rollback);
-                
+
                 const btns = modalBody.querySelectorAll('.guess-btn');
                 btns.forEach(btn => {
                     (btn as HTMLElement).onclick = async () => {
                         const val = parseInt((btn as HTMLElement).dataset.value!);
                         const playedGuard = recordGuardGuess(actor, target, val as CardType);
-                        const guessedName = CARD_DEFINITIONS[val as CardType].name;
+                        const guessedName = getCardName(val);
                         closeModal();
-                        addLog(`${actor.name} 對 ${target.name} 猜測 ${val} (${guessedName})`);
+                        addLog(t('log.guardGuess', actor.name, target.name, String(val), guessedName));
                         if (target.hand[0].value === val) {
                             if (playedGuard) {
                                 playedGuard.actionHints = [
-                                    { text: `🎯 對 ${target.name} 猜 ${guessedName}` },
-                                    { text: `💥 猜中了！${target.name}出局`, variant: 'danger' }
+                                    { text: t('hint.guardGuess', target.name, guessedName) },
+                                    { text: t('hint.guardHit', target.name), variant: 'danger' }
                                 ];
                             }
-                            addLog("猜中了！");
-                            eliminate(targetId, "被衛兵猜中手牌");
+                            addLog(t('log.guardHit'));
+                            eliminate(targetId, t('reason.guardHit'));
                             if (shouldEndTurn && !state.isGameOver) await endTurn(actorId);
                         } else {
                             rememberGuardMiss(targetId, val as CardType);
                             if (playedGuard) {
                                 playedGuard.actionHints = [
-                                    { text: `🎯 對 ${target.name} 猜 ${guessedName}` },
-                                    { text: '❌ 猜錯了', variant: 'tie' }
+                                    { text: t('hint.guardGuess', target.name, guessedName) },
+                                    { text: `❌ ${t('log.guardMiss')}`, variant: 'tie' }
                                 ];
                             }
-                            addLog("猜錯了。");
+                            addLog(t('log.guardMiss'));
                             if (shouldEndTurn) await endTurn(actorId);
                             else {
                                 render();
@@ -1216,27 +1264,27 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             } else {
                 const guessNum = getAISmartGuess(actorId, targetId);
                 const playedGuard = recordGuardGuess(actor, target, guessNum as CardType);
-                const guessedName = CARD_DEFINITIONS[guessNum as CardType].name;
-                addLog(`${actor.name} 對 ${target.name} 猜測 ${guessNum} (${CARD_DEFINITIONS[guessNum as CardType].name})`);
+                const guessedName = getCardName(guessNum);
+                addLog(t('log.guardGuess', actor.name, target.name, String(guessNum), guessedName));
                 if (target.hand[0].value === guessNum) {
                     if (playedGuard) {
                         playedGuard.actionHints = [
-                            { text: `🎯 對 ${target.name} 猜 ${guessedName}` },
-                            { text: `💥 猜中了！${target.name}出局`, variant: 'danger' }
+                            { text: t('hint.guardGuess', target.name, guessedName) },
+                            { text: t('hint.guardHit', target.name), variant: 'danger' }
                         ];
                     }
-                    addLog("猜中了！");
-                    eliminate(targetId, "被衛兵猜中手牌");
+                    addLog(t('log.guardHit'));
+                    eliminate(targetId, t('reason.guardHit'));
                     if (shouldEndTurn && !state.isGameOver) await endTurn(actorId);
                 } else {
                     rememberGuardMiss(targetId, guessNum as CardType);
                     if (playedGuard) {
                         playedGuard.actionHints = [
-                            { text: `🎯 對 ${target.name} 猜 ${guessedName}` },
-                            { text: '❌ 猜錯了', variant: 'tie' }
+                            { text: t('hint.guardGuess', target.name, guessedName) },
+                            { text: `❌ ${t('log.guardMiss')}`, variant: 'tie' }
                         ];
                     }
-                    addLog("猜錯了。");
+                    addLog(t('log.guardMiss'));
                     if (shouldEndTurn) await endTurn(actorId);
                     else {
                         render();
@@ -1251,7 +1299,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 rememberKnownCard(actorId, targetId, target.hand[0].type);
             }
             const playedPriest = actor.discardPile.find(discarded => discarded.id === card.id) ?? card;
-            const priestPublicHint = `\u{1F3AF} \u5C0D ${target.name} \u4F7F\u7528`;
+            const priestPublicHint = t('hint.usedOn', target.name);
             card.actionHints = [{ text: priestPublicHint, variant: 'default' }];
             playedPriest.actionHints = [{ text: priestPublicHint, variant: 'default' }];
             delete card.privateActionHints;
@@ -1259,7 +1307,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             delete playedPriest.privateActionHints;
             delete playedPriest.privateHintOwnerId;
             if (!actor.isBot && target.hand[0]) {
-                const privatePriestHint = `\u{1F3AF} \u770B\u898B\u4E86 ${target.name} \u7684 ${target.hand[0].name}(${target.hand[0].value})`;
+                const privatePriestHint = t('hint.priestSaw', target.name, getCardName(target.hand[0].type), String(target.hand[0].value));
                 const privateHints: CardActionHint[] = [{ text: privatePriestHint, variant: 'default' }];
                 card.privateActionHints = privateHints;
                 card.privateHintOwnerId = actorId;
@@ -1267,13 +1315,13 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 playedPriest.privateHintOwnerId = actorId;
             }
             render();
-            addLog(`${actor.name} \u770B\u4E86\u4E00\u4E0B ${target.name} \u7684\u624B\u724C\u3002`);
+            addLog(t('log.priestSaw', actor.name, target.name));
             syncOnlineGameState();
             if (!actor.isBot) {
                 await new Promise<void>(resolve => {
                 const cardUI = createCardUI(target.hand[0], false);
                 cardUI.style.margin = '0 auto';
-                showModal(`神父：看見 ${target.name} 的手牌`, createStatsModalBodyHTML(cardUI.outerHTML), `<button class="modal-confirm-btn" id="modal-ok-btn">我了解了</button>`);
+                showModal(t('modal.priestSees', target.name), createStatsModalBodyHTML(cardUI.outerHTML), `<button class="modal-confirm-btn" id="modal-ok-btn">${t('btn.iUnderstand')}</button>`);
                 document.getElementById('modal-ok-btn')!.onclick = async () => {
                     closeModal();
                     if (shouldEndTurn) await endTurn(actorId);
@@ -1294,10 +1342,10 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             break;
 
         case CardType.Baron:
-            addLog(`${actor.name} 與 ${target.name} 秘密比大小！`);
+            addLog(t('log.baronCompare', actor.name, target.name));
             await sleep(1000);
             if (actor.hand.length === 0 || target.hand.length === 0) {
-                addLog("無法比點數，因為其中一方沒有手牌。");
+                addLog(t('log.baronNoHand'));
                 if (shouldEndTurn) await endTurn(actorId);
                 else {
                     render();
@@ -1341,15 +1389,15 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 syncOnlineGameState();
             } else if (!actor.isBot || !target.isBot) {
                 await waitForStatsModalConfirm(
-                    '男爵對決',
+                    t('modal.baronDuel'),
                     createHandRevealBodyHTML(
-                        `${actor.name} 與 ${target.name} 展開男爵對決。`,
+                        t('baron.reveal', actor.name, target.name),
                         actor.name,
                         actorCard,
                         target.name,
                         targetCard
                     ),
-                    '確認對決'
+                    t('btn.confirmDuel')
                 );
             }
 
@@ -1359,50 +1407,50 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
 
             if (aVal > tVal) {
                 card.actionHints = [
-                    { text: `🎯 對 ${target.name} 比大小` },
-                    { text: `❌ ${target.name}輸了 (${targetCard.name})`, variant: 'danger' }
+                    { text: t('hint.baronVs', target.name) },
+                    { text: t('hint.baronWin', target.name, getCardName(targetCard.type)), variant: 'danger' }
                 ];
                 if (aliveBeforeCompare === 2) {
                     actor.isHandRevealed = true;
                     target.isHandRevealed = true;
-                    addLog(`最後兩名對決者攤牌：${actor.name} 亮出 ${actorCard.name}(${aVal})，${target.name} 亮出 ${targetCard.name}(${tVal})。`);
+                    addLog(t('log.baronTie', actor.name, getCardName(actorCard.type), String(aVal), target.name, getCardName(targetCard.type), String(tVal)));
                 } else {
                     target.isHandRevealed = true;
-                    addLog(`${actor.name} 與 ${target.name} 比點數，${target.name} 點數較小，攤牌 ${targetCard.name}(${tVal}) 出局！`);
+                    addLog(t('log.baronTargetLoses', actor.name, target.name, getCardName(targetCard.type), String(tVal)));
                 }
                 render();
                 syncOnlineGameState();
                 await sleep(2000);
                 rememberBaronGuardClue(actorId, targetId, targetCard.type, card.id);
-                eliminate(targetId, "男爵比輸了");
+                eliminate(targetId, t('reason.baronLost'));
                 await finishEffectTurn(actorId, shouldEndTurn);
             } else if (aVal < tVal) {
                 card.actionHints = [
-                    { text: `🎯 對 ${target.name} 比大小` },
-                    { text: `❌ ${actor.name}輸了 (${actorCard.name})`, variant: 'danger' }
+                    { text: t('hint.baronVs', target.name) },
+                    { text: t('hint.baronWin', actor.name, getCardName(actorCard.type)), variant: 'danger' }
                 ];
                 if (aliveBeforeCompare === 2) {
                     actor.isHandRevealed = true;
                     target.isHandRevealed = true;
-                    addLog(`最後兩名對決者攤牌：${actor.name} 亮出 ${actorCard.name}(${aVal})，${target.name} 亮出 ${targetCard.name}(${tVal})。`);
+                    addLog(t('log.baronTie', actor.name, getCardName(actorCard.type), String(aVal), target.name, getCardName(targetCard.type), String(tVal)));
                 } else {
                     actor.isHandRevealed = true;
-                    addLog(`${actor.name} 與 ${target.name} 比點數，${actor.name} 點數較小，攤牌 ${actorCard.name}(${aVal}) 出局！`);
+                    addLog(t('log.baronActorLoses', actor.name, target.name, getCardName(actorCard.type), String(aVal)));
                 }
                 render();
                 syncOnlineGameState();
                 await sleep(2000);
                 rememberBaronGuardClue(targetId, actorId, actorCard.type, card.id);
-                eliminate(actorId, "男爵比輸了");
+                eliminate(actorId, t('reason.baronLost'));
                 await finishEffectTurn(actorId, shouldEndTurn);
             } else {
                 card.actionHints = [
-                    { text: `🎯 對 ${target.name} 比大小` },
-                    { text: '🤝 平手', variant: 'tie' }
+                    { text: t('hint.baronVs', target.name) },
+                    { text: t('hint.baronTie'), variant: 'tie' }
                 ];
                 rememberKnownCard(actorId, targetId, targetCard.type);
                 rememberKnownCard(targetId, actorId, actorCard.type);
-                addLog(`${actor.name} 與 ${target.name} 點數相同，平安無事。`);
+                addLog(t('log.baronCompare', actor.name, target.name));
                 if (shouldEndTurn) await endTurn(actorId);
                 else {
                     render();
@@ -1413,22 +1461,22 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
 
         case CardType.Prince:
             card.actionHints = [
-                { text: `🎯 對 ${target.name} 使用` }
+                { text: t('hint.usedOn', target.name) }
             ];
-            addLog(`${actor.name} 強迫 ${target.name} 棄牌！`);
+            addLog(t('log.princeForced', actor.name, target.name));
             await sleep(500);
             if (!target.isBot) {
                 await waitForStatsModalConfirm(
-                    '王子效果',
-                    `<p>${actor.name} 指定 ${target.name} 棄掉目前手牌並重抽。</p>`,
-                    '繼續'
+                    t('card.prince'),
+                    `<p>${t('prince.modal', actor.name, target.name)}</p>`,
+                    t('btn.confirm')
                 );
             }
             const princeDiscardResult = await discardAndDraw(targetId, actorId, shouldEndTurn);
             if (princeDiscardResult.discarded) {
                 card.actionHints = [
-                    { text: `🎯 對 ${target.name} 使用` },
-                    { text: `🗑️ 丟棄了 ${princeDiscardResult.discarded.name}` }
+                    { text: t('hint.usedOn', target.name) },
+                    { text: t('hint.discarded', getCardName(princeDiscardResult.discarded.type)) }
                 ];
             }
             if (princeDiscardResult.hasPendingForcedEffect) {
@@ -1445,9 +1493,9 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
 
         case CardType.King:
             card.actionHints = [
-                { text: `🎯 對 ${target.name} 交換手牌` }
+                { text: t('hint.kingSwap', target.name) }
             ];
-            addLog(`${actor.name} 與 ${target.name} 交換手牌！`);
+            addLog(t('log.kingExchange', actor.name, target.name));
             await sleep(500);
             if (isOnlineGameActive() && !pendingKingExchange) {
                 pendingKingExchange = {
@@ -1477,15 +1525,15 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 syncOnlineGameState();
             } else if (!actor.isBot || !target.isBot) {
                 await waitForStatsModalConfirm(
-                    '國王交換手牌',
+                    t('modal.kingSwap'),
                     createHandRevealBodyHTML(
-                        `${actor.name} 即將與 ${target.name} 交換手牌。`,
+                        t('king.swapPending', actor.name, target.name),
                         actor.name,
                         actor.hand[0],
                         target.name,
                         target.hand[0]
                     ),
-                    '確認交換'
+                    t('btn.confirm')
                 );
             }
             const actorTransferredCard = actor.hand[0];
@@ -1503,15 +1551,15 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             }
             if (!actor.isBot || !target.isBot) {
                 await waitForStatsModalConfirm(
-                    '國王交換完成',
+                    t('modal.kingSwap'),
                     createHandRevealBodyHTML(
-                        `${actor.name} 已與 ${target.name} 完成手牌交換。`,
+                        t('king.swapDone', actor.name, target.name),
                         actor.name,
                         actor.hand[0],
                         target.name,
                         target.hand[0]
                     ),
-                    '我了解了'
+                    t('btn.iUnderstand')
                 );
             }
             if (shouldEndTurn) await endTurn(actorId);
@@ -1581,21 +1629,21 @@ async function discardAndDraw(targetId: number, returnTurnPlayerId: number, shou
     clearKnownCardForPlayer(targetId);
     const discarded = player.hand.pop()!;
     player.discardPile.push(discarded);
-    addLog(`${player.name} 棄掉了 ${discarded.name}`);
+    addLog(t('log.discarded', player.name, getCardName(discarded.type)));
 
     if (discarded.type === CardType.Princess) {
-        eliminate(targetId, "棄掉了公主");
+        eliminate(targetId, t('reason.princessDiscarded'));
         return { discarded, hasPendingForcedEffect: false };
     }
 
     if (state.deck.length > 0) {
         const newCard = state.deck.pop()!;
         player.hand.push(newCard);
-        addLog(`${player.name} 補抽了一張牌。`);
+        addLog(t('log.redrew', player.name));
     } else if (state.burnedCard) {
         player.hand.push(state.burnedCard);
         state.burnedCard = null;
-        addLog(`${player.name} 補抽了燒掉的牌。`);
+        addLog(t('log.redrewBurned', player.name));
     }
 
     if (isForcedEffectCard(discarded) && isOnlineGameActive() && targetId !== localPlayerId) {
@@ -1640,11 +1688,11 @@ function eliminate(playerId: number, reason: string) {
     player.isAlive = false;
     player.discardPile.push(...player.hand);
     player.hand = [];
-    addLog(`${player.name}${reason}出局了！`);
+    addLog(t('log.eliminated', player.name, reason));
     
     const survivors = getAlivePlayers();
     if (survivors.length === 1) {
-        endGame(survivors[0], `作為最後的倖存者`);
+        endGame(survivors[0], t('reason.lastSurvivor'));
     } else {
         handoffTurnIfCurrentPlayerWasEliminated(playerId);
     }
@@ -1658,7 +1706,7 @@ function checkEndConditions() {
     if (state.deck.length === 0) {
         const survivors = state.players.filter(p => p.isAlive);
         if (survivors.every(p => p.hand.length === 1)) {
-            addLog("牌堆已空，存活者比大小！");
+            addLog(t('log.deckEmpty'));
             survivors.sort((a, b) => {
                 if (b.hand[0].value !== a.hand[0].value) {
                     return b.hand[0].value - a.hand[0].value;
@@ -1667,7 +1715,7 @@ function checkEndConditions() {
                 const bSum = b.discardPile.reduce((s, c) => s + c.value, 0);
                 return bSum - aSum;
             });
-            endGame(survivors[0], `比點數獲勝 (${survivors[0].hand[0].value})`);
+            endGame(survivors[0], t('reason.highestCard', String(survivors[0].hand[0].value)));
         }
     }
 }
@@ -1697,17 +1745,17 @@ function getLeagueChampion(): Player | null {
 function createRankingHTML(): string {
     const rows = getRankedPlayers().map(({ player, rank }) => `
         <div style="display: grid; grid-template-columns: 4rem 1fr auto; align-items: center; gap: 0.8rem; padding: 0.75rem 0.85rem; border-radius: 8px; background: ${rank === 1 ? 'rgba(255, 176, 0, 0.18)' : 'rgba(255,255,255,0.06)'}; border: 1px solid ${rank === 1 ? 'rgba(255, 176, 0, 0.38)' : 'rgba(255,255,255,0.08)'};">
-            <strong style="color: ${rank === 1 ? '#ffb000' : '#f2f2f2'};">第 ${rank} 名</strong>
+            <strong style="color: ${rank === 1 ? '#ffb000' : '#f2f2f2'};">${t('ranking.rank', String(rank))}</strong>
             <span style="font-weight: 700;">${player.name}</span>
-            <span style="font-size: 1.25rem;">${player.coins > 0 ? getCoinIcons(player.coins) : '<span style="font-size: 0.9rem; color: #999;">尚未得分</span>'}</span>
+            <span style="font-size: 1.25rem;">${player.coins > 0 ? getCoinIcons(player.coins) : `<span style="font-size: 0.9rem; color: #999;">${t('ranking.noScore')}</span>`}</span>
         </div>
     `).join('');
 
     return `
         <div style="text-align: left; line-height: 1.6;">
             <div style="text-align: center; margin-bottom: 1rem;">
-                <h3 style="margin: 0 0 0.35rem; color: #ffb000; font-size: 1.65rem;">目前聯賽排行榜</h3>
-                <p style="margin: 0; color: #ddd;">先取得 4 枚硬幣的玩家，成為 Love Letter 總冠軍。</p>
+                <h3 style="margin: 0 0 0.35rem; color: #ffb000; font-size: 1.65rem;">${t('ranking.title')}</h3>
+                <p style="margin: 0; color: #ddd;">${t('ranking.desc')}</p>
             </div>
             <div style="display: grid; gap: 0.65rem;">
                 ${rows}
@@ -1720,16 +1768,14 @@ function showChampionModal() {
     const champion = getLeagueChampion();
     if (!champion) return;
 
-    showModal("聯賽總冠軍", `
+    showModal(t('modal.champion'), `
         <div style="text-align: center; line-height: 1.6; padding: 0.35rem 0;">
             <div style="font-size: 3rem; margin-bottom: 0.3rem;">♛</div>
             <h3 style="margin: 0; color: #ffb000; font-size: 1.85rem;">${champion.name}</h3>
-            <p style="margin: 0.65rem 0 0; font-size: 1.05rem;">
-                最終拿滿 4 枚硬幣的 Love Letter 總冠軍大贏家！🎉
-            </p>
+            <p style="margin: 0.65rem 0 0; font-size: 1.05rem;">${t('champion.desc')}</p>
             <div style="margin-top: 1rem; font-size: 1.65rem;">${getCoinIcons(champion.coins)}</div>
         </div>
-    `, `<button class="modal-confirm-btn" id="champion-restart-btn" style="background: #16a34a;">重新開始</button><button class="modal-confirm-btn" id="champion-return-btn" style="margin-left: 0.65rem; background: #64748b;">返回</button>`);
+    `, `<button class="modal-confirm-btn" id="champion-restart-btn" style="background: #16a34a;">${t('btn.restart')}</button><button class="modal-confirm-btn" id="champion-return-btn" style="margin-left: 0.65rem; background: #64748b;">${t('btn.back')}</button>`);
 
     document.getElementById('champion-restart-btn')!.onclick = () => requestRestart();
     document.getElementById('champion-return-btn')!.onclick = closeModal;
@@ -1753,7 +1799,7 @@ function endGame(winner: Player, reason: string) {
     state.winner = winner;
     endGameReason = reason;
     winner.coins += 1;
-    addLog(`【遊戲結束】${winner.name} 獲勝並獲得 1 枚硬幣！(${reason})`);
+    addLog(t('log.gameOver', winner.name, reason));
     render();
     syncOnlineGameState();
     showEndGameModal();
@@ -1767,19 +1813,19 @@ function showEndGameModal() {
 
     const champion = getLeagueChampion();
     const primaryButton = champion
-        ? `<button class="modal-confirm-btn" id="view-champion-btn">查看獲勝者</button>`
-        : `<button class="modal-confirm-btn" id="next-round-btn">開始下一局</button>`;
+        ? `<button class="modal-confirm-btn" id="view-champion-btn">${t('btn.viewChampion')}</button>`
+        : `<button class="modal-confirm-btn" id="next-round-btn">${t('btn.nextRound')}</button>`;
 
-    showModal("本局結果", `
+    showModal(t('modal.gameResult'), `
         <div style="text-align: center; margin-bottom: 1rem;">
-            <h3 style="margin: 0; color:#ff4d4d; font-size: 1.65rem;">${state.winner.name} 獲勝！</h3>
+            <h3 style="margin: 0; color:#ff4d4d; font-size: 1.65rem;">${t('endgame.wins', state.winner.name)}</h3>
             <p style="margin: 0.35rem 0 0;">${endGameReason}</p>
         </div>
         ${createRankingHTML()}
-    `, `${primaryButton}<button class="modal-confirm-btn" id="ranking-return-btn" style="margin-left: 0.65rem; background: #64748b;">返回</button>`);
+    `, `${primaryButton}<button class="modal-confirm-btn" id="ranking-return-btn" style="margin-left: 0.65rem; background: #64748b;">${t('btn.back')}</button>`);
 
     const rankingReturnBtn = document.getElementById('ranking-return-btn')!;
-    rankingReturnBtn.textContent = '📊 留在戰場查看紀錄';
+    rankingReturnBtn.textContent = t('btn.stayField');
 
     const nextRoundBtn = document.getElementById('next-round-btn');
     if (nextRoundBtn) {
@@ -1804,13 +1850,13 @@ function showEndGameModal() {
 function showBattleLogModal() {
     const logsHTML = state.logs.length
         ? state.logs.map(log => `<div class="log-entry">${log}</div>`).join('')
-        : '<p class="modal-helper-text">目前還沒有對戰紀錄。</p>';
+        : `<p class="modal-helper-text">${t('battleLog.noLog')}</p>`;
 
-    showModal('對戰紀錄', `
+    showModal(t('modal.battleLog'), `
         <div class="modal-log-container">
             ${logsHTML}
         </div>
-    `, '<button class="modal-confirm-btn" id="battle-log-close-btn">關閉</button>');
+    `, `<button class="modal-confirm-btn" id="battle-log-close-btn">${t('btn.close')}</button>`);
 
     const logContainer = document.querySelector<HTMLElement>('.modal-log-container');
     if (logContainer) {
@@ -1959,7 +2005,7 @@ function escapeHTML(value: string): string {
 }
 
 function getPreferredPlayerName(): string {
-    return localStorage.getItem('loveLetterPlayerName') || '玩家';
+    return localStorage.getItem('loveLetterPlayerName') || t('player.human');
 }
 
 function setPreferredPlayerName(name: string) {
@@ -2067,7 +2113,7 @@ function toRoomWaitPlayerView(player: Partial<SyncedRoomPlayerState> | null | un
 
     return {
         id: player.id,
-        name: typeof player.name === 'string' && player.name.trim().length > 0 ? player.name : '玩家',
+        name: typeof player.name === 'string' && player.name.trim().length > 0 ? player.name : t('player.human'),
         isReady: Boolean(player.isReady),
         isHost: Boolean(player.isHost),
         isConnected: player.isConnected ?? true
@@ -2140,7 +2186,7 @@ function createInitialOnlineGameData(roomState: RoomWaitViewState): OnlineGameDa
         burnedCard,
         players,
         currentTurnPlayerId: 0,
-        logs: ['多人遊戲開始，房主已同步初始牌局。'],
+        logs: [t('log.onlineStart')],
         roundIndex: 0
     };
 }
@@ -2346,7 +2392,7 @@ function createBaronDuelBodyHTML(duel: PendingBaronDuel) {
     const target = state.players[duel.targetId];
 
     return createHandRevealBodyHTML(
-        `${actor.name} 與 ${target.name} 展開男爵對決。`,
+        t('baron.reveal', actor.name, target.name),
         actor.name,
         duel.actorCard,
         target.name,
@@ -2361,7 +2407,7 @@ async function showBaronDuelModal(duel: PendingBaronDuel) {
     activeBaronDuelModalKey = duelKey;
     isResolvingTurnAction = true;
     try {
-        await waitForStatsModalConfirm('男爵對決', createBaronDuelBodyHTML(duel), '確認對決');
+        await waitForStatsModalConfirm(t('modal.baronDuel'), createBaronDuelBodyHTML(duel), t('btn.confirmDuel'));
         confirmLocalBaronDuel(duel);
     } finally {
         if (activeBaronDuelModalKey === duelKey) {
@@ -2436,9 +2482,9 @@ async function showKingExchangeModal(exchange: PendingKingExchange) {
     isResolvingTurnAction = true;
     try {
         await waitForStatsModalConfirm(
-            '國王交換手牌',
-            `<p>${actor.name} 對 ${target.name} 打出國王，雙方即將交換手牌。</p>`,
-            '確認交換'
+            t('modal.kingSwap'),
+            `<p>${t('king.swapPending', actor.name, target.name)}</p>`,
+            t('btn.confirmSwap')
         );
         confirmLocalKingExchange(exchange);
     } finally {
@@ -2484,12 +2530,12 @@ function hasLocalPendingForcedEffect(queue = pendingForcedEffectsQueue) {
 
 function createForcedEffectNoticeBodyHTML(effect: PendingForcedEffect) {
     const attacker = state.players[effect.sourcePlayerId] ?? state.players[state.currentTurnPlayerId];
-    const attackerName = attacker?.name ?? '對手';
+    const attackerName = attacker?.name ?? t('player.opponent');
 
     return `
-        <p>玩家 ${attackerName} 對你打出了【王子】！</p>
-        <p>你被迫棄掉了手中的【${effect.card.name}】並重新補抽。</p>
-        <p>接下來將執行這張棄牌的連鎖效果。</p>
+        <p>${t('forced.body1', attackerName)}</p>
+        <p>${t('forced.body2', getCardName(effect.card.type))}</p>
+        <p>${t('forced.body3')}</p>
     `;
 }
 
@@ -2532,9 +2578,9 @@ async function handlePendingForcedEffect() {
 
     try {
         await waitForStatsModalConfirm(
-            '【被迫棄牌連鎖】',
+            t('modal.forcedChain'),
             createForcedEffectNoticeBodyHTML(effect),
-            '確認並執行效果'
+            t('btn.executeEffect')
         );
         await applyEffect(effect.reactorId, effect.card, false, undefined, true);
         if (effect.shouldEndTurnAfterResolution && !state.isGameOver && pendingForcedEffectsQueue.length === 0) {
@@ -2792,8 +2838,8 @@ function renderLobbyList(rooms: LobbyRoomSummary[]) {
     if (rooms.length === 0) {
         roomListContainerEl.innerHTML = `
             <div class="empty-lobby-state">
-                <strong>目前沒有可加入的房間</strong>
-                <span>建立一個新房間，等待其他玩家加入。</span>
+                <strong>${t('lobby.noRoomsTitle')}</strong>
+                <span>${t('lobby.noRoomsDesc')}</span>
             </div>
         `;
         return;
@@ -2802,18 +2848,18 @@ function renderLobbyList(rooms: LobbyRoomSummary[]) {
     roomListContainerEl.innerHTML = rooms.map(room => `
         <div class="room-list-row" data-room-id="${escapeHTML(room.roomId)}">
             <div class="room-cell room-id-cell">
-                <span class="room-label">房間 ID</span>
+                <span class="room-label">${t('lobby.colId')}</span>
                 <strong>${escapeHTML(room.roomId)}</strong>
             </div>
             <div class="room-cell">
-                <span class="room-label">人數</span>
+                <span class="room-label">${t('lobby.colCount')}</span>
                 <strong>${room.playerCount}/${room.maxClients}</strong>
             </div>
             <div class="room-cell">
-                <span class="room-label">密碼</span>
-                <span class="password-badge ${room.hasPassword ? 'locked' : 'open'}">${room.hasPassword ? '需要密碼' : '公開房間'}</span>
+                <span class="room-label">${t('lobby.colPwd')}</span>
+                <span class="password-badge ${room.hasPassword ? 'locked' : 'open'}">${room.hasPassword ? t('lobby.locked') : t('lobby.open')}</span>
             </div>
-            <button class="join-room-btn menu-btn primary" data-room-id="${escapeHTML(room.roomId)}" ${room.playerCount >= room.maxClients ? 'disabled' : ''}>加入</button>
+            <button class="join-room-btn menu-btn primary" data-room-id="${escapeHTML(room.roomId)}" ${room.playerCount >= room.maxClients ? 'disabled' : ''}>${t('lobby.join')}</button>
         </div>
     `).join('');
 
@@ -2833,9 +2879,9 @@ function renderRoomWaitArea(roomState: RoomWaitViewState | SyncedRoomState) {
     maybeShowAbortModalForDisconnections(previousRoomWaitState, normalizedState);
 
     if (normalizedState.isGameStarted) {
-        console.log("\u623f\u9593\u72c0\u614b\u8b8a\u66f4\uff1a\u904a\u6232\u958b\u59cb\uff0c\u6e96\u5099\u52a0\u8f09\u904a\u6232\u6230\u5834");
+        console.log('\u623f\u9593\u72c0\u614b\u8b8a\u66f4\uff1a\u904a\u6232\u958b\u59cb\uff0c\u6e96\u5099\u52a0\u8f09\u904a\u6232\u6230\u5834');
         if (!wasGameStarted) {
-            showModal('\u904a\u6232\u958b\u59cb', '<p>\u623f\u9593\u72c0\u614b\u5df2\u540c\u6b65\uff0c\u6e96\u5099\u8f09\u5165\u591a\u4eba\u904a\u6232\u6230\u5834\u3002</p>', '<button class="modal-confirm-btn" id="game-started-ok-btn">\u78ba\u5b9a</button>');
+            showModal(t('modal.gameStarted'), `<p>${t('gameStarted.body')}</p>`, `<button class="modal-confirm-btn" id="game-started-ok-btn">${t('btn.confirm')}</button>`);
             document.getElementById('game-started-ok-btn')!.onclick = closeModal;
             initOnlineGame(normalizedState);
         }
@@ -2849,22 +2895,22 @@ function renderRoomWaitArea(roomState: RoomWaitViewState | SyncedRoomState) {
         if (!player) {
             return `
                 <div class="room-player-row empty-slot">
-                    <span>\u7b49\u5f85\u73a9\u5bb6\u52a0\u5165</span>
-                    <span class="player-status">\u7a7a\u4f4d</span>
+                    <span>${t('room.waitSlot')}</span>
+                    <span class="player-status">${t('room.emptySlot')}</span>
                 </div>
             `;
         }
 
         const isConnected = player.isConnected ?? true;
         const statusText = !isConnected
-            ? '\u26a0\ufe0f \u96e2\u7dda\uff0c\u7b49\u5f85\u91cd\u9023'
-            : player.isReady || player.isHost ? '\u2714\ufe0f \u5df2\u6e96\u5099' : '\u23f3 \u6e96\u5099\u4e2d';
+            ? t('room.statusOffline')
+            : player.isReady || player.isHost ? t('room.statusReady') : t('room.statusWaiting');
         const statusClass = !isConnected ? 'waiting offline' : (player.isReady || player.isHost ? 'ready' : 'waiting');
         return `
             <div class="room-player-row ${player.id === normalizedState.selfId ? 'self-player' : ''} ${!isConnected ? 'offline-player' : ''}">
                 <div class="room-player-name">
                     <strong>${escapeHTML(player.name)}</strong>
-                    ${player.isHost ? '<span class="host-badge">\ud83d\udc51 \u623f\u4e3b</span>' : ''}
+                    ${player.isHost ? `<span class="host-badge">${t('room.hostBadge')}</span>` : ''}
                 </div>
                 <span class="player-status ${statusClass}">${statusText}</span>
             </div>
@@ -2877,37 +2923,37 @@ function renderRoomWaitArea(roomState: RoomWaitViewState | SyncedRoomState) {
         .filter(player => !player.isHost && (player.isConnected ?? true))
         .every(player => player.isReady);
     readyToggleBtn.textContent = normalizedState.isGameStarted
-        ? '\u904a\u6232\u5df2\u958b\u59cb'
-        : isHost ? '\u958b\u59cb\u904a\u6232' : (selfPlayer?.isReady ? '\u53d6\u6d88\u6e96\u5099' : '\u6e96\u5099');
+        ? t('room.started')
+        : isHost ? t('room.startGame') : (selfPlayer?.isReady ? t('room.cancelReady') : t('room.ready'));
     readyToggleBtn.disabled = normalizedState.isGameStarted || (isHost && (normalizedState.players.length < 2 || !guestsReady));
 }
 
 function openCreateRoomModal() {
-    showModal('\u5275\u5efa\u623f\u9593', `
+    showModal(t('cr.title'), `
         <div class="create-room-form">
-            <label class="field-label" for="create-room-player-name">\u73a9\u5bb6\u540d\u7a31</label>
+            <label class="field-label" for="create-room-player-name">${t('cr.playerName')}</label>
             <input id="create-room-player-name" class="modal-input" type="text" value="${escapeHTML(getPreferredPlayerName())}" autocomplete="nickname" />
             <label class="checkbox-row">
                 <input id="create-room-use-password" type="checkbox" />
-                <span>\u8a2d\u5b9a\u623f\u9593\u5bc6\u78bc</span>
+                <span>${t('cr.usePassword')}</span>
             </label>
-            <label class="field-label" for="create-room-password">\u5bc6\u78bc</label>
-            <input id="create-room-password" class="modal-input" type="password" placeholder="\u4e0d\u586b\u4ee3\u8868\u516c\u958b\u623f\u9593" autocomplete="off" />
+            <label class="field-label" for="create-room-password">${t('cr.password')}</label>
+            <input id="create-room-password" class="modal-input" type="password" placeholder="${t('cr.pwdHint')}" autocomplete="off" />
         </div>
     `, `
-        <button class="modal-confirm-btn" id="confirm-create-room-btn">\u5275\u5efa</button>
-        <button class="modal-cancel-btn" id="cancel-create-room-btn">\u53d6\u6d88</button>
+        <button class="modal-confirm-btn" id="confirm-create-room-btn">${t('cr.create')}</button>
+        <button class="modal-cancel-btn" id="cancel-create-room-btn">${t('cr.cancel')}</button>
     `);
 
     document.getElementById('cancel-create-room-btn')!.onclick = closeModal;
     document.getElementById('confirm-create-room-btn')!.onclick = async () => {
         const confirmButton = document.getElementById('confirm-create-room-btn') as HTMLButtonElement;
-        const playerName = (document.getElementById('create-room-player-name') as HTMLInputElement).value.trim() || '\u73a9\u5bb6';
+        const playerName = (document.getElementById('create-room-player-name') as HTMLInputElement).value.trim() || t('player.human');
         const usePassword = (document.getElementById('create-room-use-password') as HTMLInputElement).checked;
         const password = (document.getElementById('create-room-password') as HTMLInputElement).value.trim();
         setPreferredPlayerName(playerName);
         confirmButton.disabled = true;
-        confirmButton.textContent = '\u5efa\u7acb\u4e2d...';
+        confirmButton.textContent = t('cr.creating');
 
         try {
             const room = await withTimeout(
@@ -2916,12 +2962,12 @@ function openCreateRoomModal() {
                     password: usePassword && password.length > 0 ? password : undefined
                 }, GameRoomState),
                 15_000,
-                `\u5efa\u7acb\u623f\u9593\u903e\u6642\u3002\u8acb\u78ba\u8a8d Colyseus \u5f8c\u7aef\u53ef\u9023\u7dda\uff1a${colyseusEndpoint}`
+                t('cr.timeout', colyseusEndpoint)
             );
             closeModal();
             bindGameRoom(room);
         } catch (error) {
-            showModal('\u5275\u5efa\u623f\u9593\u5931\u6557', `<p>${escapeHTML(getConnectionErrorMessage(error))}</p>`, '<button class="modal-confirm-btn" id="create-room-error-ok-btn">\u78ba\u5b9a</button>');
+            showModal(t('cr.failTitle'), `<p>${escapeHTML(getConnectionErrorMessage(error))}</p>`, `<button class="modal-confirm-btn" id="create-room-error-ok-btn">${t('btn.confirm')}</button>`);
             document.getElementById('create-room-error-ok-btn')!.onclick = closeModal;
         }
     };
@@ -2931,8 +2977,8 @@ async function joinLobbyRoom(roomId: string) {
     const roomSummary = lobbyRooms.find(candidate => candidate.roomId === roomId);
     if (!roomSummary || roomSummary.playerCount >= roomSummary.maxClients) return;
 
-    const playerName = prompt('請輸入玩家名稱', getPreferredPlayerName())?.trim() || getPreferredPlayerName();
-    const password = roomSummary.hasPassword ? prompt('請輸入房間密碼') : undefined;
+    const playerName = prompt(t('joinRoom.promptName'), getPreferredPlayerName())?.trim() || getPreferredPlayerName();
+    const password = roomSummary.hasPassword ? prompt(t('joinRoom.promptPwd')) : undefined;
     if (roomSummary.hasPassword && password === null) return;
     setPreferredPlayerName(playerName);
 
@@ -2947,7 +2993,7 @@ async function joinLobbyRoom(roomId: string) {
         );
         bindGameRoom(room);
     } catch (error) {
-        showModal('加入房間失敗', `<p>${escapeHTML(getConnectionErrorMessage(error))}</p>`, '<button class="modal-confirm-btn" id="join-room-error-ok-btn">確定</button>');
+        showModal(t('cr.joinFailed'), `<p>${escapeHTML(getConnectionErrorMessage(error))}</p>`, `<button class="modal-confirm-btn" id="join-room-error-ok-btn">${t('btn.confirm')}</button>`);
         document.getElementById('join-room-error-ok-btn')!.onclick = closeModal;
     }
 }
@@ -2982,7 +3028,7 @@ function bindGameRoom(room: Room<unknown, SyncedRoomState>) {
         currentRoomWaitState = null;
         clearPendingAbortTimer();
 
-        if (modalOverlay.style.display === 'flex' && modalTitle.textContent === '遊戲中斷') {
+        if (modalOverlay.style.display === 'flex' && modalTitle.textContent === t('modal.gameAborted')) {
             return;
         }
 
@@ -3027,7 +3073,7 @@ async function connectLobbyRoom() {
         console.warn('Lobby connection failed:', error);
         roomListContainerEl.innerHTML = `
             <div class="empty-lobby-state">
-                <strong>無法連線至 Colyseus 大廳</strong>
+                <strong>${t('lobby.connFailed')}</strong>
                 <span>${escapeHTML(getConnectionErrorMessage(error))}</span>
             </div>
         `;
@@ -3061,7 +3107,7 @@ function maybeShowAbortModalForDisconnections(
         clearPendingAbortTimer();
         return;
     }
-    if (modalOverlay.style.display === 'flex' && modalTitle.textContent === '遊戲中斷') return;
+    if (modalOverlay.style.display === 'flex' && modalTitle.textContent === t('modal.gameAborted')) return;
 
     const connectedCount = current.players.filter(p => p.isConnected !== false).length;
 
@@ -3080,24 +3126,24 @@ function maybeShowAbortModalForDisconnections(
             if (!isOnlineGameActive()) return;
             const stillConnected = currentRoomWaitState.players.filter(p => p.isConnected !== false).length;
             if (stillConnected >= 2) return;
-            if (modalOverlay.style.display === 'flex' && modalTitle.textContent === '遊戲中斷') return;
+            if (modalOverlay.style.display === 'flex' && modalTitle.textContent === t('modal.gameAborted')) return;
 
             const disconnectedNames = currentRoomWaitState.players
                 .filter(p => p.isConnected === false)
                 .map(p => p.name);
             const reason = disconnectedNames.length > 0
-                ? `${disconnectedNames.join('、')} 失去連線，剩餘玩家不足，本局已結束。`
-                : '剩餘玩家不足，本局已結束。';
+                ? t('abort.reasonNames', disconnectedNames.join(t('abort.separator')))
+                : t('abort.reasonGeneral');
             showGameAbortedModal(reason);
         }, ABORT_GRACE_PERIOD_MS);
     }
 }
 
 function showGameAbortedModal(reason: string) {
-    showModal('遊戲中斷', `
+    showModal(t('modal.gameAborted'), `
         <p>${escapeHTML(reason)}</p>
-        <p>請點擊下方按鈕返回主選單。</p>
-    `, '<button class="modal-confirm-btn" id="game-aborted-ok-btn">返回主選單</button>');
+        <p>${t('abort.goHome')}</p>
+    `, `<button class="modal-confirm-btn" id="game-aborted-ok-btn">${t('btn.returnMenu')}</button>`);
 
     document.getElementById('game-aborted-ok-btn')!.onclick = async () => {
         closeModal();
@@ -3107,10 +3153,10 @@ function showGameAbortedModal(reason: string) {
 }
 
 function showConnectionLostModal() {
-    showModal('連線中斷', `
-        <p>與伺服器的連線已中斷，可能是網路不穩或對手斷線。</p>
-        <p>請返回主選單後重新加入房間。</p>
-    `, '<button class="modal-confirm-btn" id="connection-lost-ok-btn">返回主選單</button>');
+    showModal(t('modal.connLost'), `
+        <p>${t('connLost.body')}</p>
+        <p>${t('connLost.sub')}</p>
+    `, `<button class="modal-confirm-btn" id="connection-lost-ok-btn">${t('btn.returnMenu')}</button>`);
 
     document.getElementById('connection-lost-ok-btn')!.onclick = async () => {
         closeModal();
@@ -3184,7 +3230,7 @@ mobileStatsToggleBtn.onclick = event => {
 };
 cardStatsAreaEl.addEventListener('click', event => event.stopPropagation());
 document.getElementById('back-home-btn')!.onclick = async () => {
-    if (confirm("確定要放棄目前戰局並返回主選單嗎？")) {
+    if (confirm(t('confirm.backHome'))) {
         await resetClientState();
         showScene('main-menu');
     }
@@ -3201,80 +3247,11 @@ document.addEventListener('click', event => {
     render();
 });
 document.getElementById('show-rules-btn')!.onclick = () => {
-    showModal("遊戲說明", `
-        <div style="text-align: left; font-size: 0.92rem; line-height: 1.65; max-height: 68vh; overflow-y: auto; padding-right: 0.4rem;">
-            <section style="margin-bottom: 1.35rem;">
-                <h3 style="margin: 0 0 0.75rem; color: #ffb000; font-size: 1.15rem;">1. 卡牌種類與效果（整副牌共 16 張）</h3>
-                <table style="width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 8px; background: rgba(255,255,255,0.04);">
-                    <thead>
-                        <tr style="background: rgba(255,176,0,0.16); color: #ffd36a;">
-                            <th style="padding: 0.65rem 0.7rem; text-align: left; white-space: nowrap;">點數 / 名稱</th>
-                            <th style="padding: 0.65rem 0.7rem; text-align: center; white-space: nowrap;">張數</th>
-                            <th style="padding: 0.65rem 0.7rem; text-align: left;">詳細效果描述</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr style="border-top: 1px solid rgba(255,255,255,0.1);">
-                            <td style="padding: 0.7rem; font-weight: 700;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 1.7rem; height: 1.7rem; margin-right: 0.45rem; border-radius: 50%; background: #ff4d4d; color: white;">1</span>衛兵</td>
-                            <td style="padding: 0.7rem; text-align: center; color: #ffb000; font-weight: 700;">5張</td>
-                            <td style="padding: 0.7rem;">選擇一名對手並猜測其手牌（不能猜衛兵），若猜中則對方直接出局。</td>
-                        </tr>
-                        <tr style="border-top: 1px solid rgba(255,255,255,0.1);">
-                            <td style="padding: 0.7rem; font-weight: 700;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 1.7rem; height: 1.7rem; margin-right: 0.45rem; border-radius: 50%; background: #ff5a5f; color: white;">2</span>神父</td>
-                            <td style="padding: 0.7rem; text-align: center; color: #ffb000; font-weight: 700;">2張</td>
-                            <td style="padding: 0.7rem;">選擇一名對手並秘密查看他的手牌。</td>
-                        </tr>
-                        <tr style="border-top: 1px solid rgba(255,255,255,0.1);">
-                            <td style="padding: 0.7rem; font-weight: 700;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 1.7rem; height: 1.7rem; margin-right: 0.45rem; border-radius: 50%; background: #ef6f6c; color: white;">3</span>男爵</td>
-                            <td style="padding: 0.7rem; text-align: center; color: #ffb000; font-weight: 700;">2張</td>
-                            <td style="padding: 0.7rem;">選擇一名對手秘密比大小，點數較小者直接出局。</td>
-                        </tr>
-                        <tr style="border-top: 1px solid rgba(255,255,255,0.1);">
-                            <td style="padding: 0.7rem; font-weight: 700;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 1.7rem; height: 1.7rem; margin-right: 0.45rem; border-radius: 50%; background: #f28f3b; color: white;">4</span>侍女</td>
-                            <td style="padding: 0.7rem; text-align: center; color: #ffb000; font-weight: 700;">2張</td>
-                            <td style="padding: 0.7rem;">直到你的下個回合開始前，你免疫所有卡牌效果指定。</td>
-                        </tr>
-                        <tr style="border-top: 1px solid rgba(255,255,255,0.1);">
-                            <td style="padding: 0.7rem; font-weight: 700;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 1.7rem; height: 1.7rem; margin-right: 0.45rem; border-radius: 50%; background: #ffb000; color: #1a1a1a;">5</span>王子</td>
-                            <td style="padding: 0.7rem; text-align: center; color: #ffb000; font-weight: 700;">2張</td>
-                            <td style="padding: 0.7rem;">選擇任一玩家（可選自己）棄掉手牌，被迫棄牌者立刻補抽一張，且被棄掉的卡牌會立刻發動效果。</td>
-                        </tr>
-                        <tr style="border-top: 1px solid rgba(255,255,255,0.1);">
-                            <td style="padding: 0.7rem; font-weight: 700;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 1.7rem; height: 1.7rem; margin-right: 0.45rem; border-radius: 50%; background: #49a078; color: white;">6</span>國王</td>
-                            <td style="padding: 0.7rem; text-align: center; color: #ffb000; font-weight: 700;">1張</td>
-                            <td style="padding: 0.7rem;">選擇一名對手並與他秘密交換手牌。</td>
-                        </tr>
-                        <tr style="border-top: 1px solid rgba(255,255,255,0.1);">
-                            <td style="padding: 0.7rem; font-weight: 700;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 1.7rem; height: 1.7rem; margin-right: 0.45rem; border-radius: 50%; background: #5f8dd3; color: white;">7</span>伯爵夫人</td>
-                            <td style="padding: 0.7rem; text-align: center; color: #ffb000; font-weight: 700;">1張</td>
-                            <td style="padding: 0.7rem;">若手上另一張牌是[5]王子或[6]國王，則必須強制打出此牌。</td>
-                        </tr>
-                        <tr style="border-top: 1px solid rgba(255,255,255,0.1);">
-                            <td style="padding: 0.7rem; font-weight: 700;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 1.7rem; height: 1.7rem; margin-right: 0.45rem; border-radius: 50%; background: #8f5fd3; color: white;">8</span>公主</td>
-                            <td style="padding: 0.7rem; text-align: center; color: #ffb000; font-weight: 700;">1張</td>
-                            <td style="padding: 0.7rem;">此卡不論因何種原因被主動打出或被迫棄掉，你都將立刻直接出局。</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </section>
-
-            <section style="margin-bottom: 1.1rem;">
-                <h3 style="margin: 0 0 0.45rem; color: #ffb000; font-size: 1.08rem;">2. 遊戲流程</h3>
-                <p style="margin: 0;">遊戲開始時，會先從 16 張卡牌中隨機移除一張（銷毀牌）。每位玩家先發一張手牌。每個回合「抽一張牌，選一張牌打出」，設法透過卡牌效果淘汰其他對手。</p>
-            </section>
-
-            <section style="margin-bottom: 1.1rem;">
-                <h3 style="margin: 0 0 0.45rem; color: #ffb000; font-size: 1.08rem;">3. 勝負判定</h3>
-                <p style="margin: 0;">當牌堆沒有卡牌時，所有存活玩家攤牌比點數，點數最大者獲勝。若點數相同，則比較各自已打出牌堆的點數總和，大者獲勝。</p>
-            </section>
-
-            <section>
-                <h3 style="margin: 0 0 0.45rem; color: #ffb000; font-size: 1.08rem;">4. 次局規則</h3>
-                <p style="margin: 0;">每局遊戲結束後，由該局的勝出者擔任下一局遊戲的先攻（最先開始抽卡的人）。</p>
-            </section>
-        </div>
-    `, `<button class="modal-confirm-btn" onclick="this.closest('.modal-overlay').style.display='none'">關閉</button>`);
+    showModal(t('menu.gameRules'), createRulesBodyHTML(),
+        `<button class="modal-confirm-btn" onclick="this.closest('.modal-overlay').style.display='none'">${t('btn.close')}</button>`);
 };
+document.getElementById('lang-btn')!.onclick = showLanguageModal;
+
 
 document.querySelectorAll('.count-btn').forEach(btn => {
     (btn as HTMLElement).onclick = () => {
@@ -3307,10 +3284,10 @@ function initGame(botCount: number) {
     const burnedCard = deck.pop() || null;
 
     const players: Player[] = [
-        { id: 0, name: "玩家", isBot: false, coins: 0, hand: [deck.pop()!], isProtected: false, isAlive: true, discardPile: [], isHandRevealed: false }
+        { id: 0, name: t('player.human'), isBot: false, coins: 0, hand: [deck.pop()!], isProtected: false, isAlive: true, discardPile: [], isHandRevealed: false }
     ];
 
-    const botNames = ["電腦 A", "電腦 B", "電腦 C"];
+    const botNames = [t('player.botA'), t('player.botB'), t('player.botC')];
     for (let i = 0; i < botCount; i++) {
         players.push({
             id: i + 1,
@@ -3332,7 +3309,7 @@ function initGame(botCount: number) {
         currentTurnPlayerId: 0,
         isGameOver: false,
         winner: null,
-        logs: ["遊戲開始，玩家先攻！"],
+        logs: [t('log.localStart')],
         aiMemory: createAIMemory(players),
         aiExcludedGuesses: createAIExcludedGuesses(players),
         roundIndex: 0
@@ -3359,7 +3336,7 @@ function getNextRoundWaitingPlayerNames(): string[] {
     const readyIds = new Set(nextRoundReadyPlayerIds);
     return getConnectedOnlinePlayerIds()
         .filter(playerId => !readyIds.has(playerId))
-        .map(playerId => state.players[playerId]?.name ?? `玩家 ${playerId + 1}`);
+        .map(playerId => state.players[playerId]?.name ?? t('player.fallback', String(playerId + 1)));
 }
 
 function areAllConnectedPlayersReadyForNextRound() {
@@ -3374,15 +3351,15 @@ function isLocalRoomHost() {
 function showNextRoundWaitingModal() {
     const waitingNames = getNextRoundWaitingPlayerNames();
     const waitingListHTML = waitingNames.length > 0
-        ? waitingNames.map(name => `<li>等待 ${escapeHTML(name)} 加入下一局</li>`).join('')
-        : '<li>所有玩家已準備，正在開始下一局...</li>';
+        ? waitingNames.map(name => `<li>${t('wait.nextRound.waiting', escapeHTML(name))}</li>`).join('')
+        : `<li>${t('wait.nextRound.allReady')}</li>`;
 
-    showModal('等待下一局', `
+    showModal(t('modal.waitNextRound'), `
         <div style="text-align: left; line-height: 1.7;">
-            <p style="margin-top: 0;">你已準備開始下一局。請等待其他玩家確認。</p>
+            <p style="margin-top: 0;">${t('wait.nextRound.msg')}</p>
             <ul style="margin: 0.5rem 0 0; padding-left: 1.25rem;">${waitingListHTML}</ul>
         </div>
-    `, '<button class="modal-confirm-btn" id="next-round-wait-log-btn">留在戰場查看紀錄</button>');
+    `, `<button class="modal-confirm-btn" id="next-round-wait-log-btn">${t('wait.nextRound.stay')}</button>`);
 
     document.getElementById('next-round-wait-log-btn')!.onclick = () => {
         closeModal();
@@ -3396,7 +3373,7 @@ function getRestartWaitingPlayerNames(): string[] {
     const readyIds = new Set(restartReadyPlayerIds);
     return getConnectedOnlinePlayerIds()
         .filter(playerId => !readyIds.has(playerId))
-        .map(playerId => state.players[playerId]?.name ?? `玩家 ${playerId + 1}`);
+        .map(playerId => state.players[playerId]?.name ?? t('player.fallback', String(playerId + 1)));
 }
 
 function areAllConnectedPlayersReadyForRestart(): boolean {
@@ -3407,15 +3384,15 @@ function areAllConnectedPlayersReadyForRestart(): boolean {
 function showRestartWaitingModal() {
     const waitingNames = getRestartWaitingPlayerNames();
     const waitingListHTML = waitingNames.length > 0
-        ? waitingNames.map(name => `<li>等待 ${escapeHTML(name)} 確認重新開始</li>`).join('')
-        : '<li>所有玩家已確認，正在重新開始...</li>';
+        ? waitingNames.map(name => `<li>${t('wait.restart.waiting', escapeHTML(name))}</li>`).join('')
+        : `<li>${t('wait.restart.allReady')}</li>`;
 
-    showModal('等待重新開始', `
+    showModal(t('modal.waitRestart'), `
         <div style="text-align: left; line-height: 1.7;">
-            <p style="margin-top: 0;">你已確認重新開始全新聯賽（所有硬幣歸零）。請等待其他玩家確認。</p>
+            <p style="margin-top: 0;">${t('wait.restart.msg')}</p>
             <ul style="margin: 0.5rem 0 0; padding-left: 1.25rem;">${waitingListHTML}</ul>
         </div>
-    `, '<button class="modal-confirm-btn" id="restart-wait-cancel-btn" style="background: #64748b;">取消</button>');
+    `, `<button class="modal-confirm-btn" id="restart-wait-cancel-btn" style="background: #64748b;">${t('btn.cancel')}</button>`);
 
     document.getElementById('restart-wait-cancel-btn')!.onclick = () => {
         restartReadyPlayerIds = restartReadyPlayerIds.filter(id => id !== localPlayerId);
@@ -3520,7 +3497,7 @@ function startNextRound() {
     state.currentTurnPlayerId = firstPlayerId;
     state.isGameOver = false;
     state.winner = null;
-    state.logs = [`新一局開始，${state.players[firstPlayerId].name} 作為上一局勝出者先攻！`];
+    state.logs = [t('log.newRound', state.players[firstPlayerId].name)];
     state.aiMemory = createAIMemory(state.players);
     state.aiExcludedGuesses = createAIExcludedGuesses(state.players);
     state.roundIndex += 1;
@@ -3535,5 +3512,6 @@ function startNextRound() {
 }
 
 drawBtn.onclick = () => drawCard(localPlayerId);
+applyStaticTranslations();
 initGame(1); // 預設進來時背景跑一個 (雖然會被 menu 蓋住)
 showScene('main-menu');
