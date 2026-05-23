@@ -16,7 +16,7 @@
 #splash-screen img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
   pointer-events: none;
   animation: splash-breathe 3s ease-in-out infinite;
