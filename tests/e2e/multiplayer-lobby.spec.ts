@@ -109,10 +109,11 @@ test('when a player leaves mid-game, the other player sees the abort modal and c
             window.confirm = () => true;
             (document.getElementById('back-home-btn') as HTMLButtonElement).click();
         });
+        await expect(hostPage.locator('#main-menu')).toBeVisible();
 
         // The guest should detect the host's disconnect from the synced room state and
-        // automatically show the abort modal.
-        await expect(guestPage.locator('#modal-overlay')).toBeVisible();
+        // automatically show the abort modal after the reconnect grace period.
+        await expect(guestPage.locator('#modal-overlay')).toBeVisible({ timeout: 13_000 });
         await expect(guestPage.locator('#modal-title')).toHaveText('遊戲中斷');
         await expect(guestPage.locator('#modal-body')).toContainText('Alice');
 

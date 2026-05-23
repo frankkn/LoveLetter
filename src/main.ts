@@ -225,25 +225,15 @@ async function leaveRoomIfConnected(room: Room | null) {
     ]);
 }
 
-async function resetClientState() {
-    const leavingGameRoom = activeGameRoom;
-    const leavingLobbyRoom = lobbyRoom;
+function leaveRoomInBackground(room: Room | null, context: string) {
+    if (!room) return;
 
-    activeGameRoom = null;
-    lobbyRoom = null;
+    void leaveRoomIfConnected(room).catch(error => {
+        console.warn(`Failed to leave ${context}:`, error);
+    });
+}
 
-    try {
-        await leaveRoomIfConnected(leavingGameRoom);
-    } catch (error) {
-        console.warn('Failed to leave active game room during client reset:', error);
-    }
-
-    try {
-        await leaveRoomIfConnected(leavingLobbyRoom);
-    } catch (error) {
-        console.warn('Failed to leave lobby room during client reset:', error);
-    }
-
+function resetLocalClientState() {
     lobbyRooms = [];
     currentRoomWaitState = null;
     pendingForcedEffectsQueue = [];
@@ -265,6 +255,18 @@ async function resetClientState() {
     endGameReason = '';
     clearPendingAbortTimer();
     closeModal();
+}
+
+function resetClientState() {
+    const leavingGameRoom = activeGameRoom;
+    const leavingLobbyRoom = lobbyRoom;
+
+    activeGameRoom = null;
+    lobbyRoom = null;
+
+    resetLocalClientState();
+    leaveRoomInBackground(leavingGameRoom, 'active game room during client reset');
+    leaveRoomInBackground(leavingLobbyRoom, 'lobby room during client reset');
 }
 
 // 4. DOM 元素
