@@ -29,7 +29,8 @@
 
 #splash-screen.fade-out {
   animation: splash-fade-out 0.55s ease forwards;
-  pointer-events: none;
+  /* keep pointer-events active during fade so the triggering click
+     doesn't fall through to buttons underneath */
 }
 
 @keyframes splash-fade-out {
