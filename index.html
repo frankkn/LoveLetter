@@ -3,24 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#121212" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="情書" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="manifest" href="%BASE_URL%manifest.json" />
     <link rel="icon" type="image/png" sizes="192x192" href="%BASE_URL%icons/icon-192.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="%BASE_URL%icons/apple-touch-icon.png" />
     <title>情書 (Love Letter) - TS 版</title>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('%BASE_URL%sw.js', { scope: '%BASE_URL%' })
-            .catch(error => console.warn('Service worker registration failed:', error));
-        });
-      }
-    </script>
   </head>
   <body>
     <div id="app">
@@ -150,51 +135,6 @@
     </div>
 
     <button id="mute-btn-global" aria-label="Toggle mute">🔊</button>
-
-    <div id="pwa-install-prompt" style="position: fixed; left: 1rem; right: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom)); z-index: 2000; display: none; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.85rem 1rem; border: 1px solid rgba(255,77,77,0.55); border-radius: 10px; background: rgba(18,18,18,0.96); box-shadow: 0 10px 28px rgba(0,0,0,0.45); color: #f4f4f4;">
-      <span style="font-weight: 700; line-height: 1.35;">將《情書》安裝到主畫面</span>
-      <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
-        <button id="pwa-install-btn" style="padding: 0.55rem 0.85rem; border: 0; border-radius: 6px; background: #ff4d4d; color: #fff; font-weight: 800;">安裝</button>
-        <button id="pwa-dismiss-btn" style="padding: 0.55rem 0.85rem; border: 0; border-radius: 6px; background: #57606f; color: #fff; font-weight: 800;">稍後</button>
-      </div>
-    </div>
-
-    <script>
-      let deferredInstallPrompt = null;
-      const installPrompt = document.getElementById('pwa-install-prompt');
-      const installButton = document.getElementById('pwa-install-btn');
-      const dismissButton = document.getElementById('pwa-dismiss-btn');
-      const startGameButton = document.getElementById('start-game-btn');
-
-      function dismissInstallPrompt() {
-        installPrompt.style.display = 'none';
-        deferredInstallPrompt = null;
-      }
-
-      window.addEventListener('beforeinstallprompt', event => {
-        event.preventDefault();
-        deferredInstallPrompt = event;
-        installPrompt.style.display = 'flex';
-      });
-
-      installButton?.addEventListener('click', async () => {
-        if (!deferredInstallPrompt) return;
-        installPrompt.style.display = 'none';
-        deferredInstallPrompt.prompt();
-        await deferredInstallPrompt.userChoice;
-        deferredInstallPrompt = null;
-      });
-
-      dismissButton?.addEventListener('click', () => {
-        dismissInstallPrompt();
-      });
-
-      startGameButton?.addEventListener('click', dismissInstallPrompt);
-
-      window.addEventListener('appinstalled', () => {
-        dismissInstallPrompt();
-      });
-    </script>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -305,7 +305,7 @@ function unlockAudio() {
 
 function playBGM(filename: string) {
     if (!audioUnlocked) { pendingBGMFile = filename; return; }
-    if (currentBGMFile === filename && !bgmAudio.paused) return;
+    if (currentBGMFile === filename) return; // already committed to this track
     bgmAudio.loop = true;
     currentBGMFile = filename;
     bgmPausedForSFX = false;
@@ -355,8 +355,11 @@ function toggleMute() {
     if (!isMuted) unlockAudio();
 }
 
-document.addEventListener('click', unlockAudio);
-document.addEventListener('keydown', unlockAudio);
+// Use capture phase so unlockAudio fires BEFORE any button handler,
+// ensuring audio plays from the very first interaction (works on iOS too).
+document.addEventListener('touchstart', unlockAudio, { capture: true, once: true });
+document.addEventListener('click',      unlockAudio, { capture: true, once: true });
+document.addEventListener('keydown',    unlockAudio, { capture: true, once: true });
 applyMuteState();
 
 // ─────────────────────────────────────────────────────────────────────────────
