@@ -39,3 +39,6 @@ test-results/
 # Misc
 .cache/
 .temp/
+
+# Claude Code skills (personal dev tools, not part of the game)
+.claude/skills/
