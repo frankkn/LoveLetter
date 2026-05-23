@@ -263,6 +263,7 @@ async function resetClientState() {
     onlineGameInitialized = false;
     isApplyingOnlineState = false;
     endGameReason = '';
+    clearPendingAbortTimer();
     closeModal();
 }
 
@@ -2931,12 +2932,22 @@ function bindGameRoom(room: Room<unknown, SyncedRoomState>) {
     });
 
     room.onLeave(() => {
-        if (activeGameRoom === room) {
-            activeGameRoom = null;
-            currentRoomWaitState = null;
-            if (modalOverlay.style.display === 'flex' && modalTitle.textContent === '遊戲中斷') {
-                return;
-            }
+        if (activeGameRoom !== room) return;
+
+        const wasInOnlineGame = onlineGameInitialized;
+        activeGameRoom = null;
+        currentRoomWaitState = null;
+        clearPendingAbortTimer();
+
+        if (modalOverlay.style.display === 'flex' && modalTitle.textContent === '遊戲中斷') {
+            return;
+        }
+
+        // If the connection dropped while we were actually playing, show an explicit
+        // "lost connection" modal instead of silently dumping the player into the lobby.
+        if (wasInOnlineGame) {
+            showConnectionLostModal();
+        } else {
             showScene('lobby-scene');
         }
     });
@@ -2980,26 +2991,63 @@ async function connectLobbyRoom() {
     }
 }
 
+// Grace period for "opponent disconnected" detection. Without it, a brief WS hiccup on the
+// opponent's side (tab backgrounded and throttled, F5, transient network drop) would
+// immediately end the game on the other player's screen, which feels like a random crash.
+// 10 seconds covers typical reconnection windows and is well below the server's 20s
+// allowReconnection budget.
+const ABORT_GRACE_PERIOD_MS = 10_000;
+let pendingAbortTimer: number | null = null;
+
+function clearPendingAbortTimer() {
+    if (pendingAbortTimer !== null) {
+        window.clearTimeout(pendingAbortTimer);
+        pendingAbortTimer = null;
+    }
+}
+
 function maybeShowAbortModalForDisconnections(
     previous: RoomWaitViewState | null,
     current: RoomWaitViewState
 ) {
-    if (!previous || !previous.isGameStarted || !current.isGameStarted) return;
-    if (!isOnlineGameActive()) return;
+    if (!previous || !previous.isGameStarted || !current.isGameStarted) {
+        clearPendingAbortTimer();
+        return;
+    }
+    if (!isOnlineGameActive()) {
+        clearPendingAbortTimer();
+        return;
+    }
     if (modalOverlay.style.display === 'flex' && modalTitle.textContent === '遊戲中斷') return;
 
-    const justDisconnected = current.players.filter(currentPlayer => {
-        if (currentPlayer.isConnected !== false) return false;
-        const previousPlayer = previous.players.find(p => p.id === currentPlayer.id);
-        return Boolean(previousPlayer && previousPlayer.isConnected !== false);
-    });
-    if (justDisconnected.length === 0) return;
-
     const connectedCount = current.players.filter(p => p.isConnected !== false).length;
-    if (connectedCount >= 2) return;
 
-    const leaverName = justDisconnected.map(p => p.name).join('、');
-    showGameAbortedModal(`${leaverName} 已離開房間，剩餘玩家不足，本局已結束。`);
+    // Enough players still connected — cancel any pending abort (player recovered).
+    if (connectedCount >= 2) {
+        clearPendingAbortTimer();
+        return;
+    }
+
+    // Schedule the abort modal after the grace period. Re-checks state at fire time so a
+    // late reconnect still cancels the abort.
+    if (pendingAbortTimer === null) {
+        pendingAbortTimer = window.setTimeout(() => {
+            pendingAbortTimer = null;
+            if (!currentRoomWaitState?.isGameStarted) return;
+            if (!isOnlineGameActive()) return;
+            const stillConnected = currentRoomWaitState.players.filter(p => p.isConnected !== false).length;
+            if (stillConnected >= 2) return;
+            if (modalOverlay.style.display === 'flex' && modalTitle.textContent === '遊戲中斷') return;
+
+            const disconnectedNames = currentRoomWaitState.players
+                .filter(p => p.isConnected === false)
+                .map(p => p.name);
+            const reason = disconnectedNames.length > 0
+                ? `${disconnectedNames.join('、')} 失去連線，剩餘玩家不足，本局已結束。`
+                : '剩餘玩家不足，本局已結束。';
+            showGameAbortedModal(reason);
+        }, ABORT_GRACE_PERIOD_MS);
+    }
 }
 
 function showGameAbortedModal(reason: string) {
@@ -3009,6 +3057,19 @@ function showGameAbortedModal(reason: string) {
     `, '<button class="modal-confirm-btn" id="game-aborted-ok-btn">返回主選單</button>');
 
     document.getElementById('game-aborted-ok-btn')!.onclick = async () => {
+        closeModal();
+        await resetClientState();
+        showScene('main-menu');
+    };
+}
+
+function showConnectionLostModal() {
+    showModal('連線中斷', `
+        <p>與伺服器的連線已中斷，可能是網路不穩或對手斷線。</p>
+        <p>請返回主選單後重新加入房間。</p>
+    `, '<button class="modal-confirm-btn" id="connection-lost-ok-btn">返回主選單</button>');
+
+    document.getElementById('connection-lost-ok-btn')!.onclick = async () => {
         closeModal();
         await resetClientState();
         showScene('main-menu');

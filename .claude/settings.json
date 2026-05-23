@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push *)",
+      "Bash(python3 -c ' *)",
+      "Bash(npm run *)",
+      "Bash(npx playwright *)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}
