@@ -516,23 +516,26 @@ h3 {
   text-align: left;
 }
 
-/* back-home row (back button + mute button side by side) */
+/* back-home row — mute icon overlays the button absolutely */
 .back-home-row {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
   width: 100%;
 }
 
 .back-home-row #back-home-btn {
   flex: 1 1 auto;
-  width: auto !important;
-  padding: 5px 15px;
+  width: 100% !important;
+  padding: 5px 2.4rem 5px 15px; /* right room for the mute icon */
 }
 
-/* Mute button — inline in sidebar, not fixed */
+/* Mute button — absolute overlay on the right side of back-home-row */
 #mute-btn {
-  flex: 0 0 auto;
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 1.9rem;
   height: 1.9rem;
   border: 1px solid rgba(255, 255, 255, 0.18);
@@ -546,16 +549,46 @@ h3 {
   justify-content: center;
   padding: 0;
   line-height: 1;
-  transition: background 0.15s, transform 0.1s;
+  transition: background 0.15s;
+  z-index: 1;
 }
 
 #mute-btn:hover {
   background: rgba(255, 255, 255, 0.13);
-  transform: scale(1.08);
 }
 
 #mute-btn:active {
-  transform: scale(0.94);
+  opacity: 0.7;
+}
+
+/* Global mute button — fixed top-right, hidden during game scene */
+#mute-btn-global {
+  position: fixed;
+  top: max(0.85rem, env(safe-area-inset-top));
+  right: max(0.85rem, env(safe-area-inset-right));
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f4f4f4;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  z-index: 500;
+  transition: background 0.15s;
+}
+
+#mute-btn-global:hover {
+  background: rgba(255, 255, 255, 0.13);
+}
+
+body.game-scene-active #mute-btn-global {
+  display: none;
 }
 
 /* Modal 樣式 */
@@ -1396,26 +1429,26 @@ h3 {
     border-radius: 6px;
   }
 
-  .back-home-row {
-    gap: 4px;
-    padding-right: 0.2rem;
-  }
-
   .back-home-row #back-home-btn {
-    flex: 1 1 auto !important;
+    width: 100% !important;
     min-height: 32px;
-    padding: 0.35rem 0.3rem !important;
+    padding: 0.35rem 1.9rem 0.35rem 0.3rem !important;
     font-size: 0.75rem;
     line-height: 1.1;
     border-radius: 6px;
-    width: auto !important;
   }
 
   #mute-btn {
-    width: 1.75rem;
-    height: 1.75rem;
-    font-size: 0.78rem;
-    flex-shrink: 0;
+    width: 1.6rem;
+    height: 1.6rem;
+    font-size: 0.75rem;
+    right: 3px;
+  }
+
+  #mute-btn-global {
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.9rem;
   }
 
   .log-container {

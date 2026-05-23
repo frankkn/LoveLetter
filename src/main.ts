@@ -286,8 +286,11 @@ function getAudioSrc(filename: string): string {
 function applyMuteState() {
     bgmAudio.muted = isMuted;
     sfxAudio.muted = isMuted;
+    const icon = isMuted ? '🔇' : '🔊';
     const btn = document.getElementById('mute-btn') as HTMLButtonElement | null;
-    if (btn) btn.textContent = isMuted ? '🔇' : '🔊';
+    if (btn) btn.textContent = icon;
+    const btnGlobal = document.getElementById('mute-btn-global') as HTMLButtonElement | null;
+    if (btnGlobal) btnGlobal.textContent = icon;
 }
 
 function unlockAudio() {
@@ -3450,6 +3453,7 @@ document.getElementById('back-home-btn')!.onclick = async () => {
 showResultBtn.onclick = showEndGameModal;
 showLogBtn.onclick = showBattleLogModal;
 document.getElementById('mute-btn')!.onclick = toggleMute;
+document.getElementById('mute-btn-global')!.onclick = toggleMute;
 document.addEventListener('click', event => {
     const target = event.target as HTMLElement;
     if (gameSceneEl.classList.contains('mobile-stats-open') && !target.closest('.card-stats-area, .mobile-stats-toggle')) {
