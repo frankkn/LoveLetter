@@ -38,7 +38,7 @@ The frontend imports `src/server/schema/GameRoomState.ts` directly — those sch
 
 ### Frontend (`src/main.ts`)
 
-The entire frontend is a **single 3300-line TypeScript file** with no UI framework. It mounts on `#app` in `index.html` and manages all scene transitions and game logic imperatively.
+The entire frontend is a **single ~3700-line TypeScript file** with no UI framework. It mounts on `#app` in `index.html` and manages all scene transitions and game logic imperatively.
 
 **Scene flow (one `<div>` is shown at a time):**
 ```
@@ -80,11 +80,26 @@ AI bots share the same `applyEffect` / `resolveTargetEffect` path as the human p
 
 **State sync model:** The host client owns the authoritative game state. Every mutation calls `syncOnlineGameState()`, which sends the full `OnlineGameStateData` blob via `room.send("sync_game_state", ...)`. Non-host clients receive it and call `applyOnlineGameState()` to overwrite their local state.
 
+**Bots in online rooms:** The host can add AI bots (電腦 A/B/C) to fill empty slots. `GameRoomState.botCount` (Colyseus schema field) tracks how many bots are in the room. `createInitialOnlineGameData()` appends bot `Player` entries when the game starts. Bot turns run only on the host client — `queueBotTurn()` checks `selfPlayer?.isHost` and returns early on non-host clients.
+
 **Private information:** Cards have `privateActionHints` / `privateHintOwnerId` fields that are stripped before sync (`cloneCardForOnlineSync`). After receiving an online state update, `restoreLocalPrivateHints()` re-attaches hints that belong to the local player.
 
 **Reconnection:** After game start, `LoveLetterRoom.onLeave` calls `allowReconnection(client, 20)`. On reconnect the client sends `"request_game_data"` and the server replays `latestGameState`.
 
 **Colyseus endpoint:** Resolved from `VITE_COLYSEUS_ENDPOINT` env var at build time; falls back to `ws(s)://<hostname>:2567` at runtime.
+
+### Audio System
+
+Five MP3 files live in `public/audio/`. Two `Audio` objects are shared globally: `bgmAudio` (looping BGM) and `sfxAudio` (one-shot SFX).
+
+- `playBGM(filename)` — switches BGM track; no-ops if the same file is already committed (`currentBGMFile === filename`). While `audioUnlocked` is false, stores the filename in `pendingBGMFile` for deferred play.
+- `playSFX(filename)` — pauses BGM, plays SFX, resumes BGM via `onended`. Uses `bgmPausedForSFX` flag to avoid double-resume.
+- `playChampionTheme()` — plays the victory track on `sfxAudio` without resuming BGM.
+- `unlockAudio()` — called on the first user gesture (registered with `capture: true, once: true` on `touchstart`, `click`, and `keydown`). Capture phase ensures it fires before any button handler.
+- BGM switches: `showScene('game-scene')` → `A Game of Hearts.mp3`; all other scenes → `Royal Intrigue.mp3`.
+- SFX triggers: elimination → `Farewell, Chevalier.mp3`; end-game modal → `The Victor's Token.mp3`; champion modal → `Love Conquers All.mp3`.
+
+**Mute button:** Two instances exist — `#mute-btn` (inside the game sidebar's `.back-home-row`, `position: absolute`) and `#mute-btn-global` (fixed top-right, hidden via `body.game-scene-active #mute-btn-global { display: none }`). `applyMuteState()` syncs both. Mute preference persists to `localStorage` under key `loveLetter_muted`.
 
 ### Deployment
 
@@ -93,10 +108,6 @@ GitHub Actions (`.github/workflows/deploy.yml`) runs on push to `main`:
 2. Uploads `dist/` to GitHub Pages
 
 The Colyseus backend is deployed separately (Render). The `vite.config.ts` sets `base: '/love-letter/'` for GitHub Pages path prefix.
-
-### PWA
-
-`public/manifest.json` and `public/sw.js` enable PWA install. Service worker registration is inlined in `index.html`. The install prompt banner is handled by a small vanilla JS block at the bottom of `index.html`.
 
 ## Environment Variables
 

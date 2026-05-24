@@ -38,34 +38,250 @@
 }
 /* ─────────────────────────────────────────────────────────────────────── */
 
+/* ── Design tokens ────────────────────────────────────────────────────── */
 :root {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Noto Serif TC', 'Georgia', serif;
   line-height: 1.5;
   font-weight: 400;
   color-scheme: dark;
-  background-color: #1a1a1a;
-  color: #e0e0e0;
+  background-color: #090610;
+  color: #f0e6cc;
   overflow: visible !important;
+
+  --gold-hi:     #fff3c0;
+  --gold-bright: #f5d07a;
+  --gold-mid:    #c9a227;
+  --gold-dark:   #7d5e12;
+  --text-ivory:  #f0e6cc;
+  --text-muted:  #c4a882;
+  --panel-bg:    rgba(7, 3, 16, 0.82);
+  --panel-r:     6px;
+  --shimmer:     rgba(255, 235, 140, 0.22);
 }
 
 body {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  isolation: isolate;
   overflow: visible !important;
 }
 
 #app {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 1rem;
+  position: relative;
+  z-index: 10;
+  width: min(88%, 480px);
+  padding: 1.25rem 1rem 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  align-items: center;
+  gap: 2.2rem;
   overflow: visible !important;
+  animation: sceneFadeIn 1s ease-out 0.1s both;
+  /* In a flex-center body, margin-bottom shifts the visual center upward:
+     the flex layout centers (height + margin-bottom), so #app sits above
+     the mathematical midpoint — matching optical/perceived center. */
+  margin-bottom: 24vh;
 }
 
-h1 {
+/* Override #app layout when game is active (restore full layout) */
+body.game-scene-active #app {
+  width: 100%;
+  max-width: 1440px;
+  align-items: stretch;
+  gap: 1.5rem;
+  padding: 1rem;
+  animation: none;
+  margin-bottom: 0;
+}
+
+/* ── Background atmosphere layers ─────────────────────────────────────── */
+.bg-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -2;
+}
+
+.bg-layer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 90% 55% at 50% -5%,  rgba(130, 22, 45, 0.55) 0%, transparent 65%),
+    radial-gradient(ellipse 70% 50% at 50% 105%, rgba(45,  10, 75, 0.50) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 60% at 10% 60%,  rgba(80,  15, 20, 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 60% at 90% 40%,  rgba(50,   8, 70, 0.18) 0%, transparent 55%);
+}
+
+.bg-layer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 40% at 50% 45%, rgba(130, 22, 45, 0.12) 0%, transparent 70%);
+  animation: bgPulse 6s ease-in-out infinite;
+}
+
+.bg-texture {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image:
+    repeating-linear-gradient(45deg,  rgba(255,255,255,0.013) 0, rgba(255,255,255,0.013) 1px, transparent 1px, transparent 9px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0.009) 0, rgba(255,255,255,0.009) 1px, transparent 1px, transparent 9px);
+}
+
+.bg-vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(ellipse 100% 100% at 50% 50%, transparent 40%, rgba(0,0,0,0.70) 100%);
+}
+
+/* Hide atmospheric layers when game is active */
+body.game-scene-active .bg-layer,
+body.game-scene-active .bg-texture,
+body.game-scene-active .bg-vignette {
+  display: none;
+}
+
+/* ── Particle Canvas ──────────────────────────────────────────────────── */
+#particle-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.85;
+}
+
+body.game-scene-active #particle-canvas {
+  display: none;
+}
+
+/* ── Title Area ───────────────────────────────────────────────────────── */
+#title-area {
   text-align: center;
-  color: #ff4d4d;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  user-select: none;
+  animation: titleSlideDown 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+}
+
+.title-ornament-top {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.5rem;
+  color: var(--gold-mid);
+  font-size: 0.72rem;
+  letter-spacing: 0.5em;
+  opacity: 0.65;
+}
+.title-ornament-top span { opacity: 0.5; }
+.title-ornament-top::before,
+.title-ornament-top::after {
+  content: '';
+  width: 52px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(197,160,60,0.6));
+}
+.title-ornament-top::after {
+  background: linear-gradient(270deg, transparent, rgba(197,160,60,0.6));
+}
+
+.title-zh {
+  font-family: 'Noto Serif TC', serif;
+  font-size: clamp(2.4rem, 8vw, 3.4rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  background: linear-gradient(
+    180deg,
+    var(--gold-hi)     0%,
+    var(--gold-bright) 28%,
+    var(--gold-mid)    60%,
+    var(--gold-dark)   100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: titleGlow 5s ease-in-out infinite;
   margin: 0;
+}
+
+.title-en {
+  font-family: 'Cinzel', 'Georgia', serif;
+  font-size: clamp(1.3rem, 4.5vw, 1.85rem);
+  font-weight: 600;
+  font-style: normal;
+  letter-spacing: 0.28em;
+  color: var(--gold-mid);
+  opacity: 0.78;
+  margin-top: 0.35rem;
+  text-shadow: 0 0 24px rgba(197,160,60,0.45), 0 1px 3px rgba(0,0,0,0.8);
+}
+
+.title-ornament-bottom {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.6rem;
+  color: var(--gold-dark);
+  font-size: 0.65rem;
+  opacity: 0.55;
+}
+.title-ornament-bottom::before,
+.title-ornament-bottom::after {
+  content: '';
+  width: 38px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(125,94,18,0.7));
+}
+.title-ornament-bottom::after {
+  background: linear-gradient(270deg, transparent, rgba(125,94,18,0.7));
+}
+
+body.game-scene-active #title-area {
+  display: none;
+}
+
+/* ── Keyframe Animations ──────────────────────────────────────────────── */
+@keyframes bgPulse {
+  0%, 100% { opacity: 0.7; }
+  50%       { opacity: 1.0; }
+}
+
+@keyframes titleGlow {
+  0%, 100% {
+    filter: drop-shadow(0 2px 8px rgba(197,160,60,0.30))
+            drop-shadow(0 0 2px rgba(0,0,0,0.9));
+  }
+  50% {
+    filter: drop-shadow(0 2px 22px rgba(245,208,122,0.72))
+            drop-shadow(0 0 50px rgba(197,160,60,0.28))
+            drop-shadow(0 0  3px rgba(0,0,0,0.9));
+  }
+}
+
+@keyframes sceneFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes titleSlideDown {
+  from { opacity: 0; transform: translateY(-22px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes panelRise {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .area {
@@ -711,6 +927,7 @@ body.game-scene-active #mute-btn-global {
 /* 保護狀態視覺效果 */
 .protected {
   position: relative;
+  z-index: 2;
   box-shadow: 0 0 20px rgba(52, 152, 219, 0.6) !important;
   border: 2px solid #3498db !important;
   background-color: #1a2a3a !important;
@@ -727,6 +944,9 @@ body.game-scene-active #mute-btn-global {
   border-radius: 10px;
   font-size: 0.7rem;
   font-weight: bold;
+  z-index: 10;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 /* 讓 AI 區域也有個基本的 padding 方便看特效 */
@@ -734,59 +954,260 @@ body.game-scene-active #mute-btn-global {
   transition: all 0.5s ease;
 }
 
-/* 選單樣式 */
+/* ── Glass Panel (main-menu + mode-select + bot-count-select) ─────────── */
+.glass-panel {
+  position: relative;
+  width: 100%;
+  background: var(--panel-bg);
+  backdrop-filter: blur(18px) saturate(1.5) brightness(0.95);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5) brightness(0.95);
+  border: 1px solid rgba(197, 160, 60, 0.42);
+  border-radius: var(--panel-r);
+  padding: 2rem 6rem 2.9rem;
+  box-shadow:
+    0 1px 0   rgba(255, 245, 180, 0.14) inset,
+    0 0 0 1px rgba(197, 160, 60, 0.06)  inset,
+    0 28px 70px rgba(0,   0,   0,   0.75),
+    0  0px 90px rgba(100, 22, 40,  0.18);
+  animation: panelRise 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+}
+
+.glass-panel::before {
+  content: '◈';
+  position: absolute;
+  top: 9px;
+  left: 11px;
+  color: var(--gold-mid);
+  font-size: 0.6rem;
+  opacity: 0.55;
+  line-height: 1;
+}
+.glass-panel::after {
+  content: '◈';
+  position: absolute;
+  top: 9px;
+  right: 11px;
+  color: var(--gold-mid);
+  font-size: 0.6rem;
+  opacity: 0.55;
+  line-height: 1;
+}
+
+.corner-bl {
+  position: absolute;
+  bottom: 10px;
+  left: 11px;
+  color: var(--gold-mid);
+  font-size: 0.6rem;
+  opacity: 0.55;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+.corner-br {
+  position: absolute;
+  bottom: 10px;
+  right: 11px;
+  color: var(--gold-mid);
+  font-size: 0.6rem;
+  opacity: 0.55;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+.panel-inner-border {
+  position: absolute;
+  inset: 5px;
+  border: 1px solid rgba(197, 160, 60, 0.1);
+  border-radius: calc(var(--panel-r) - 2px);
+  pointer-events: none;
+}
+
+.panel-title {
+  text-align: center;
+  margin-bottom: 1.3rem;
+}
+
+.panel-title h2 {
+  font-family: 'Cinzel', 'Georgia', serif;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.45em;
+  text-transform: uppercase;
+  color: var(--gold-mid);
+  opacity: 0.72;
+  margin: 0;
+}
+
+.panel-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+  color: var(--gold-dark);
+  font-size: 0.78rem;
+  opacity: 0.6;
+}
+.panel-divider::before,
+.panel-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+}
+.panel-divider::before { background: linear-gradient(90deg,  transparent, rgba(197,160,60,0.55)); }
+.panel-divider::after  { background: linear-gradient(270deg, transparent, rgba(197,160,60,0.55)); }
+
+/* ── Menu container base layout ───────────────────────────────────────── */
 .menu-container {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  min-height: 300px;
-  gap: 20px;
+  gap: 0;
 }
 
+/* ── Buttons ──────────────────────────────────────────────────────────── */
 .menu-buttons {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 0.78rem;
   width: 100%;
-  max-width: 300px;
 }
 
 .menu-btn {
-  padding: 12px 24px;
-  font-size: 1.1rem;
-  font-weight: bold;
-  border-radius: 8px;
-  border: 2px solid #555;
-  background: #333;
-  color: white;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  padding: 0.88rem 1.5rem;
+  font-family: 'Noto Serif TC', 'Georgia', serif;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: #e8d9b0;
   cursor: pointer;
-  transition: all 0.2s;
+  border-radius: 3px;
+  border: 1px solid rgba(197, 160, 60, 0.32);
+  background: linear-gradient(
+    180deg,
+    rgba(50, 16, 30, 0.68) 0%,
+    rgba(16,  6, 18, 0.88) 100%
+  );
+  transition:
+    transform    0.22s cubic-bezier(0.2, 0.8, 0.3, 1),
+    box-shadow   0.22s ease,
+    border-color 0.22s ease,
+    color        0.22s ease,
+    background   0.22s ease;
+}
+
+/* Shimmer ribbon */
+.menu-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    var(--shimmer) 48%,
+    transparent 78%
+  );
+  transform: translateX(-110%) skewX(-8deg);
+  transition: transform 0s;
+  pointer-events: none;
+}
+
+/* Top highlight edge */
+.menu-btn::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 10%, rgba(255,245,180,0.18) 50%, transparent 90%);
+  border-radius: 3px 3px 0 0;
+  pointer-events: none;
 }
 
 .menu-btn:hover:not(:disabled) {
-  border-color: #ff4d4d;
-  background: #444;
+  transform: translateY(-2px) scale(1.012);
+  border-color: rgba(245, 208, 122, 0.72);
+  color: var(--gold-bright);
+  background: linear-gradient(
+    180deg,
+    rgba(80, 24, 45, 0.80) 0%,
+    rgba(35, 10, 28, 0.92) 100%
+  );
+  box-shadow:
+    0 5px 22px rgba(197, 160, 60, 0.22),
+    0 0  10px rgba(197, 160, 60, 0.08) inset;
+}
+
+.menu-btn:hover:not(:disabled)::before {
+  transform: translateX(110%) skewX(-8deg);
+  transition: transform 0.55s ease;
+}
+
+.menu-btn:active {
+  transform: translateY(0) scale(0.99);
+  box-shadow: none;
+  transition-duration: 0.08s;
 }
 
 .menu-btn.primary {
-  background: #ff4d4d;
-  border-color: #ff4d4d;
+  background: linear-gradient(
+    180deg,
+    rgba(155, 25, 52, 0.80) 0%,
+    rgba( 90, 10, 28, 0.92) 100%
+  );
+  border-color: rgba(245, 208, 122, 0.52);
+  color: #f0e4c0;
+  box-shadow: 0 0 20px rgba(155, 25, 52, 0.15);
 }
 
-.menu-btn.primary:hover {
-  background: #ff6b6b;
+.menu-btn.primary:hover:not(:disabled) {
+  background: linear-gradient(
+    180deg,
+    rgba(195, 35, 68, 0.90) 0%,
+    rgba(120, 16, 38, 0.96) 100%
+  );
+  border-color: rgba(255, 225, 130, 0.80);
+  color: #fff3d0;
+  box-shadow:
+    0 5px 28px rgba(195, 40, 70, 0.40),
+    0 0  12px rgba(255, 200, 120, 0.10) inset;
 }
 
 .menu-btn.secondary {
-  background: #57606f;
-  border-color: #57606f;
+  background: linear-gradient(
+    180deg,
+    rgba(30, 25, 45, 0.72) 0%,
+    rgba(12,  8, 22, 0.88) 100%
+  );
+  border-color: rgba(197, 160, 60, 0.22);
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 
 .menu-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ── Responsive adjustments for glass panel / title ──────────────────── */
+@media (max-width: 480px) {
+  #app { gap: 1.6rem; padding: 1rem 0.75rem; width: min(72%, 330px); }
+  .glass-panel { padding: 1.5rem 3rem 1.4rem; }
+  .menu-btn { padding: 0.82rem 1.2rem; font-size: 0.95rem; }
+  .title-zh { letter-spacing: 0.12em; }
+}
+
+@media (max-height: 640px) {
+  #app { gap: 1.2rem; }
+  .title-zh { font-size: clamp(1.9rem, 7vw, 2.6rem); }
+  .glass-panel { padding: 1.4rem 2rem 1.4rem; }
+  .panel-title { margin-bottom: 0.9rem; }
+  .panel-divider { margin-bottom: 1.1rem; }
+  .menu-buttons { gap: 0.6rem; }
 }
 
 .scene-header {
@@ -1033,19 +1454,24 @@ body.game-scene-active #mute-btn-global {
 .count-btn {
   width: 80px;
   height: 80px;
-  font-size: 1.2rem;
+  font-size: 1.3rem;
   font-weight: bold;
+  font-family: 'Cinzel', 'Georgia', serif;
   border-radius: 50%;
-  border: 3px solid #ff4d4d;
-  background: #2a2a2a;
-  color: white;
+  border: 1px solid rgba(197, 160, 60, 0.52);
+  background: linear-gradient(135deg, rgba(155, 25, 52, 0.55) 0%, rgba(90, 10, 28, 0.78) 100%);
+  color: var(--gold-bright);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.22s cubic-bezier(0.2, 0.8, 0.3, 1);
+  box-shadow: 0 0 18px rgba(155, 25, 52, 0.12);
 }
 
 .count-btn:hover {
-  background: #ff4d4d;
+  background: linear-gradient(135deg, rgba(195, 35, 68, 0.78) 0%, rgba(120, 16, 38, 0.92) 100%);
+  border-color: rgba(245, 208, 122, 0.80);
+  color: #fff3d0;
   transform: scale(1.1);
+  box-shadow: 0 4px 18px rgba(195, 40, 70, 0.38);
 }
 
 /* 多對手佈局 */
@@ -1244,6 +1670,7 @@ body.game-scene-active #mute-btn-global {
     height: 100%;
   }
 
+
   .modal-content {
     width: calc(100% - 1rem);
     max-height: calc(100dvh - 1rem);
@@ -1268,10 +1695,6 @@ body.game-scene-active #mute-btn-global {
     padding: 0.25rem;
     gap: 0.25rem;
     overflow: hidden !important;
-  }
-
-  body.game-scene-active h1 {
-    display: none;
   }
 
   #game-scene {
@@ -1356,7 +1779,7 @@ body.game-scene-active #mute-btn-global {
     bottom: calc(0.75rem + env(safe-area-inset-bottom));
     z-index: 8999;
     width: auto;
-    max-height: min(68vh, 520px);
+    max-height: min(38vh, 260px);
     padding: 0.85rem;
     border: 1px solid rgba(255, 176, 0, 0.58);
     border-radius: 14px 14px 10px 10px;
@@ -1392,13 +1815,14 @@ body.game-scene-active #mute-btn-global {
     right: max(0.85rem, env(safe-area-inset-right));
     bottom: calc(0.85rem + env(safe-area-inset-bottom));
     z-index: 9000;
-    min-height: 44px;
-    padding: 0.7rem 0.95rem;
+    min-height: 36px;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.8rem;
     border: 1px solid rgba(255, 176, 0, 0.75);
     border-radius: 999px;
     background: #ffb000;
     color: #1c1400;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.42);
     font-weight: 900;
     letter-spacing: 0;
   }
@@ -1544,6 +1968,16 @@ body.game-scene-active #mute-btn-global {
     padding: 4px;
     border-radius: 8px;
     overflow: hidden !important;
+  }
+
+  /* 保護中 badge: 手機版 opponent-area 有 overflow:hidden，
+     把 ::after 移至 box 內右上角，避免被裁切 */
+  .protected::after {
+    top: 2px;
+    right: 4px;
+    font-size: 0.6rem;
+    padding: 1px 5px;
+    border-radius: 6px;
   }
 
   .opponent-area h3 {

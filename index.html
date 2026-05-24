@@ -6,6 +6,8 @@
     <meta name="format-detection" content="telephone=no" />
     <link rel="icon" type="image/png" sizes="192x192" href="%BASE_URL%icons/icon-192.png" />
     <title>情書 (Love Letter) - TS 版</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:ital,wght@0,400;0,600;1,400&family=Noto+Serif+TC:wght@400;600;700&display=swap" rel="stylesheet">
     <script>
       // Unregister any leftover PWA service workers from previous versions.
       if ('serviceWorker' in navigator) {
@@ -21,12 +23,30 @@
       <img src="%BASE_URL%splash.png" alt="" draggable="false" />
     </div>
 
+    <!-- Background decoration layers (menu atmosphere) -->
+    <div class="bg-layer" aria-hidden="true"></div>
+    <div class="bg-texture" aria-hidden="true"></div>
+    <div class="bg-vignette" aria-hidden="true"></div>
+    <canvas id="particle-canvas" aria-hidden="true"></canvas>
+
     <div id="app">
-      <h1 data-i18n="menu.title">情書 Love Letter</h1>
+      <!-- Title area (replaces plain h1) -->
+      <div id="title-area" class="title-area">
+        <div class="title-ornament-top"><span>✦</span></div>
+        <h1 class="title-zh">情書</h1>
+        <p  class="title-en">Love&thinsp;Letter</p>
+        <div class="title-ornament-bottom">❦</div>
+      </div>
 
       <!-- 主選單區域 -->
-      <div id="main-menu" class="area menu-container">
-        <h2 data-i18n="menu.main">主選單</h2>
+      <div id="main-menu" class="menu-container glass-panel">
+        <span class="corner-bl" aria-hidden="true">◈</span>
+        <span class="corner-br" aria-hidden="true">◈</span>
+        <div class="panel-inner-border" aria-hidden="true"></div>
+        <div class="panel-title">
+          <h2 data-i18n="menu.main">主&ensp;選&ensp;單</h2>
+        </div>
+        <div class="panel-divider" aria-hidden="true">❧</div>
         <div class="menu-buttons">
           <button id="start-game-btn" class="menu-btn primary" data-i18n="menu.startGame">開始遊戲</button>
           <button id="show-rules-btn" class="menu-btn" data-i18n="menu.gameRules">遊戲說明</button>
@@ -35,8 +55,14 @@
       </div>
 
       <!-- 模式選擇區域 -->
-      <div id="mode-select" class="area menu-container" style="display: none;">
-        <h2 data-i18n="menu.selectMode">選擇遊戲模式</h2>
+      <div id="mode-select" class="menu-container glass-panel" style="display: none;">
+        <span class="corner-bl" aria-hidden="true">◈</span>
+        <span class="corner-br" aria-hidden="true">◈</span>
+        <div class="panel-inner-border" aria-hidden="true"></div>
+        <div class="panel-title">
+          <h2 data-i18n="menu.selectMode">選擇遊戲模式</h2>
+        </div>
+        <div class="panel-divider" aria-hidden="true">❧</div>
         <div class="menu-buttons">
           <button id="online-mode-btn" class="menu-btn primary" data-i18n="menu.onlineMode">多人連線大廳 (PVP)</button>
           <button id="local-mode-btn" class="menu-btn primary" data-i18n="menu.localMode">電腦對戰 (單機)</button>
@@ -45,14 +71,20 @@
       </div>
 
       <!-- 電腦人數選擇 -->
-      <div id="bot-count-select" class="area menu-container" style="display: none;">
-        <h2 data-i18n="menu.selectBots">請選擇電腦對手人數</h2>
+      <div id="bot-count-select" class="menu-container glass-panel" style="display: none;">
+        <span class="corner-bl" aria-hidden="true">◈</span>
+        <span class="corner-br" aria-hidden="true">◈</span>
+        <div class="panel-inner-border" aria-hidden="true"></div>
+        <div class="panel-title">
+          <h2 data-i18n="menu.selectBots">請選擇電腦對手人數</h2>
+        </div>
+        <div class="panel-divider" aria-hidden="true">❧</div>
         <div class="menu-buttons count-buttons">
           <button class="count-btn" data-count="1">1</button>
           <button class="count-btn" data-count="2">2</button>
           <button class="count-btn" data-count="3">3</button>
         </div>
-        <button id="back-to-mode-btn" class="menu-btn secondary" style="margin-top: 20px;" data-i18n="menu.back">返回</button>
+        <button id="back-to-mode-btn" class="menu-btn secondary" style="margin-top: 1rem;" data-i18n="menu.back">返回</button>
       </div>
 
       <!-- 多人連線大廳 -->
