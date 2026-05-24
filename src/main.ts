@@ -1846,7 +1846,8 @@ function eliminate(playerId: number, reason: string) {
     if (survivors.length === 1) {
         endGame(survivors[0], t('reason.lastSurvivor'));
     } else {
-        playSFX('Farewell, Chevalier.mp3');
+        // Only play the elimination SFX for the local human player.
+        if (playerId === localPlayerId) playSFX('Farewell, Chevalier.mp3');
         handoffTurnIfCurrentPlayerWasEliminated(playerId);
     }
 
@@ -1921,7 +1922,8 @@ function showChampionModal() {
     const champion = getLeagueChampion();
     if (!champion) return;
 
-    playChampionTheme();
+    // Only play the champion theme for the local player who won the league.
+    if (champion.id === localPlayerId) playChampionTheme();
 
     showModal(t('modal.champion'), `
         <div style="text-align: center; line-height: 1.6; padding: 0.35rem 0;">
@@ -1964,7 +1966,8 @@ function showEndGameModal() {
     if (!state.winner) return;
 
     hasShownEndGameModal = true;
-    playSFX("The Victor's Token.mp3");
+    // Only play the victory SFX when the local human player wins the round.
+    if (state.winner?.id === localPlayerId) playSFX("The Victor's Token.mp3");
     showResultBtn.style.display = 'block';
 
     const champion = getLeagueChampion();
@@ -2941,6 +2944,12 @@ function applyOnlineGameState(data: OnlineGameStateData) {
 
     isApplyingOnlineState = true;
 
+    // Capture the local player's alive status before overwriting state, so we
+    // can detect a mid-round elimination and play the Farewell SFX for the local
+    // player on non-host clients (the host plays it directly inside eliminate()).
+    const prevLocalAlive = state?.players?.[localPlayerId]?.isAlive ?? true;
+    const nextLocalAlive = data.players?.[localPlayerId]?.isAlive ?? true;
+
     try {
         endGameReason = '';
         queuedBotTurnId = null;
@@ -2975,6 +2984,14 @@ function applyOnlineGameState(data: OnlineGameStateData) {
         showScene('game-scene');
         render();
         window.requestAnimationFrame(() => render());
+
+        // Play Farewell for the local player when they are eliminated mid-round.
+        // The host already plays this inside eliminate(); non-host clients need
+        // this path. The prevLocalAlive guard ensures we don't double-play when
+        // the host receives its own broadcast back.
+        if (prevLocalAlive && !nextLocalAlive) {
+            playSFX('Farewell, Chevalier.mp3');
+        }
     } finally {
         isApplyingOnlineState = false;
     }
