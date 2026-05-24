@@ -468,7 +468,8 @@ mobileStatsToggleBtn.className = 'mobile-stats-toggle';
 mobileStatsToggleBtn.dataset.i18n = 'game.statsToggle';
 mobileStatsToggleBtn.setAttribute('aria-controls', 'played-card-stats');
 mobileStatsToggleBtn.setAttribute('aria-expanded', 'false');
-document.body.appendChild(mobileStatsToggleBtn);
+// Inline in the stats-row (next to turn-indicator and deck-count)
+document.querySelector('.stats-row')!.appendChild(mobileStatsToggleBtn);
 
 // 5. 輔助函式
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
