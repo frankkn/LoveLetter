@@ -1624,9 +1624,20 @@ body.game-scene-active #mute-btn-global {
 
 /* 當前回合高亮 */
 .active-turn {
-  border: 2px solid #ffca28 !important;
+  border: 2px solid transparent !important;
   box-shadow: 0 0 20px rgba(255, 202, 40, 0.6) !important;
   animation: breathing 2s infinite ease-in-out;
+}
+
+.active-turn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  box-sizing: border-box;
+  border: 2px solid #ffca28;
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 .winner-area {
@@ -1703,10 +1714,10 @@ body.game-scene-active #mute-btn-global {
     align-items: stretch;
     justify-content: flex-start;
     gap: 6px;
-    height: 100vh;
+    height: 100%;
     min-height: 0;
     box-sizing: border-box;
-    overflow: hidden !important;
+    overflow: visible;
   }
 
   #game-scene::before {
@@ -1756,6 +1767,7 @@ body.game-scene-active #mute-btn-global {
     min-height: 0;
     gap: 5px;
     justify-content: flex-start;
+    padding-bottom: 5px;
     overflow: hidden !important;
   }
 
