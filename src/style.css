@@ -91,10 +91,14 @@ body.game-scene-active #app {
   width: 100%;
   max-width: 1440px;
   align-items: stretch;
-  gap: 1.5rem;
-  padding: 1rem;
+  gap: 0;
+  padding: 0;
   animation: none;
   margin-bottom: 0;
+  height: 100dvh;
+  max-height: 100dvh;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 /* ── Background atmosphere layers ─────────────────────────────────────── */
@@ -578,27 +582,34 @@ h3 {
 
 /* 遊戲場景佈局 */
 #game-scene {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 1fr 200px;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "topbar topbar"
+    "main   stats";
+  gap: 12px;
+  padding: 12px;
   width: 100%;
+  height: 100%;
+  box-sizing: border-box;
   overflow: visible !important;
 }
 
 .main-battle-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  grid-area: main;
+  display: grid;
+  grid-template-rows: 2fr 1fr;
+  gap: 12px;
   min-width: 0;
+  min-height: 0;
   overflow: visible !important;
 }
 
 .card-stats-area {
-  flex: 0 0 220px;
+  grid-area: stats;
   position: sticky;
-  top: 20px;
+  top: 12px;
   height: fit-content;
   overflow: visible !important;
 }
@@ -657,8 +668,7 @@ h3 {
 }
 
 .sidebar-area {
-  order: -1;
-  flex: 0 0 100%;
+  grid-area: topbar;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -717,6 +727,11 @@ h3 {
 #draw-btn:disabled {
   background-color: #747d8c;
   cursor: not-allowed;
+}
+
+/* Desktop draw button wrapper — hidden by default (mobile); shown only in desktop media query */
+#draw-btn-wrapper {
+  display: none;
 }
 
 #show-log-btn,
@@ -1477,17 +1492,18 @@ body.game-scene-active #mute-btn-global {
 /* 多對手佈局 */
 #opponents-container {
   display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
-  justify-content: center;
-  margin-bottom: 20px;
+  flex-wrap: nowrap;
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 0;
+  min-height: 0;
   overflow: visible !important;
 }
 
 .opponent-area {
   flex: 1;
-  min-width: 250px;
-  max-width: 400px;
+  min-width: 0;
+  max-width: none;
 }
 
 .target-list {
@@ -1674,6 +1690,356 @@ body.game-scene-active #mute-btn-global {
   100% { box-shadow: 0 0 5px rgba(255, 202, 40, 0.3); }
 }
 
+/* ══════════════════════════════════════════════════════════
+   電腦版 (Desktop) 專用樣式 — 不影響手機版
+   ══════════════════════════════════════════════════════════ */
+@media (min-width: 901px) {
+
+  /* ── 遊戲場景 area 面板：暗黑奇幻風格取代純灰 ── */
+  body.game-scene-active #game-scene .area {
+    background: linear-gradient(135deg,
+      rgba(20, 8, 32, 0.72) 0%,
+      rgba(8,  3, 16, 0.90) 100%
+    );
+    border: 1px solid rgba(197, 160, 60, 0.22);
+    box-shadow: none;
+    padding: 0.75rem;
+  }
+
+  /* top edge shimmer */
+  body.game-scene-active #game-scene .area::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 10%; right: 10%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(197,160,60,0.16), transparent);
+    border-radius: 2px;
+    pointer-events: none;
+  }
+
+  /* active-turn panels: override shimmer so the yellow border renders correctly
+     (same specificity as shimmer rule but placed later → wins for conflicting props) */
+  body.game-scene-active #game-scene .active-turn::before {
+    inset: 0;
+    height: auto;
+    background: none;
+    border: 2px solid #ffca28;
+    border-radius: inherit;
+    z-index: 30;
+    box-sizing: border-box;
+    pointer-events: none;
+  }
+
+  /* ── h3 標題顏色配合主題 ── */
+  body.game-scene-active #game-scene h3 {
+    border-bottom-color: rgba(197, 160, 60, 0.18);
+    color: var(--gold-mid);
+    font-family: 'Cinzel', 'Georgia', serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+  }
+
+  /* ── 上方控制列 (game-info-area) ── */
+  body.game-scene-active #game-info-area {
+    background: rgba(7, 3, 16, 0.90) !important;
+    border-color: rgba(197, 160, 60, 0.28) !important;
+    backdrop-filter: blur(14px);
+    height: auto;
+  }
+
+  /* stats 橫向排列，強制不換行（topbar 修正） */
+  body.game-scene-active .stats {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* stats-row 只佔自然寬度，不擴張 */
+  body.game-scene-active .stats .stats-row {
+    flex: 0 0 auto;
+  }
+
+  /* 回合指示器不換行 */
+  body.game-scene-active .stats #turn-indicator {
+    white-space: nowrap;
+  }
+
+  /* 回主選單 + 靜音 推到最右，不拉伸 */
+  body.game-scene-active .stats .back-home-row {
+    width: auto;
+    flex-shrink: 0;
+    margin-left: auto;
+    gap: 4px;
+  }
+
+  /* 回主選單按鈕寬度自動（不填滿）；移除右側為絕對靜音按鈕預留的 padding */
+  body.game-scene-active .stats .back-home-row #back-home-btn {
+    width: auto !important;
+    padding: 5px 14px !important;
+  }
+
+  /* 靜音按鈕：取消絕對定位，改為一般 flex 項目，緊貼按鈕右側 */
+  body.game-scene-active .stats .back-home-row #mute-btn {
+    position: static;
+    transform: none;
+    flex-shrink: 0;
+  }
+
+  /* 頂欄 draw-btn 在電腦版隱藏（按鈕已移至玩家區右側） */
+  body.game-scene-active .stats #draw-btn {
+    display: none !important;
+  }
+
+  /* ── 對手區域：手牌(左) | 棄牌(右) 兩欄 ── */
+  .opponent-area {
+    display: grid !important;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 0 10px;
+    overflow: visible;
+  }
+
+  .opponent-area > h3 {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    margin-bottom: 0.4rem;
+  }
+
+  /* 手牌欄（左，窄）：垂直堆疊 */
+  .opponent-area .hand-container {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex !important;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    min-height: 0;
+    min-width: 76px;
+    margin-bottom: 0;
+    padding: 6px;
+    background: rgba(0, 0, 0, 0.22);
+    border-radius: 6px;
+    overflow: visible;
+  }
+
+  /* 棄牌欄（右，寬）：3 欄 Grid */
+  .opponent-area .discard-container {
+    grid-column: 2;
+    grid-row: 2;
+    display: grid !important;
+    grid-template-columns: repeat(3, 72px);
+    grid-auto-rows: auto;
+    gap: 6px;
+    align-content: start;
+    min-height: 0;
+    min-height: 60px;
+    margin-bottom: 0;
+    padding: 6px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    overflow: visible;
+  }
+
+  /* 對手手牌（隱藏 ai-card）：正確比例 1:1.39 */
+  .opponent-area .hand-container .card {
+    width: 72px;
+    height: 100px;
+  }
+
+  /* 對手棄牌卡：與手牌同高，圖案不再被截 */
+  .opponent-area .discard-container .card-wrapper {
+    width: 72px;
+    overflow: visible;
+  }
+
+  .opponent-area .discard-container .card {
+    width: 72px;
+    height: 100px;
+  }
+
+  /* ── 玩家區域：手牌(左) | 棄牌(中) | 抽牌按鈕(右) 三欄 ── */
+  #player-area {
+    display: grid !important;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto 1fr;
+    gap: 0 12px;
+    min-height: 0;
+    overflow: visible !important;
+  }
+
+  #player-area > h3 {
+    grid-column: 1 / -1;   /* span all 3 cols */
+    grid-row: 1;
+    margin-bottom: 0.4rem;
+  }
+
+  /* 玩家手牌欄（左）：橫向並排（電腦版） */
+  #player-hand {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex !important;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    /* 固定寬度 = 2張牌(100px) + 間距(8px) + padding(12px) = 220px
+       避免抽牌/出牌時手牌區忽大忽小 */
+    width: 220px;
+    min-width: 220px;
+    min-height: 0;
+    margin-bottom: 0;
+    padding: 6px;
+    background: rgba(0, 0, 0, 0.22);
+    border-radius: 6px;
+    overflow: visible !important;
+  }
+
+  /* 玩家棄牌欄（右）：auto-fill Grid，欄位加寬讓 hints 不超框 */
+  #player-discard {
+    grid-column: 2;
+    grid-row: 2;
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, 90px);
+    grid-auto-rows: auto;
+    gap: 8px;
+    align-content: start;
+    min-height: 0;
+    margin-bottom: 0;
+    padding: 6px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    overflow: auto;
+  }
+
+  /* 玩家棄牌卡：加寬欄位（不加高，避免 hint 溢出） */
+  #player-discard .card-wrapper {
+    width: 90px;
+    overflow: visible;
+  }
+
+  #player-discard .card {
+    width: 90px;
+    height: 126px;
+  }
+
+  /* 玩家棄牌 hint：緊湊字型，減少垂直高度 */
+  #player-discard .card-action-hint {
+    font-size: 0.68rem;
+    padding: 3px 5px;
+    min-height: 0;
+    line-height: 1.3;
+  }
+
+  /* ── 抽牌按鈕容器（第3欄）──────────────────────────────────── */
+  #draw-btn-wrapper {
+    display: flex;
+    grid-column: 3;
+    grid-row: 2;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 抽牌按鈕：與玩家手牌同尺寸 (100×140px)，紅色卡牌樣式 */
+  #draw-btn-desktop {
+    width: 100px;
+    height: 140px;
+    background: linear-gradient(180deg,
+      rgba(195, 35, 68, 0.92) 0%,
+      rgba(115, 14, 36, 0.98) 100%
+    );
+    border: 1.5px solid rgba(245, 208, 122, 0.52);
+    border-radius: 10px;
+    color: #fff3d0;
+    font-family: 'Noto Serif TC', serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.3, 1), box-shadow 0.15s;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  #draw-btn-desktop::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 15%; right: 15%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 200, 120, 0.5), transparent);
+  }
+
+  #draw-btn-desktop:hover {
+    transform: translateY(-5px) scale(1.04);
+    box-shadow: 0 10px 28px rgba(195, 40, 70, 0.55),
+                0 0 16px rgba(245, 208, 122, 0.18);
+    border-color: rgba(245, 208, 122, 0.82);
+  }
+
+  #draw-btn-desktop:disabled {
+    background: linear-gradient(180deg, rgba(80, 80, 90, 0.7), rgba(50, 50, 60, 0.9));
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.3);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* ── 所有 area 面板預設 overflow visible（對手 hint 需要溢出）── */
+  body.game-scene-active #game-scene .area {
+    overflow: visible !important;
+  }
+
+  /* 棄牌容器：clip overflow 防止 hint 溢出玩家面板金框外
+     （手牌區 #player-hand 不受影響，其 card-desc 仍可正常浮出） */
+  body.game-scene-active #game-scene #player-discard {
+    overflow: hidden !important;
+  }
+
+  /* 棄牌區 hover tooltip 桌面不需要（已看到牌面） */
+  #player-discard .card-desc {
+    display: none !important;
+  }
+
+  /* card-wrapper hint 結構確保在棄牌 grid 中正確顯示 */
+  .opponent-area .discard-container .card-action-hints {
+    width: 72px;
+    overflow: visible;
+  }
+
+  #player-discard .card-action-hints {
+    width: 90px;
+    overflow: visible;
+  }
+
+  /* ── active-turn 金色光暈（desktop 動畫版本） ── */
+  body.game-scene-active #game-scene .active-turn {
+    border-color: rgba(245, 208, 122, 0.72) !important;
+    animation: areaPulseDesktop 2.2s ease-in-out infinite;
+  }
+
+  @keyframes areaPulseDesktop {
+    0%, 100% { box-shadow: 0 0 14px rgba(245,208,122,0.12), 0 0 0 1px rgba(245,208,122,0.10) inset; }
+    50%       { box-shadow: 0 0 32px rgba(245,208,122,0.28), 0 0 0 1px rgba(245,208,122,0.18) inset; }
+  }
+
+  /* ── 出局面板暗化 ── */
+  body.game-scene-active #game-scene .eliminated {
+    border-color: rgba(255,255,255,0.07) !important;
+    opacity: 0.55;
+    filter: grayscale(0.5);
+  }
+
+} /* end @media (min-width: 901px) */
+
 /* 響應式佈局 */
 @media (max-width: 900px) {
   html,
@@ -1709,11 +2075,13 @@ body.game-scene-active #mute-btn-global {
   }
 
   #game-scene {
+    display: flex;          /* 還原：base 改成 grid，手機版需要 flex */
     flex-direction: column;
     flex-wrap: nowrap;
     align-items: stretch;
     justify-content: flex-start;
     gap: 4px;
+    padding: 0;             /* 還原：base 加了 padding，手機版不需要 */
     height: 100%;
     min-height: 0;
     box-sizing: border-box;
@@ -1761,6 +2129,8 @@ body.game-scene-active #mute-btn-global {
   }
 
   .main-battle-area {
+    display: flex;           /* 還原：base 改成 grid，手機版需要 flex */
+    flex-direction: column;  /* 還原 */
     order: 2;
     flex: 1 1 auto;
     width: 100%;

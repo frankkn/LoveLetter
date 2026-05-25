@@ -404,6 +404,7 @@ const playerHandEl = document.getElementById('player-hand')!;
 const playerDiscardEl = document.getElementById('player-discard')!;
 const deckCountEl = document.getElementById('deck-count')!;
 const drawBtn = document.getElementById('draw-btn') as HTMLButtonElement;
+const drawBtnDesktop = document.getElementById('draw-btn-desktop') as HTMLButtonElement | null;
 const showResultBtn = document.getElementById('show-result-btn') as HTMLButtonElement;
 const showLogBtn = document.getElementById('show-log-btn') as HTMLButtonElement;
 const gameLogEl = document.getElementById('game-log')!;
@@ -701,6 +702,10 @@ function render() {
     // 按鈕狀態
     drawBtn.disabled = !canDraw;
     drawBtn.style.display = canDraw ? 'block' : 'none';
+    if (drawBtnDesktop) {
+        drawBtnDesktop.disabled = !canDraw;
+        drawBtnDesktop.style.display = canDraw ? 'flex' : 'none';
+    }
     showResultBtn.style.display = state.isGameOver ? 'block' : 'none';
 }
 
@@ -3519,7 +3524,9 @@ function showScene(sceneId: 'main-menu' | 'mode-select' | 'bot-count-select' | '
     if (sceneId !== 'game-scene') {
         setMobileStatsOpen(false);
     }
-    document.getElementById(sceneId)!.style.display = 'flex';
+    // game-scene uses CSS display:grid (desktop) / display:flex (mobile via media query)
+    // so we remove the inline style and let CSS take over; all other scenes use flex.
+    document.getElementById(sceneId)!.style.display = sceneId === 'game-scene' ? '' : 'flex';
 
     // BGM switching
     if (sceneId === 'game-scene') {
@@ -3836,6 +3843,7 @@ function startNextRound() {
 }
 
 drawBtn.onclick = () => drawCard(localPlayerId);
+drawBtnDesktop?.addEventListener('click', () => drawCard(localPlayerId));
 applyStaticTranslations();
 initGame(1); // 預設進來時背景跑一個 (雖然會被 menu 蓋住)
 showScene('main-menu');
