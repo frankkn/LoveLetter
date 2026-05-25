@@ -15,4 +15,7 @@ export class PlayerState extends Schema {
 
     @type("boolean")
     isConnected = true;
+
+    @type("boolean")
+    hasForfeited = false;
 }

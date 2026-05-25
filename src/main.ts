@@ -176,6 +176,7 @@ interface RoomWaitPlayerView {
     isReady: boolean;
     isHost: boolean;
     isConnected?: boolean;
+    hasForfeited?: boolean;
 }
 
 interface RoomWaitViewState {
@@ -192,6 +193,7 @@ interface SyncedRoomPlayerState {
     isReady: boolean;
     isHost: boolean;
     isConnected?: boolean;
+    hasForfeited?: boolean;
 }
 
 interface SyncedRoomState {
@@ -228,6 +230,21 @@ let isBotTurnRunning = false;
 // Prevents applyOnlineGameState's blanket closeModal() from wiping the notification modal
 // before the player has a chance to read and dismiss it.
 let isShowingNotificationModal = false;
+
+// Reconnection token saved when we disconnect mid-game (format: "roomId:token").
+// Used to call colyseusClient.reconnect() from the reconnect modal.
+let savedReconnectionToken: string | null = null;
+// Set of player indices (0-based) who voluntarily forfeited or were timed out mid-league.
+// Persists across rounds until a full league restart.
+let forfeitedOnlinePlayerIds: Set<number> = new Set();
+// Host-side per-player timers: after 20 s of disconnection, the host eliminates that player.
+// Key = player index (0-based in state.players / currentRoomWaitState.players).
+let disconnectionTimers: Map<number, number> = new Map();
+// Handle for the interval that counts down the reconnect modal.
+let reconnectCountdownTimer: number | null = null;
+// True between a successful colyseusClient.reconnect() call and the re-init completing,
+// so initOnlineGame() knows to re-sync rather than create a brand-new game.
+let isReconnecting = false;
 
 async function leaveRoomIfConnected(room: Room | null) {
     if (!room) return;
@@ -274,6 +291,12 @@ function resetLocalClientState() {
     onlineGameInitialized = false;
     isApplyingOnlineState = false;
     endGameReason = '';
+    savedReconnectionToken = null;
+    forfeitedOnlinePlayerIds = new Set();
+    for (const timer of disconnectionTimers.values()) window.clearTimeout(timer);
+    disconnectionTimers = new Map();
+    clearReconnectCountdown();
+    isReconnecting = false;
     clearPendingAbortTimer();
     closeModal();
 }
@@ -729,6 +752,12 @@ function render() {
         drawBtnDesktop.style.display = canDraw ? 'flex' : 'none';
     }
     showResultBtn.style.display = state.isGameOver ? 'block' : 'none';
+
+    // Show "Leave Game" only in an active online game (and only while it is in progress).
+    const leaveGameBtn = document.getElementById('leave-game-btn') as HTMLButtonElement | null;
+    if (leaveGameBtn) {
+        leaveGameBtn.style.display = isOnlineGameActive() && !state.isGameOver ? 'inline-flex' : 'none';
+    }
 }
 
 function createCardUI(card: Card, isPlayable: boolean): HTMLElement {
@@ -2328,6 +2357,7 @@ interface OnlineGameStateData extends OnlineGameData {
     nextRoundReadyPlayerIds?: number[];
     restartReadyPlayerIds?: number[];
     pendingNotifications?: OnlineNotification[];
+    forfeitedPlayerIds?: number[];
 }
 
 function getConnectionErrorMessage(error: unknown): string {
@@ -2390,7 +2420,8 @@ function toRoomWaitPlayerView(player: Partial<SyncedRoomPlayerState> | null | un
         name: typeof player.name === 'string' && player.name.trim().length > 0 ? player.name : t('player.human'),
         isReady: Boolean(player.isReady),
         isHost: Boolean(player.isHost),
-        isConnected: player.isConnected ?? true
+        isConnected: player.isConnected ?? true,
+        hasForfeited: player.hasForfeited ?? false
     };
 }
 
@@ -2569,7 +2600,8 @@ function createOnlineGameStateData(): OnlineGameStateData {
         } : null,
         nextRoundReadyPlayerIds: [...nextRoundReadyPlayerIds],
         restartReadyPlayerIds: [...restartReadyPlayerIds],
-        pendingNotifications: notificationsToSend
+        pendingNotifications: notificationsToSend,
+        forfeitedPlayerIds: Array.from(forfeitedOnlinePlayerIds)
     };
 }
 
@@ -3011,6 +3043,9 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
                 ...restartReadyPlayerIds,
                 ...(data.restartReadyPlayerIds ?? [])
             ]));
+            if (data.forfeitedPlayerIds) {
+                data.forfeitedPlayerIds.forEach(id => forfeitedOnlinePlayerIds.add(id));
+            }
 
             const players = restoreLocalPrivateHints(data.players.map(cloneOnlinePlayer));
 
@@ -3153,6 +3188,9 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
         pendingKingExchange = incomingPendingKingExchange;
         nextRoundReadyPlayerIds = [...(data.nextRoundReadyPlayerIds ?? [])];
         hasShownEndGameModal = false;
+        if (data.forfeitedPlayerIds) {
+            data.forfeitedPlayerIds.forEach(id => forfeitedOnlinePlayerIds.add(id));
+        }
 
         onlineGameInitialized = true;
         if (!isLocalBaronDuelParticipant(pendingBaronDuel) && !isLocalKingExchangeParticipant(pendingKingExchange) && !isShowingNotificationModal) {
@@ -3238,6 +3276,27 @@ function initOnlineGame(roomState: RoomWaitViewState) {
     if (onlineGameInitialized) return;
 
     const selfPlayer = roomState.players.find(player => player.id === roomState.selfId);
+
+    // ── Reconnect path ──────────────────────────────────────────────────────
+    // bindGameRoom(room, isReconnect=true) sets isReconnecting=true and clears
+    // onlineGameInitialized so we reach this function.  We must NOT create a new
+    // game; instead re-broadcast current state (host) or request it (non-host).
+    if (isReconnecting) {
+        isReconnecting = false;
+        onlineGameInitialized = true;
+        if (selfPlayer?.isHost) {
+            // Host still has the authoritative state — re-broadcast it.
+            showScene('game-scene');
+            render();
+            syncOnlineGameState();
+        } else {
+            // Non-host: request the latest snapshot from the server.
+            activeGameRoom?.send('request_game_data');
+        }
+        return;
+    }
+
+    // ── Normal first-join path ───────────────────────────────────────────────
     if (!selfPlayer?.isHost) {
         activeGameRoom?.send('request_game_data');
         return;
@@ -3290,8 +3349,8 @@ function renderRoomWaitArea(roomState: RoomWaitViewState | SyncedRoomState) {
     currentRoomWaitState = normalizedState;
     roomWaitSceneEl.dataset.gameStarted = normalizedState.isGameStarted ? 'true' : 'false';
 
-    // Detect mid-game disconnections so the remaining player is not stranded waiting forever.
-    maybeShowAbortModalForDisconnections(previousRoomWaitState, normalizedState);
+    // Detect mid-game disconnections: start elimination timers, update banner, etc.
+    maybeHandlePlayerDisconnections(previousRoomWaitState, normalizedState);
 
     if (normalizedState.isGameStarted) {
         console.log('\u623f\u9593\u72c0\u614b\u8b8a\u66f4\uff1a\u904a\u6232\u958b\u59cb\uff0c\u6e96\u5099\u52a0\u8f09\u904a\u6232\u6230\u5834');
@@ -3470,11 +3529,21 @@ async function joinLobbyRoom(roomId: string) {
     }
 }
 
-function bindGameRoom(room: Room<unknown, SyncedRoomState>) {
+function bindGameRoom(room: Room<unknown, SyncedRoomState>, isReconnect = false) {
     activeGameRoom?.removeAllListeners();
     activeGameRoom = room;
-    onlineGameInitialized = false;
-    isApplyingOnlineState = false;
+    // Save the token immediately so onLeave can use it even after the socket closes.
+    savedReconnectionToken = room.reconnectionToken ?? null;
+
+    if (isReconnect) {
+        // On reconnect we preserve the existing game state but force re-init so
+        // renderRoomWaitArea triggers initOnlineGame (which checks isReconnecting).
+        onlineGameInitialized = false;
+        isReconnecting = true;
+    } else {
+        onlineGameInitialized = false;
+        isApplyingOnlineState = false;
+    }
 
     room.onStateChange((state) => {
         renderRoomWaitArea(state);
@@ -3510,26 +3579,40 @@ function bindGameRoom(room: Room<unknown, SyncedRoomState>) {
     room.onLeave(() => {
         if (activeGameRoom !== room) return;
 
+        const token = savedReconnectionToken;
+        savedReconnectionToken = null;
         const wasInOnlineGame = onlineGameInitialized;
         activeGameRoom = null;
         currentRoomWaitState = null;
         clearPendingAbortTimer();
+        // Cancel all per-player disconnect timers — they're host-only and invalid after disconnect.
+        for (const timer of disconnectionTimers.values()) window.clearTimeout(timer);
+        disconnectionTimers = new Map();
+        updateDisconnectBanner();
 
         if (modalOverlay.style.display === 'flex' && modalTitle.textContent === t('modal.gameAborted')) {
             return;
         }
 
-        // If the connection dropped while we were actually playing, show an explicit
-        // "lost connection" modal instead of silently dumping the player into the lobby.
+        // If the connection dropped while we were actually playing, offer reconnect.
         if (wasInOnlineGame) {
-            showConnectionLostModal();
+            if (token) {
+                showReconnectModal(token);
+            } else {
+                showConnectionLostModal();
+            }
         } else {
             showScene('lobby-scene');
         }
     });
 
-    showScene('room-wait-scene');
-    renderRoomWaitArea(room.state);
+    if (isReconnect) {
+        showScene('game-scene');
+        renderRoomWaitArea(room.state);
+    } else {
+        showScene('room-wait-scene');
+        renderRoomWaitArea(room.state);
+    }
 }
 
 async function connectLobbyRoom() {
@@ -3567,12 +3650,8 @@ async function connectLobbyRoom() {
     }
 }
 
-// Grace period for "opponent disconnected" detection. Without it, a brief WS hiccup on the
-// opponent's side (tab backgrounded and throttled, F5, transient network drop) would
-// immediately end the game on the other player's screen, which feels like a random crash.
-// 10 seconds covers typical reconnection windows and is well below the server's 20s
-// allowReconnection budget.
-const ABORT_GRACE_PERIOD_MS = 10_000;
+// Timer for the host-disconnect disband (20 s) on non-host clients.
+// Also shared as a general "pending abort" sentinel; cleared on reconnect.
 let pendingAbortTimer: number | null = null;
 
 function clearPendingAbortTimer() {
@@ -3582,49 +3661,6 @@ function clearPendingAbortTimer() {
     }
 }
 
-function maybeShowAbortModalForDisconnections(
-    previous: RoomWaitViewState | null,
-    current: RoomWaitViewState
-) {
-    if (!previous || !previous.isGameStarted || !current.isGameStarted) {
-        clearPendingAbortTimer();
-        return;
-    }
-    if (!isOnlineGameActive()) {
-        clearPendingAbortTimer();
-        return;
-    }
-    if (modalOverlay.style.display === 'flex' && modalTitle.textContent === t('modal.gameAborted')) return;
-
-    const connectedCount = current.players.filter(p => p.isConnected !== false).length;
-
-    // Enough players still connected — cancel any pending abort (player recovered).
-    if (connectedCount >= 2) {
-        clearPendingAbortTimer();
-        return;
-    }
-
-    // Schedule the abort modal after the grace period. Re-checks state at fire time so a
-    // late reconnect still cancels the abort.
-    if (pendingAbortTimer === null) {
-        pendingAbortTimer = window.setTimeout(() => {
-            pendingAbortTimer = null;
-            if (!currentRoomWaitState?.isGameStarted) return;
-            if (!isOnlineGameActive()) return;
-            const stillConnected = currentRoomWaitState.players.filter(p => p.isConnected !== false).length;
-            if (stillConnected >= 2) return;
-            if (modalOverlay.style.display === 'flex' && modalTitle.textContent === t('modal.gameAborted')) return;
-
-            const disconnectedNames = currentRoomWaitState.players
-                .filter(p => p.isConnected === false)
-                .map(p => p.name);
-            const reason = disconnectedNames.length > 0
-                ? t('abort.reasonNames', disconnectedNames.join(t('abort.separator')))
-                : t('abort.reasonGeneral');
-            showGameAbortedModal(reason);
-        }, ABORT_GRACE_PERIOD_MS);
-    }
-}
 
 function showGameAbortedModal(reason: string) {
     showModal(t('modal.gameAborted'), `
@@ -3650,6 +3686,263 @@ function showConnectionLostModal() {
         await resetClientState();
         showScene('main-menu');
     };
+}
+
+// ── Reconnect / Disconnect helpers ─────────────────────────────────────────
+
+function clearReconnectCountdown() {
+    if (reconnectCountdownTimer !== null) {
+        window.clearInterval(reconnectCountdownTimer);
+        reconnectCountdownTimer = null;
+    }
+}
+
+/** Show the disconnection modal for the local player with an 18 s countdown. */
+function showReconnectModal(token: string) {
+    let secondsLeft = 18;
+
+    const updateBody = () => {
+        const bodyEl = document.getElementById('modal-body');
+        if (bodyEl) {
+            bodyEl.innerHTML = `<p style="text-align:center;margin:0.5rem 0">${t('disconnect.countdown', String(secondsLeft))}</p>`;
+        }
+    };
+
+    showModal(
+        t('modal.youDisconnected'),
+        `<p style="text-align:center;margin:0.5rem 0">${t('disconnect.countdown', String(secondsLeft))}</p>`,
+        `<button class="modal-confirm-btn" id="reconnect-btn">${t('btn.reconnect')}</button>
+         <button class="modal-cancel-btn" id="forfeit-leave-btn" style="margin-top:0.5rem">${t('btn.forfeitLeave')}</button>`
+    );
+
+    document.getElementById('reconnect-btn')?.addEventListener('click', () => {
+        clearReconnectCountdown();
+        const bodyEl = document.getElementById('modal-body');
+        if (bodyEl) bodyEl.innerHTML = `<p style="text-align:center;margin:0.5rem 0">${t('disconnect.reconnecting')}</p>`;
+        const reconnectBtn = document.getElementById('reconnect-btn') as HTMLButtonElement | null;
+        const forfeitBtn  = document.getElementById('forfeit-leave-btn') as HTMLButtonElement | null;
+        if (reconnectBtn) reconnectBtn.disabled = true;
+        if (forfeitBtn)  forfeitBtn.disabled  = true;
+        void attemptReconnect(token);
+    });
+
+    document.getElementById('forfeit-leave-btn')?.addEventListener('click', () => {
+        clearReconnectCountdown();
+        closeModal();
+        resetClientState();
+        showScene('main-menu');
+    });
+
+    clearReconnectCountdown();
+    reconnectCountdownTimer = window.setInterval(() => {
+        secondsLeft--;
+        updateBody();
+        if (secondsLeft <= 0) {
+            clearReconnectCountdown();
+            closeModal();
+            resetClientState();
+            showScene('main-menu');
+        }
+    }, 1000);
+}
+
+async function attemptReconnect(token: string) {
+    try {
+        const room = await withTimeout(
+            colyseusClient.reconnect<SyncedRoomState>(token, GameRoomState),
+            10_000,
+            'Reconnection timed out.'
+        );
+        closeModal();
+        bindGameRoom(room, true /* isReconnect */);
+    } catch (error) {
+        console.warn('[reconnect] failed:', error);
+        const bodyEl = document.getElementById('modal-body');
+        if (bodyEl) {
+            bodyEl.innerHTML = `<p style="text-align:center;margin:0.5rem 0">${t('disconnect.reconnectFailed')}</p>`;
+        }
+        const reconnectBtn = document.getElementById('reconnect-btn') as HTMLButtonElement | null;
+        const forfeitBtn  = document.getElementById('forfeit-leave-btn') as HTMLButtonElement | null;
+        if (reconnectBtn) {
+            reconnectBtn.disabled = false;
+            reconnectBtn.onclick = () => {
+                const b = document.getElementById('modal-body');
+                if (b) b.innerHTML = `<p style="text-align:center;margin:0.5rem 0">${t('disconnect.reconnecting')}</p>`;
+                reconnectBtn.disabled = true;
+                if (forfeitBtn) forfeitBtn.disabled = true;
+                void attemptReconnect(token);
+            };
+        }
+        if (forfeitBtn) forfeitBtn.disabled = false;
+    }
+}
+
+/** Update the #disconnect-banner element based on who is currently disconnected. */
+function updateDisconnectBanner() {
+    const bannerEl = document.getElementById('disconnect-banner');
+    if (!bannerEl) return;
+
+    if (!isOnlineGameActive() || !currentRoomWaitState?.isGameStarted) {
+        bannerEl.style.display = 'none';
+        bannerEl.textContent = '';
+        return;
+    }
+
+    const players = currentRoomWaitState.players;
+    const disconnected = players.filter(
+        (p, i) => (p.isConnected ?? true) === false && !forfeitedOnlinePlayerIds.has(i)
+    );
+
+    if (disconnected.length === 0) {
+        bannerEl.style.display = 'none';
+        bannerEl.textContent = '';
+        return;
+    }
+
+    const hostDisconnected = disconnected.some(p => p.isHost);
+    bannerEl.textContent = hostDisconnected
+        ? t('disconnect.hostBanner')
+        : t('disconnect.banner', disconnected.map(p => p.name).join('、'));
+    bannerEl.style.display = 'block';
+}
+
+/**
+ * Called every time renderRoomWaitArea fires during a live game.
+ * Starts/cancels per-player elimination timers (host only) and the host-disconnect
+ * disband timer (non-host clients), and keeps the disconnect banner in sync.
+ */
+function maybeHandlePlayerDisconnections(
+    previous: RoomWaitViewState | null,
+    current: RoomWaitViewState
+) {
+    if (!previous || !previous.isGameStarted || !current.isGameStarted) {
+        for (const timer of disconnectionTimers.values()) window.clearTimeout(timer);
+        disconnectionTimers.clear();
+        clearPendingAbortTimer();
+        updateDisconnectBanner();
+        return;
+    }
+    if (!isOnlineGameActive()) {
+        for (const timer of disconnectionTimers.values()) window.clearTimeout(timer);
+        disconnectionTimers.clear();
+        clearPendingAbortTimer();
+        updateDisconnectBanner();
+        return;
+    }
+
+    const isHost = isLocalRoomHost();
+
+    // ── Detect newly forfeited players ──
+    current.players.forEach((player, index) => {
+        const prevPlayer = previous.players[index];
+        const wasForfeited = prevPlayer?.hasForfeited ?? false;
+        const nowForfeited = player.hasForfeited ?? false;
+
+        if (!wasForfeited && nowForfeited) {
+            if (player.isHost) {
+                // Host voluntarily forfeited/left → non-hosts see game aborted immediately.
+                if (!isHost && modalOverlay.style.display !== 'flex') {
+                    clearPendingAbortTimer();
+                    showGameAbortedModal(t('abort.body', player.name));
+                }
+            } else if (isHost && !forfeitedOnlinePlayerIds.has(index)) {
+                // Non-host forfeited → host eliminates them immediately.
+                eliminateDisconnectedPlayer(index, t('reason.forfeit'));
+            }
+        }
+    });
+
+    // ── Detect newly disconnected / reconnected players ──
+    for (let index = 0; index < current.players.length; index++) {
+        const player    = current.players[index];
+        const prevPlayer = previous.players[index];
+        const wasConnected = prevPlayer ? (prevPlayer.isConnected ?? true) : true;
+        const isConnected  = player.isConnected ?? true;
+
+        if (wasConnected && !isConnected) {
+            // Player newly disconnected
+            if (player.isHost) {
+                // Host went offline → non-host clients start the 20 s disband timer
+                // (unless the host already forfeited, which is handled above).
+                if (!isHost && pendingAbortTimer === null && !player.hasForfeited) {
+                    pendingAbortTimer = window.setTimeout(() => {
+                        pendingAbortTimer = null;
+                        if (!currentRoomWaitState?.isGameStarted || !isOnlineGameActive()) return;
+                        const hostNow = currentRoomWaitState.players.find(p => p.isHost);
+                        if (!hostNow || (hostNow.isConnected ?? true)) return; // host reconnected
+                        if (modalOverlay.style.display === 'flex' && modalTitle.textContent === t('modal.gameAborted')) return;
+                        showGameAbortedModal(t('disconnect.hostBanner'));
+                    }, 20_000);
+                }
+            } else {
+                // Non-host went offline → host starts a 20 s elimination timer.
+                if (isHost && !forfeitedOnlinePlayerIds.has(index) && !disconnectionTimers.has(index)) {
+                    scheduleDisconnectedPlayerElimination(index, player.name);
+                }
+            }
+        } else if (!wasConnected && isConnected) {
+            // Player reconnected → cancel their timers.
+            const timer = disconnectionTimers.get(index);
+            if (timer !== undefined) {
+                window.clearTimeout(timer);
+                disconnectionTimers.delete(index);
+            }
+            if (player.isHost) clearPendingAbortTimer();
+        }
+    }
+
+    updateDisconnectBanner();
+}
+
+/** (Host only) After 20 s of the player being disconnected, eliminate them. */
+function scheduleDisconnectedPlayerElimination(playerIndex: number, playerName: string) {
+    if (disconnectionTimers.has(playerIndex)) return;
+
+    const timer = window.setTimeout(() => {
+        disconnectionTimers.delete(playerIndex);
+        if (!isLocalRoomHost() || !isOnlineGameActive()) return;
+        const roomPlayer = currentRoomWaitState?.players[playerIndex];
+        if (!roomPlayer || (roomPlayer.isConnected ?? true)) return; // reconnected in time
+        eliminateDisconnectedPlayer(playerIndex, t('reason.disconnected'));
+    }, 20_000);
+
+    disconnectionTimers.set(playerIndex, timer);
+    console.log(`[disconnect] started 20 s elimination timer for player ${playerIndex} (${playerName})`);
+}
+
+/** (Host only) Mark player as forfeited and eliminate them from the current round. */
+function eliminateDisconnectedPlayer(playerIndex: number, reason: string) {
+    if (!isLocalRoomHost()) return;
+    if (forfeitedOnlinePlayerIds.has(playerIndex)) return;
+
+    forfeitedOnlinePlayerIds.add(playerIndex);
+    const gamePlayer = state?.players[playerIndex];
+    if (gamePlayer?.isAlive) {
+        eliminate(playerIndex, reason);
+    } else {
+        // Already dead — just broadcast the updated forfeited set.
+        syncOnlineGameState();
+    }
+}
+
+/** Send a voluntary forfeit to the server then leave cleanly (no reconnect modal). */
+async function sendForfeitAndLeave() {
+    try {
+        activeGameRoom?.send('forfeit_game');
+    } catch { /* ignore send errors */ }
+
+    // Give the server a moment to process the forfeit message.
+    await sleep(300);
+
+    // Null out activeGameRoom BEFORE leaveRoomIfConnected so the onLeave callback
+    // sees `activeGameRoom !== room` and returns early (no reconnect modal).
+    const room = activeGameRoom;
+    activeGameRoom = null;
+    currentRoomWaitState = null;
+
+    await leaveRoomIfConnected(room);
+    await resetClientState();
+    showScene('main-menu');
 }
 
 async function leaveCurrentRoom() {
@@ -3733,6 +4026,11 @@ document.getElementById('back-home-btn')!.onclick = async () => {
 };
 showResultBtn.onclick = showEndGameModal;
 showLogBtn.onclick = showBattleLogModal;
+document.getElementById('leave-game-btn')!.onclick = () => {
+    if (confirm(t('disconnect.forfeitConfirm'))) {
+        void sendForfeitAndLeave();
+    }
+};
 document.getElementById('mute-btn')!.onclick = toggleMute;
 document.getElementById('mute-btn-global')!.onclick = toggleMute;
 document.addEventListener('click', event => {
@@ -3822,12 +4120,14 @@ function getConnectedOnlinePlayerIds(): number[] {
     if (currentRoomWaitState?.players.length) {
         return currentRoomWaitState.players
             .map((player, index) => ({ player, index }))
-            .filter(({ player }) => player.isConnected ?? true)
+            .filter(({ player, index }) =>
+                (player.isConnected ?? true) && !forfeitedOnlinePlayerIds.has(index)
+            )
             .map(({ index }) => index);
     }
 
     return state.players
-        .filter(player => !player.isBot)
+        .filter(player => !player.isBot && !forfeitedOnlinePlayerIds.has(player.id))
         .map(player => player.id);
 }
 
@@ -3931,6 +4231,8 @@ function startNewLeague() {
         player.coins = 0;
     });
     restartReadyPlayerIds = [];
+    // Full restart: everyone is back in — clear the forfeited-player tracking.
+    forfeitedOnlinePlayerIds = new Set();
     startNextRound();
 }
 
@@ -3984,9 +4286,11 @@ function startNextRound() {
     const burnedCard = deck.pop() || null;
 
     state.players.forEach(player => {
-        player.hand = [deck.pop()!];
+        const isForfeited = forfeitedOnlinePlayerIds.has(player.id);
+        // Forfeited players sit out: no hand card, marked dead so they don't participate.
+        player.hand = isForfeited ? [] : [deck.pop()!];
         player.isProtected = false;
-        player.isAlive = true;
+        player.isAlive = !isForfeited;
         player.discardPile = [];
         player.isHandRevealed = false;
     });

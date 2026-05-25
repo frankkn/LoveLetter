@@ -311,6 +311,22 @@ const zh: TransMap = {
     'notify.priestPeek':       (actor: string, card: string) => `${actor} 使用了【神父】，偷看了你的手牌【${card}】。`,
     'modal.guardMiss':         '衛兵猜測失敗！',
     'notify.guardMiss':        (actor: string, card: string) => `${actor} 打出衛兵牌，猜測你的手牌是【${card}】。可惜猜錯了！`,
+
+    // Disconnect / reconnect UI
+    'reason.disconnected':         '斷線未歸，',
+    'reason.forfeit':              '主動放棄，',
+    'modal.youDisconnected':       '你斷線了！',
+    'disconnect.countdown':        (s: string) => `請在 ${s} 秒內重新連線，否則將視為放棄本局。`,
+    'btn.reconnect':               '重新連線',
+    'btn.forfeitLeave':            '放棄並離開',
+    'disconnect.reconnecting':     '重新連線中，請稍候...',
+    'disconnect.reconnectFailed':  '重新連線失敗，請嘗試再次連線或離開。',
+    'disconnect.banner':           (name: string) => `${name} 斷線，等待重連中...`,
+    'disconnect.hostBanner':       '房主斷線中，請等待 20 秒。若超時未連回，本局將解散。',
+    'btn.leaveGame':               '離開本局遊戲',
+    'btn.forfeitConfirm':          '確定離開',
+    'disconnect.forfeitConfirm':   '確定要放棄並離開本局遊戲嗎？你目前累積的籌碼將會保留。',
+    'disconnect.eliminated':       (name: string) => `${name} 斷線逾時，已被移出本局。`,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -618,6 +634,22 @@ const en: TransMap = {
     'notify.priestPeek':       (actor: string, card: string) => `${actor} used the Priest and saw your【${card}】.`,
     'modal.guardMiss':         'Guard Guess — Wrong!',
     'notify.guardMiss':        (actor: string, card: string) => `${actor} played the Guard and guessed your card was ${card}. They guessed wrong!`,
+
+    // Disconnect / reconnect UI
+    'reason.disconnected':         'disconnected, ',
+    'reason.forfeit':              'forfeited, ',
+    'modal.youDisconnected':       'You Disconnected!',
+    'disconnect.countdown':        (s: string) => `Please reconnect within ${s} seconds, or you will be removed from the game.`,
+    'btn.reconnect':               'Reconnect',
+    'btn.forfeitLeave':            'Give Up & Leave',
+    'disconnect.reconnecting':     'Reconnecting, please wait...',
+    'disconnect.reconnectFailed':  'Reconnection failed. Please try again or leave.',
+    'disconnect.banner':           (name: string) => `${name} disconnected — waiting for reconnection...`,
+    'disconnect.hostBanner':       'Host disconnected. Waiting up to 20 seconds — if they don\'t return, the game will be disbanded.',
+    'btn.leaveGame':               'Leave Game',
+    'btn.forfeitConfirm':          'Confirm Leave',
+    'disconnect.forfeitConfirm':   'Are you sure you want to forfeit and leave? Your current tokens will be kept.',
+    'disconnect.eliminated':       (name: string) => `${name} timed out and was removed from the game.`,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

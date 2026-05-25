@@ -125,6 +125,8 @@
 
       <!-- 遊戲場景 -->
       <div id="game-scene" style="display: none;">
+        <!-- Disconnect banner: shown when a player is disconnected mid-game -->
+        <div id="disconnect-banner" style="display:none;"></div>
         <div class="card-stats-area area">
           <h3 data-i18n="game.stats">出牌統計</h3>
           <div id="played-card-stats" class="played-card-stats"></div>
@@ -158,6 +160,7 @@
               <button id="show-log-btn" class="menu-btn secondary" data-i18n="game.viewLog">查看對戰紀錄</button>
               <div class="back-home-row">
                 <button id="back-home-btn" class="menu-btn secondary" data-i18n="game.backHome">回主選單</button>
+                <button id="leave-game-btn" class="menu-btn secondary" style="display:none;" data-i18n="btn.leaveGame">離開本局遊戲</button>
                 <button id="mute-btn" aria-label="Toggle mute">🔊</button>
               </div>
             </div>

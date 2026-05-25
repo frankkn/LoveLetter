@@ -862,6 +862,43 @@ body.game-scene-active #mute-btn-global {
   display: none;
 }
 
+/* Disconnect banner */
+#disconnect-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 450;
+  background: linear-gradient(135deg, #9b2120, #c0392b);
+  color: #fff;
+  padding: 0.55rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+#disconnect-banner .disconnect-msg {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.4;
+}
+#disconnect-banner .disconnect-leave-btn {
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.5);
+  color: #fff;
+  border-radius: 4px;
+  padding: 0.3rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+#disconnect-banner .disconnect-leave-btn:hover {
+  background: rgba(255,255,255,0.32);
+}
+
 /* Modal 樣式 */
 .modal-overlay {
   position: fixed;
