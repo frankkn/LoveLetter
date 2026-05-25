@@ -308,6 +308,8 @@ const zh: TransMap = {
     'notify.eliminated':       (reason: string) => `你${reason}被淘汰出局了。`,
     'modal.priestPeek':        '你的手牌被偷看了！',
     'notify.priestPeek':       (actor: string) => `${actor} 使用了【神父】，偷看了你的手牌。`,
+    'modal.guardMiss':         '衛兵猜測失敗！',
+    'notify.guardMiss':        (actor: string, card: string) => `${actor} 打出衛兵牌，猜測你的手牌是【${card}】。可惜猜錯了！`,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -612,6 +614,8 @@ const en: TransMap = {
     'notify.eliminated':       (reason: string) => `You were eliminated: ${reason}.`,
     'modal.priestPeek':        'Your card was peeked!',
     'notify.priestPeek':       (actor: string) => `${actor} used the Priest to peek at your hand.`,
+    'modal.guardMiss':         'Guard Guess — Wrong!',
+    'notify.guardMiss':        (actor: string, card: string) => `${actor} played the Guard and guessed your card was ${card}. They guessed wrong!`,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

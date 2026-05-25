@@ -225,6 +225,9 @@ let pendingOnlineNotifications: OnlineNotification[] = [];
 const shownNotificationNonces = new Set<string>();
 // Mutex: prevents two concurrent botTurn() executions (echo-triggered duplicate queuing).
 let isBotTurnRunning = false;
+// Prevents applyOnlineGameState's blanket closeModal() from wiping the notification modal
+// before the player has a chance to read and dismiss it.
+let isShowingNotificationModal = false;
 
 async function leaveRoomIfConnected(room: Room | null) {
     if (!room) return;
@@ -263,6 +266,7 @@ function resetLocalClientState() {
     pendingOnlineNotifications = [];
     shownNotificationNonces.clear();
     isBotTurnRunning = false;
+    isShowingNotificationModal = false;
     selectedCardId = null;
     isResolvingTurnAction = false;
     queuedBotTurnId = null;
@@ -1410,7 +1414,10 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                                 ];
                             }
                             addLog(t('log.guardHit'));
-                            eliminate(targetId, t('reason.guardHit'));
+                            eliminate(targetId, t('reason.guardHit'), {
+                                title: t('modal.guardEliminated'),
+                                bodyHTML: `<p style="text-align:center;margin:0.5rem 0">${t('guard.eliminated', actor.name, guessedName)}</p>`
+                            });
                             if (shouldEndTurn && !state.isGameOver) await endTurn(actorId);
                         } else {
                             rememberGuardMiss(targetId, val as CardType);
@@ -1421,6 +1428,10 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                                 ];
                             }
                             addLog(t('log.guardMiss'));
+                            if (!target.isBot) {
+                                addOnlineNotification(targetId, t('modal.guardMiss'),
+                                    `<p style="text-align:center;margin:0.5rem 0">${t('notify.guardMiss', actor.name, guessedName)}</p>`);
+                            }
                             if (shouldEndTurn) await endTurn(actorId);
                             else {
                                 render();
@@ -1455,7 +1466,10 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                             t('btn.ok')
                         );
                     }
-                    eliminate(targetId, t('reason.guardHit'));
+                    eliminate(targetId, t('reason.guardHit'), {
+                        title: t('modal.guardEliminated'),
+                        bodyHTML: `<p style="text-align:center;margin:0.5rem 0">${t('guard.eliminated', actor.name, guessedName)}</p>`
+                    });
                     if (shouldEndTurn && !state.isGameOver) await endTurn(actorId);
                 } else {
                     rememberGuardMiss(targetId, guessNum as CardType);
@@ -1466,6 +1480,10 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                         ];
                     }
                     addLog(t('log.guardMiss'));
+                    if (!target.isBot) {
+                        addOnlineNotification(targetId, t('modal.guardMiss'),
+                            `<p style="text-align:center;margin:0.5rem 0">${t('notify.guardMiss', actor.name, guessedName)}</p>`);
+                    }
                     if (shouldEndTurn) await endTurn(actorId);
                     else {
                         render();
@@ -1878,7 +1896,11 @@ async function discardAndDraw(targetId: number, returnTurnPlayerId: number, shou
     return { discarded, hasPendingForcedEffect: false };
 }
 
-function eliminate(playerId: number, reason: string) {
+function eliminate(
+    playerId: number,
+    reason: string,
+    notificationOverride?: { title: string; bodyHTML: string }
+) {
     const player = state.players[playerId];
     if (!player || !player.isAlive) return;
 
@@ -1899,11 +1921,10 @@ function eliminate(playerId: number, reason: string) {
         // The sender guard (senderPlayerId !== targetPlayerId when receiving) prevents
         // the acting client from showing their own notification on the echo.
         if (!player.isBot) {
-            addOnlineNotification(
-                playerId,
-                t('modal.youWereEliminated'),
-                `<p style="text-align:center;margin:0.5rem 0">${t('notify.eliminated', reason)}</p>`
-            );
+            const title   = notificationOverride?.title   ?? t('modal.youWereEliminated');
+            const bodyHTML = notificationOverride?.bodyHTML
+                ?? `<p style="text-align:center;margin:0.5rem 0">${t('notify.eliminated', reason)}</p>`;
+            addOnlineNotification(playerId, title, bodyHTML);
         }
         handoffTurnIfCurrentPlayerWasEliminated(playerId);
     }
@@ -2954,6 +2975,7 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
         try {
             queuedBotTurnId = null;
             isBotTurnRunning = false;
+            isShowingNotificationModal = false;
             selectedCardId = null;
             isResolvingTurnAction = false;
             pendingForcedEffectsQueue = [];
@@ -3116,7 +3138,7 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
         hasShownEndGameModal = false;
 
         onlineGameInitialized = true;
-        if (!isLocalBaronDuelParticipant(pendingBaronDuel) && !isLocalKingExchangeParticipant(pendingKingExchange)) {
+        if (!isLocalBaronDuelParticipant(pendingBaronDuel) && !isLocalKingExchangeParticipant(pendingKingExchange) && !isShowingNotificationModal) {
             closeModal();
         }
         showScene('game-scene');
@@ -3152,12 +3174,16 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
             window.requestAnimationFrame(() => {
                 // Double-check: don't interrupt a modal that appeared between the state update and rAF.
                 if (modalOverlay.style.display !== 'flex') {
+                    isShowingNotificationModal = true;
                     showModal(
                         notif.title,
                         notif.bodyHTML,
                         `<button class="modal-confirm-btn" id="notif-ok-btn">${t('btn.ok')}</button>`
                     );
-                    document.getElementById('notif-ok-btn')?.addEventListener('click', () => closeModal());
+                    document.getElementById('notif-ok-btn')?.addEventListener('click', () => {
+                        isShowingNotificationModal = false;
+                        closeModal();
+                    });
                 }
             });
         }
