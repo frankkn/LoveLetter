@@ -302,6 +302,12 @@ const zh: TransMap = {
     'modal.deckShowdown':      '牌堆已空！最終攤牌',
     'deckShowdown.intro':      '存活玩家展示手牌，點數最大者獲勝：',
     'deckShowdown.winner':     '🏆 獲勝',
+
+    // Online notification modals (shown to targeted non-host players)
+    'modal.youWereEliminated': '你出局了！',
+    'notify.eliminated':       (reason: string) => `你${reason}被淘汰出局了。`,
+    'modal.priestPeek':        '你的手牌被偷看了！',
+    'notify.priestPeek':       (actor: string) => `${actor} 使用了【神父】，偷看了你的手牌。`,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -600,6 +606,12 @@ const en: TransMap = {
     'modal.deckShowdown':      'Deck Empty — Final Showdown',
     'deckShowdown.intro':      'Survivors reveal their cards. Highest value wins:',
     'deckShowdown.winner':     '🏆 Winner',
+
+    // Online notification modals (shown to targeted non-host players)
+    'modal.youWereEliminated': 'You were eliminated!',
+    'notify.eliminated':       (reason: string) => `You were eliminated: ${reason}.`,
+    'modal.priestPeek':        'Your card was peeked!',
+    'notify.priestPeek':       (actor: string) => `${actor} used the Priest to peek at your hand.`,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

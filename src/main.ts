@@ -221,6 +221,10 @@ let isHandlingPendingForcedEffect = false;
 let hasShownEndGameModal = false;
 let nextRoundReadyPlayerIds: number[] = [];
 let restartReadyPlayerIds: number[] = [];
+let pendingOnlineNotifications: OnlineNotification[] = [];
+const shownNotificationNonces = new Set<string>();
+// Mutex: prevents two concurrent botTurn() executions (echo-triggered duplicate queuing).
+let isBotTurnRunning = false;
 
 async function leaveRoomIfConnected(room: Room | null) {
     if (!room) return;
@@ -256,6 +260,9 @@ function resetLocalClientState() {
     hasShownEndGameModal = false;
     nextRoundReadyPlayerIds = [];
     restartReadyPlayerIds = [];
+    pendingOnlineNotifications = [];
+    shownNotificationNonces.clear();
+    isBotTurnRunning = false;
     selectedCardId = null;
     isResolvingTurnAction = false;
     queuedBotTurnId = null;
@@ -1190,6 +1197,10 @@ function queueBotTurn(botId: number) {
         if (!selfPlayer?.isHost) return;
     }
 
+    // Prevent duplicate queuing: if a bot turn is already running or the same bot is already
+    // queued in the pending setTimeout, do nothing — the existing execution covers this turn.
+    if (isBotTurnRunning || queuedBotTurnId === botId) return;
+
     queuedBotTurnId = botId;
     window.setTimeout(() => {
         if (
@@ -1490,6 +1501,14 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             }
             render();
             addLog(t('log.priestSaw', actor.name, target.name));
+            // Notify the target so they know their card was looked at.
+            if (!target.isBot) {
+                addOnlineNotification(
+                    targetId,
+                    t('modal.priestPeek'),
+                    `<p style="text-align:center;margin:0.5rem 0">${t('notify.priestPeek', actor.name)}</p>`
+                );
+            }
             syncOnlineGameState();
             if (!actor.isBot) {
                 await new Promise<void>(resolve => {
@@ -1868,13 +1887,24 @@ function eliminate(playerId: number, reason: string) {
     player.discardPile.push(...player.hand);
     player.hand = [];
     addLog(t('log.eliminated', player.name, reason));
-    
+
     const survivors = getAlivePlayers();
     if (survivors.length === 1) {
+        // Game ending — the end-game modal will inform the eliminated player; no extra notification needed.
         endGame(survivors[0], t('reason.lastSurvivor'));
     } else {
         // Only play the elimination SFX for the local human player.
         if (playerId === localPlayerId) playSFX('Farewell, Chevalier.mp3');
+        // Queue a notification so non-host clients learn WHY they were knocked out.
+        // The sender guard (senderPlayerId !== targetPlayerId when receiving) prevents
+        // the acting client from showing their own notification on the echo.
+        if (!player.isBot) {
+            addOnlineNotification(
+                playerId,
+                t('modal.youWereEliminated'),
+                `<p style="text-align:center;margin:0.5rem 0">${t('notify.eliminated', reason)}</p>`
+            );
+        }
         handoffTurnIfCurrentPlayerWasEliminated(playerId);
     }
 
@@ -2149,43 +2179,56 @@ function chooseAICardToPlay(bot: Player): Card {
 }
 
 async function botTurn(botId: number) {
-    if (state.isGameOver || state.currentTurnPlayerId !== botId || !state.players[botId]?.isAlive) return;
-    
-    // 階段 1：等待（模擬看牌準備）
-    await sleep(1000);
-    if (state.isGameOver || state.currentTurnPlayerId !== botId || !state.players[botId].isAlive) return;
-    
-    // 階段 2：抽牌
-    if (!drawCard(botId)) {
-        await checkEndConditions();
-        if (!state.isGameOver) {
-            await endTurn(botId);
+    // Mutex guard: only one bot turn may execute at a time.  This prevents concurrent
+    // botTurn() calls that arise when the echo of a sync arrives after setTimeout(0) fires
+    // but before the bot's first await completes.
+    if (isBotTurnRunning) {
+        console.warn(`[botTurn] Skipped concurrent call for bot ${botId} — a turn is already in progress.`);
+        return;
+    }
+    isBotTurnRunning = true;
+
+    try {
+        if (state.isGameOver || state.currentTurnPlayerId !== botId || !state.players[botId]?.isAlive) return;
+
+        // 階段 1：等待（模擬看牌準備）
+        await sleep(1000);
+        if (state.isGameOver || state.currentTurnPlayerId !== botId || !state.players[botId].isAlive) return;
+
+        // 階段 2：抽牌
+        if (!drawCard(botId)) {
+            await checkEndConditions();
+            if (!state.isGameOver) {
+                await endTurn(botId);
+            }
+            return;
         }
-        return;
-    }
-    
-    // 階段 3：模擬思考
-    await sleep(1200);
-    if (state.isGameOver || state.currentTurnPlayerId !== botId || !state.players[botId].isAlive) return;
-    
-    const bot = state.players[botId];
-    if (checkCountessConstraint(bot.hand)) {
-        await handlePlayCardRequest(botId, bot.hand.find(c => c.type === CardType.Countess)!);
-        return;
-    }
 
-    const hasPrince = bot.hand.some(c => c.type === CardType.Prince);
-    const hasPrincess = bot.hand.some(c => c.type === CardType.Princess);
-    const princeOpponentTargets = state.players.filter(p => p.id !== botId && p.isAlive && !p.isProtected);
+        // 階段 3：模擬思考
+        await sleep(1200);
+        if (state.isGameOver || state.currentTurnPlayerId !== botId || !state.players[botId].isAlive) return;
 
-    if (hasPrince && hasPrincess && princeOpponentTargets.length === 0) {
-        await handlePlayCardRequest(botId, bot.hand.find(c => c.type === CardType.Princess)!);
-        return;
+        const bot = state.players[botId];
+        if (checkCountessConstraint(bot.hand)) {
+            await handlePlayCardRequest(botId, bot.hand.find(c => c.type === CardType.Countess)!);
+            return;
+        }
+
+        const hasPrince = bot.hand.some(c => c.type === CardType.Prince);
+        const hasPrincess = bot.hand.some(c => c.type === CardType.Princess);
+        const princeOpponentTargets = state.players.filter(p => p.id !== botId && p.isAlive && !p.isProtected);
+
+        if (hasPrince && hasPrincess && princeOpponentTargets.length === 0) {
+            await handlePlayCardRequest(botId, bot.hand.find(c => c.type === CardType.Princess)!);
+            return;
+        }
+
+        const cardToPlay = chooseAICardToPlay(bot);
+
+        await handlePlayCardRequest(botId, cardToPlay);
+    } finally {
+        isBotTurnRunning = false;
     }
-
-    const cardToPlay = chooseAICardToPlay(bot);
-    
-    await handlePlayCardRequest(botId, cardToPlay);
 }
 
 function escapeHTML(value: string): string {
@@ -2239,6 +2282,17 @@ interface PendingKingExchange {
     confirmedPlayerIds: number[];
 }
 
+// Notification sent via online state sync to inform a non-host player about an effect
+// that targeted them (e.g. Guard elimination, Priest peek).
+interface OnlineNotification {
+    nonce: string;
+    senderPlayerId: number;
+    targetPlayerId: number;
+    title: string;
+    bodyHTML: string;
+    remainingBroadcasts: number;
+}
+
 interface OnlineGameStateData extends OnlineGameData {
     isGameOver: boolean;
     winner: Player | null;
@@ -2248,6 +2302,7 @@ interface OnlineGameStateData extends OnlineGameData {
     pendingKingExchange?: PendingKingExchange | null;
     nextRoundReadyPlayerIds?: number[];
     restartReadyPlayerIds?: number[];
+    pendingNotifications?: OnlineNotification[];
 }
 
 function getConnectionErrorMessage(error: unknown): string {
@@ -2424,8 +2479,9 @@ function cloneOnlinePlayer(player: Player): Player {
     return {
         ...player,
         hand: player.hand.map(cloneCardForOnlineSync),
-        discardPile: player.discardPile.map(cloneCardForOnlineSync),
-        isBot: false
+        discardPile: player.discardPile.map(cloneCardForOnlineSync)
+        // isBot is intentionally preserved so all clients can identify bot players for
+        // turn-logic routing (queueBotTurn is host-guarded and safe for non-host clients).
     };
 }
 
@@ -2455,6 +2511,14 @@ function restoreLocalPrivateHints(players: Player[]): Player[] {
 }
 
 function createOnlineGameStateData(): OnlineGameStateData {
+    // Take a snapshot of active notifications, then decay their broadcast counter.
+    // Each notification is sent up to `remainingBroadcasts` times so that brief
+    // packet loss doesn't suppress it; expired ones are dropped from the queue.
+    const notificationsToSend = pendingOnlineNotifications.filter(n => n.remainingBroadcasts > 0);
+    pendingOnlineNotifications = notificationsToSend
+        .map(n => ({ ...n, remainingBroadcasts: n.remainingBroadcasts - 1 }))
+        .filter(n => n.remainingBroadcasts > 0);
+
     return {
         deck: [...state.deck],
         burnedCard: state.burnedCard,
@@ -2479,8 +2543,23 @@ function createOnlineGameStateData(): OnlineGameStateData {
             confirmedPlayerIds: [...pendingKingExchange.confirmedPlayerIds]
         } : null,
         nextRoundReadyPlayerIds: [...nextRoundReadyPlayerIds],
-        restartReadyPlayerIds: [...restartReadyPlayerIds]
+        restartReadyPlayerIds: [...restartReadyPlayerIds],
+        pendingNotifications: notificationsToSend
     };
+}
+
+// Queue a modal notification to be shown on the machine where targetPlayerId == localPlayerId.
+// Included in the next `remainingBroadcasts` syncs so brief packet loss doesn't suppress it.
+function addOnlineNotification(targetPlayerId: number, title: string, bodyHTML: string) {
+    if (!isOnlineGameActive()) return;
+    pendingOnlineNotifications.push({
+        nonce: `n${Date.now()}-${Math.floor(Math.random() * 1e9)}`,
+        senderPlayerId: localPlayerId,
+        targetPlayerId,
+        title,
+        bodyHTML,
+        remainingBroadcasts: 4
+    });
 }
 
 function syncOnlineGameState() {
@@ -2874,6 +2953,7 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
 
         try {
             queuedBotTurnId = null;
+            isBotTurnRunning = false;
             selectedCardId = null;
             isResolvingTurnAction = false;
             pendingForcedEffectsQueue = [];
@@ -3054,17 +3134,44 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
         isApplyingOnlineState = false;
     }
 
+    // Show any notifications targeted at the local player (e.g. "you were eliminated",
+    // "your card was peeked").  We skip initial-load syncs and only show a notification
+    // whose sender is a different player (prevents echo on the originating client).
+    // Nonces are marked as seen only when the notification is actually scheduled to display,
+    // so that a notification blocked by an open modal can still appear on a redundant sync.
+    if (!isInitialLoad) {
+        const pendingNotif = (data.pendingNotifications ?? []).find(
+            n => n.targetPlayerId === localPlayerId &&
+                 n.senderPlayerId !== localPlayerId &&
+                 !shownNotificationNonces.has(n.nonce)
+        );
+        if (pendingNotif && modalOverlay.style.display !== 'flex') {
+            // Mark the nonce now so redundant syncs don't repeat the modal.
+            shownNotificationNonces.add(pendingNotif.nonce);
+            const notif = pendingNotif;
+            window.requestAnimationFrame(() => {
+                // Double-check: don't interrupt a modal that appeared between the state update and rAF.
+                if (modalOverlay.style.display !== 'flex') {
+                    showModal(
+                        notif.title,
+                        notif.bodyHTML,
+                        `<button class="modal-confirm-btn" id="notif-ok-btn">${t('btn.ok')}</button>`
+                    );
+                    document.getElementById('notif-ok-btn')?.addEventListener('click', () => closeModal());
+                }
+            });
+        }
+    }
+
     void handlePendingForcedEffect();
     void handlePendingBaronDuel();
     void handlePendingKingExchange();
 
-    // If the current turn belongs to a bot, the host should drive it.
-    // Only trigger on initial load (game start / reconnect) — NOT on regular echo syncs.
-    // During normal gameplay the host already calls queueBotTurn directly from endTurn /
-    // handoffTurnIfCurrentPlayerWasEliminated.  Triggering it again from every echo causes
-    // two concurrent botTurn executions: the second one sees hand.length >= 2 (already drawn
-    // by the first) and calls endTurn without playing a card, stalling the game.
-    if (isInitialLoad) {
+    // If the current turn belongs to a bot, the host must drive it.
+    // This runs on EVERY sync (not just isInitialLoad) so the host picks up bot turns that
+    // were triggered by non-host players ending their turns.
+    // Duplicate execution is prevented by isBotTurnRunning + queuedBotTurnId inside queueBotTurn.
+    {
         const currentPlayer = state?.players[state.currentTurnPlayerId];
         if (!state?.isGameOver && currentPlayer?.isBot && currentPlayer.isAlive) {
             queueBotTurn(state.currentTurnPlayerId);
