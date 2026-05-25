@@ -2,6 +2,10 @@ import { expect, type Page, test } from '@playwright/test';
 
 async function openOnlineLobby(page: Page) {
     await page.goto('/');
+    // Remove the splash screen immediately so it never blocks button clicks in CI.
+    await page.evaluate(() => {
+        document.getElementById('splash-screen')?.remove();
+    });
     await page.locator('#start-game-btn').click();
     await page.locator('#online-mode-btn').click();
     await expect(page.locator('#lobby-scene')).toBeVisible();
@@ -69,7 +73,14 @@ test('two players can create, join, ready, and start through Colyseus state sync
         await expect(hostPage.locator('#opponents-container')).toContainText('Bob');
         await expect(guestPage.locator('#opponents-container')).toContainText('Alice');
 
-        await hostPage.locator('#draw-btn').click();
+        // Dismiss the auto-shown "遊戲開始" modal on the host so the draw button is reachable.
+        const hostOkBtn = hostPage.locator('#game-started-ok-btn');
+        if (await hostOkBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+            await hostOkBtn.click();
+        }
+
+        // Use the desktop draw button (the sidebar #draw-btn is hidden by CSS in desktop layout).
+        await hostPage.locator('#draw-btn-desktop').click();
         await expect(guestPage.locator('#game-log')).toContainText('Alice');
         await expect(guestPage.locator('.opponent-area', { hasText: 'Alice' }).locator('.hand-container .card')).toHaveCount(2);
     } finally {
@@ -152,7 +163,8 @@ test('cancelling target selection does not leak the played card to the opponent'
         }
 
         // Alice (host) draws her second card so she has 2 in hand.
-        await hostPage.locator('#draw-btn').click();
+        // Use the desktop draw button (the sidebar #draw-btn is hidden by CSS in desktop layout).
+        await hostPage.locator('#draw-btn-desktop').click();
         await expect(hostPage.locator('#player-hand .card-wrapper')).toHaveCount(2);
 
         const cardNames = await hostPage.locator('#player-hand .card-wrapper .card-name').allTextContents();
@@ -243,7 +255,8 @@ test('host can add/remove bots and start a 1-real-player + 1-bot game', async ({
             const overlay = document.getElementById('modal-overlay');
             if (overlay) overlay.style.display = 'none';
         });
-        await hostPage.locator('#draw-btn').click();
+        // Use the desktop draw button (the sidebar #draw-btn is hidden by CSS in desktop layout).
+        await hostPage.locator('#draw-btn-desktop').click();
         // Alice should now have 2 cards in hand.
         await expect(hostPage.locator('#player-hand .card-wrapper')).toHaveCount(2);
     } finally {

@@ -30,6 +30,10 @@ async function createIsolatedPlayer(browser: Browser, name: string): Promise<Tes
 
 async function openOnlineLobby(page: Page) {
     await page.goto('/');
+    // Remove the splash screen immediately so it never blocks button clicks in CI.
+    await page.evaluate(() => {
+        document.getElementById('splash-screen')?.remove();
+    });
     await page.locator('#start-game-btn').click();
     await page.locator('#online-mode-btn').click();
     await expect(page.locator('#lobby-scene')).toBeVisible();
