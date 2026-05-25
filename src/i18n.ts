@@ -149,11 +149,12 @@ const zh: TransMap = {
     'king.swapDone':     (a: string, b: string) => `${a} 已與 ${b} 完成手牌交換。`,
 
     // Forced-effect (Prince chain) modal
-    'player.opponent':   '對手',
-    'modal.forcedChain': '【被迫棄牌連鎖】',
-    'forced.body1':      (name: string) => `玩家 ${name} 對你打出了【王子】！`,
-    'forced.body2':      (card: string) => `你被迫棄掉了手中的【${card}】並重新補抽。`,
-    'forced.body3':      '接下來將執行這張棄牌的連鎖效果。',
+    'player.opponent':        '對手',
+    'modal.forcedChain':      '你被王子指定！',
+    'forced.body1':           (name: string) => `${name} 對你打出了【王子】！`,
+    'forced.body2':           (card: string) => `你被迫棄掉了手中的【${card}】並重新補牌。`,
+    'forced.body3':           '這張牌的效果現在將會發動。',
+    'notify.princeForcedPrincess': (actor: string) => `${actor} 對你打出了【王子】，你被迫棄掉了手中的【公主】！你就此出局。`,
 
     // Warnings
     'warn.countess': '當手中持有王子或國王時，必須先打出伯爵夫人！',
@@ -307,7 +308,7 @@ const zh: TransMap = {
     'modal.youWereEliminated': '你出局了！',
     'notify.eliminated':       (reason: string) => `你${reason}被淘汰出局了。`,
     'modal.priestPeek':        '你的手牌被偷看了！',
-    'notify.priestPeek':       (actor: string) => `${actor} 使用了【神父】，偷看了你的手牌。`,
+    'notify.priestPeek':       (actor: string, card: string) => `${actor} 使用了【神父】，偷看了你的手牌【${card}】。`,
     'modal.guardMiss':         '衛兵猜測失敗！',
     'notify.guardMiss':        (actor: string, card: string) => `${actor} 打出衛兵牌，猜測你的手牌是【${card}】。可惜猜錯了！`,
 };
@@ -455,11 +456,12 @@ const en: TransMap = {
     'king.swapDone':     (a: string, b: string) => `${a} and ${b} have swapped hands.`,
 
     // Forced-effect (Prince chain) modal
-    'player.opponent':   'Opponent',
-    'modal.forcedChain': 'Forced Discard Chain',
-    'forced.body1':      (name: string) => `${name} played the Prince on you!`,
-    'forced.body2':      (card: string) => `You were forced to discard the ${card} and draw a new card.`,
-    'forced.body3':      "The discarded card's effect will now trigger.",
+    'player.opponent':        'Opponent',
+    'modal.forcedChain':      'Targeted by the Prince!',
+    'forced.body1':           (name: string) => `${name} played the Prince on you!`,
+    'forced.body2':           (card: string) => `You were forced to discard your 【${card}】 and draw a new card.`,
+    'forced.body3':           "This card's effect will now activate.",
+    'notify.princeForcedPrincess': (actor: string) => `${actor} played the Prince on you, forcing you to discard the Princess! You are eliminated.`,
 
     // Warnings
     'warn.countess': 'You must play the Countess while holding the Prince or King!',
@@ -613,7 +615,7 @@ const en: TransMap = {
     'modal.youWereEliminated': 'You were eliminated!',
     'notify.eliminated':       (reason: string) => `You were eliminated: ${reason}.`,
     'modal.priestPeek':        'Your card was peeked!',
-    'notify.priestPeek':       (actor: string) => `${actor} used the Priest to peek at your hand.`,
+    'notify.priestPeek':       (actor: string, card: string) => `${actor} used the Priest and saw your【${card}】.`,
     'modal.guardMiss':         'Guard Guess — Wrong!',
     'notify.guardMiss':        (actor: string, card: string) => `${actor} played the Guard and guessed your card was ${card}. They guessed wrong!`,
 };

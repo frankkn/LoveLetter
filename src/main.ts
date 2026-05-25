@@ -1519,12 +1519,12 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             }
             render();
             addLog(t('log.priestSaw', actor.name, target.name));
-            // Notify the target so they know their card was looked at.
-            if (!target.isBot) {
+            // Notify the target so they know their card was looked at (and which card was seen).
+            if (!target.isBot && target.hand[0]) {
                 addOnlineNotification(
                     targetId,
                     t('modal.priestPeek'),
-                    `<p style="text-align:center;margin:0.5rem 0">${t('notify.priestPeek', actor.name)}</p>`
+                    `<p style="text-align:center;margin:0.5rem 0">${t('notify.priestPeek', actor.name, getCardName(target.hand[0].type))}</p>`
                 );
             }
             syncOnlineGameState();
@@ -1848,7 +1848,11 @@ async function discardAndDraw(targetId: number, returnTurnPlayerId: number, shou
     addLog(t('log.discarded', player.name, getCardName(discarded.type)));
 
     if (discarded.type === CardType.Princess) {
-        eliminate(targetId, t('reason.princessDiscarded'));
+        const actorName = state.players[returnTurnPlayerId]?.name ?? t('player.opponent');
+        eliminate(targetId, t('reason.princessDiscarded'), {
+            title: t('modal.youWereEliminated'),
+            bodyHTML: `<p style="text-align:center;margin:0.5rem 0">${t('notify.princeForcedPrincess', actorName)}</p>`
+        });
         return { discarded, hasPendingForcedEffect: false };
     }
 
@@ -2606,7 +2610,10 @@ function isLocalEffectController(playerId: number) {
 }
 
 function isForcedEffectCard(card: Card) {
-    return card.type !== CardType.Princess && card.type !== CardType.Handmaid;
+    // Princess is handled by a direct eliminate() call before this check;
+    // all other cards (including Handmaid) go through the queue so that the
+    // target always sees the forced-chain modal before the effect activates.
+    return card.type !== CardType.Princess;
 }
 
 function clonePendingForcedEffect(effect: PendingForcedEffect): PendingForcedEffect {
@@ -2819,9 +2826,16 @@ async function showKingExchangeModal(exchange: PendingKingExchange) {
     activeKingExchangeModalKey = exchangeKey;
     isResolvingTurnAction = true;
     try {
+        const bodyHTML = (actor.hand[0] && target.hand[0])
+            ? createHandRevealBodyHTML(
+                t('king.swapPending', actor.name, target.name),
+                actor.name, actor.hand[0],
+                target.name, target.hand[0]
+            )
+            : `<p>${t('king.swapPending', actor.name, target.name)}</p>`;
         await waitForStatsModalConfirm(
             t('modal.kingSwap'),
-            `<p>${t('king.swapPending', actor.name, target.name)}</p>`,
+            bodyHTML,
             t('btn.confirmSwap')
         );
         confirmLocalKingExchange(exchange);
@@ -2869,11 +2883,14 @@ function hasLocalPendingForcedEffect(queue = pendingForcedEffectsQueue) {
 function createForcedEffectNoticeBodyHTML(effect: PendingForcedEffect) {
     const attacker = state.players[effect.sourcePlayerId] ?? state.players[state.currentTurnPlayerId];
     const attackerName = attacker?.name ?? t('player.opponent');
+    const cardUI = createCardUI(effect.card, false);
+    cardUI.style.margin = '0.5rem auto 0';
 
     return `
         <p>${t('forced.body1', attackerName)}</p>
         <p>${t('forced.body2', getCardName(effect.card.type))}</p>
-        <p>${t('forced.body3')}</p>
+        ${cardUI.outerHTML}
+        <p style="margin-top:0.5rem">${t('forced.body3')}</p>
     `;
 }
 
