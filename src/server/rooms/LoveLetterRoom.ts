@@ -165,6 +165,20 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
             }
         });
 
+        // 文字聊天：廣播給房間所有人（包含發送者，保持一致性）
+        this.onMessage("chat_message", (client, data: { text: string }) => {
+            const player = this.state.players.get(client.sessionId);
+            const name = player?.name ?? '???';
+            const text = typeof data?.text === 'string' ? data.text.trim().slice(0, 200) : '';
+            if (!text) return;
+            this.broadcast("chat_message", {
+                sessionId: client.sessionId,
+                name,
+                text,
+                timestamp: Date.now()
+            });
+        });
+
         console.log(`[LoveLetterRoom] Created room ${this.roomId}. Password protected: ${state.hasPassword}`);
     }
 

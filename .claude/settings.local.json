@@ -1,7 +1,35 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(npx vite *)",
+      "Bash(npm install *)",
+      "Bash(node_modules\\\\.bin\\\\vite build *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'Redesign desktop game scene layout *)",
+      "Bash(start game-scene-preview.html)",
+      "PowerShell(Start-Process \"c:\\\\Users\\\\frank2_yang\\\\Desktop\\\\love-letter\\\\game-scene-preview.html\")",
+      "Bash(git commit -m 'Desktop: move draw btn to player area + topbar nowrap fix *)",
+      "Bash(git commit -m 'Desktop: fix mute btn overlap + fix hand area stable width *)",
+      "Bash(git reset *)",
+      "Bash(git checkout *)",
+      "Bash(git commit -m 'Redesign desktop game scene UI *)",
+      "Bash(git commit -m 'Desktop: draw button in player area + topbar & UX fixes *)",
+      "Bash(git commit -m 'Fix: champion modal restart btn closes modal before starting new league *)",
+      "Bash(git fetch *)",
+      "Bash(git commit -m 'Dev: add ?dev=1 mode — champion threshold drops to 1 win for quick testing *)",
+      "Bash(git commit -m 'Desktop: equal-height split based on opponent count *)",
+      "Bash(git commit -m 'Desktop: 1-opponent bot discard cards same size as player \\(90x126px\\) *)",
+      "Bash(git commit -m 'Desktop: 2-opponent bot hand horizontal+fixed \\(220px\\) + discard 90x126px *)",
+      "Bash(git commit -m 'Desktop: 1-opponent bot hand horizontal+fixed \\(220px, same as player\\) *)",
+      "Bash(git commit -m 'Desktop: unify hint font size + clip player area overflow *)",
+      "Bash(mkdir -p \"c:/Users/frank2_yang/Desktop/love-letter/public/icons\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/love-letter/)",
+      "Bash(git commit -m 'feat: redesign game top bar — game-top-row grid + game-action-row flex \\(Step 1 UI\\) *)",
+      "Bash(git commit -m 'feat: text chat room — Colyseus broadcast + slide-up panel \\(Step 2\\) *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\frank2_yang\\Desktop\\love-letter\\public\\icons"
     ]
   }
 }
