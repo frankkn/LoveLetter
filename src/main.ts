@@ -1260,7 +1260,10 @@ function queueBotTurn(botId: number) {
     }
 
     // Prevent duplicate queuing: if a bot turn is already running or the same bot is already
-    // queued in the pending setTimeout, do nothing — the existing execution covers this turn.
+    // queued in the pending setTimeout, do nothing.
+    // NOTE: when endTurn() is called from *inside* botTurn()'s try block, isBotTurnRunning is
+    // still true and this guard fires — the botTurn finally block re-runs the check after
+    // releasing the mutex, so the next bot turn is not lost.
     if (isBotTurnRunning || queuedBotTurnId === botId) return;
 
     queuedBotTurnId = botId;
@@ -2311,6 +2314,16 @@ async function botTurn(botId: number) {
         await handlePlayCardRequest(botId, cardToPlay);
     } finally {
         isBotTurnRunning = false;
+
+        // When endTurn() is called from inside the try block the mutex is still held,
+        // so queueBotTurn(nextBot) silently returns early.  Now that the mutex is
+        // released, re-check whether the current turn belongs to a bot and queue it.
+        if (!state.isGameOver) {
+            const nextPlayer = state.players[state.currentTurnPlayerId];
+            if (nextPlayer?.isBot && nextPlayer.isAlive) {
+                queueBotTurn(state.currentTurnPlayerId);
+            }
+        }
     }
 }
 
