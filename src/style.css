@@ -1817,24 +1817,45 @@ body.game-scene-active #mute-btn-global {
     white-space: nowrap;
   }
 
-  /* action row 推到最右，收縮 */
+  /* action row 推到最右，水平排列 */
   body.game-scene-active .stats .game-action-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap;
     width: auto;
     flex-shrink: 0;
     margin-left: auto;
-    gap: 4px;
+    gap: 6px;
   }
 
-  /* 桌機版 action row 的按鈕寬度自動 */
+  /* 桌機版 action row 的按鈕寬度自動，文字不換行 */
   body.game-scene-active .stats .game-action-row > button {
     width: auto !important;
     padding: 5px 14px !important;
     flex: 0 0 auto;
+    white-space: nowrap;
+    word-break: normal;
   }
 
   /* 頂欄 draw-btn 在電腦版隱藏（按鈕已移至玩家區右側） */
   body.game-scene-active .stats #draw-btn {
     display: none !important;
+  }
+
+  /* 桌機版：action row 內的分隔線（icon 群前） */
+  body.game-scene-active .stats .game-action-row .top-sep {
+    display: block;
+    width: 1px;
+    height: 20px;
+    background: rgba(197, 160, 60, 0.22);
+    flex-shrink: 0;
+  }
+
+  /* 桌機版：action row 內的 icon 群不伸縮 */
+  body.game-scene-active .stats .game-action-row .game-icon-group {
+    flex: 0 0 auto;
+    gap: 8px;
   }
 
   /* ── 對手區域：手牌(左) | 棄牌(右) 兩欄 ── */
@@ -2345,11 +2366,11 @@ body.game-scene-active #mute-btn-global {
     margin-bottom: 0;
   }
 
-  /* ── Row 1: game-top-row ── */
+  /* ── Row 1: game-top-row（icon 群已移至 game-action-row）── */
   .game-top-row {
     flex: 1 1 100%;
     display: grid;
-    grid-template-columns: 35% 25% 25% 15%;
+    grid-template-columns: 35% 25% 1fr;
     align-items: center;
     min-height: 32px;
     gap: 0;
@@ -2375,8 +2396,8 @@ body.game-scene-active #mute-btn-global {
     justify-self: center;
   }
 
-  /* 手機版 icon 群縮小間距 */
-  .game-icon-group { gap: 3px; }
+  /* 手機版 icon 群間距（拉開避免誤觸）*/
+  .game-icon-group { gap: 14px; }
 
   /* 手機版 icon 按鈕縮小 */
   .icon-btn {
@@ -2397,13 +2418,27 @@ body.game-scene-active #mute-btn-global {
     flex: 1 1 0;
     min-width: 0;
     min-height: 32px;
-    padding: 0.35rem 0.3rem !important;
+    padding: 0.35rem 0.2rem !important;
     font-size: 0.72rem;
-    line-height: 1.1;
+    line-height: 1.15;
     border-radius: 6px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    /* 允許文字換行，避免長按鈕名稱（查看對戰紀錄）被截斷 */
+    white-space: normal;
+    word-break: break-all;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 手機版：action row 內的分隔線隱藏（桌機才顯示） */
+  .game-action-row .top-sep { display: none; }
+
+  /* 手機版：action row 內的 icon 群不伸縮，緊靠右 */
+  .game-action-row .game-icon-group {
+    flex: 0 0 auto;
+    gap: 14px;
+    align-self: center;
   }
 
   /* ── 麥克風按鈕狀態 ── */
@@ -2459,6 +2494,11 @@ body.game-scene-active #mute-btn-global {
     font-weight: bold;
     line-height: 1;
     vertical-align: middle;
+  }
+
+  /* 聊天室按鈕：讓「聊天室」文字與 badge 一起水平置中 */
+  #chat-btn {
+    gap: 3px;
   }
 
   #mute-btn-global {
@@ -3234,9 +3274,11 @@ body.game-scene-active #mute-btn-global {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 52vh;
+  /* dvh = dynamic viewport height：鍵盤彈出時自動縮小，確保 ✕ 不被推出畫面 */
+  height: 52vh;       /* fallback for browsers without dvh */
+  height: 52dvh;
   max-height: 420px;
-  min-height: 240px;
+  min-height: 180px;
   background: rgba(18, 18, 32, 0.98);
   border-top: 1px solid rgba(255, 176, 0, 0.35);
   border-radius: 18px 18px 0 0;
