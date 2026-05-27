@@ -67,6 +67,7 @@ body {
   position: relative;
   isolation: isolate;
   overflow: visible !important;
+  touch-action: manipulation;
 }
 
 #app {
