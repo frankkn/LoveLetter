@@ -427,6 +427,9 @@ let isMuted = localStorage.getItem('loveLetter_muted') === 'true';
 let currentBGMFile = '';
 let audioUnlocked = false;
 let pendingBGMFile = '';
+const preloadedAudio = new Set<string>();
+const audioPreloadQueue: string[] = [];
+let isAudioPreloadQueueRunning = false;
 // Tracks whether WE paused BGM to make way for an SFX (so we can resume it after)
 let bgmPausedForSFX = false;
 
@@ -446,9 +449,56 @@ function applyMuteState() {
     if (btnGlobal) btnGlobal.textContent = isMuted ? '🔇' : '🔊';
 }
 
+function preloadAudio(url: string) {
+    if (!url || preloadedAudio.has(url)) return;
+    preloadedAudio.add(url);
+    const audio = new Audio();
+    audio.preload = 'auto';
+    audio.src = url;
+    audio.load();
+}
+
+function queueAudioPreload(url: string) {
+    if (!url || preloadedAudio.has(url) || audioPreloadQueue.includes(url)) return;
+    audioPreloadQueue.push(url);
+    void runAudioPreloadQueue();
+}
+
+async function runAudioPreloadQueue() {
+    if (isAudioPreloadQueueRunning) return;
+    isAudioPreloadQueueRunning = true;
+    while (audioPreloadQueue.length > 0) {
+        const url = audioPreloadQueue.shift();
+        if (!url || preloadedAudio.has(url)) continue;
+        preloadAudio(url);
+        await new Promise(resolve => window.setTimeout(resolve, 650));
+    }
+    isAudioPreloadQueueRunning = false;
+}
+
+function preloadSelectedBGM() {
+    const menuTrack = getSelectedTrack('menu');
+    const gameTrack = getSelectedTrack('game');
+    if (menuTrack.url) preloadAudio(menuTrack.url);
+    if (gameTrack.url) preloadAudio(gameTrack.url);
+}
+
+function queueMusicSettingsPreload() {
+    for (const slot of Object.keys(AUDIO_LIBRARY) as MusicSlot[]) {
+        const tracks = AUDIO_LIBRARY[slot];
+        const selectedIndex = pendingMusicSelections[slot] ?? musicSelections[slot] ?? 0;
+        const indexes = [selectedIndex, selectedIndex - 1, selectedIndex + 1];
+        for (const index of indexes) {
+            const track = tracks[index];
+            if (track?.url) queueAudioPreload(track.url);
+        }
+    }
+}
+
 function unlockAudio() {
     if (audioUnlocked) return;
     audioUnlocked = true;
+    preloadSelectedBGM();
     // Fade out the splash screen
     const splash = document.getElementById('splash-screen');
     if (splash) {
@@ -466,6 +516,7 @@ function unlockAudio() {
 function playBGM(filenameOrUrl: string) {
     if (!audioUnlocked) { pendingBGMFile = filenameOrUrl; return; }
     if (currentBGMFile === filenameOrUrl) return; // already committed to this track
+    preloadAudio(filenameOrUrl);
     bgmAudio.loop = true;
     currentBGMFile = filenameOrUrl;
     bgmPausedForSFX = false;
@@ -4583,6 +4634,7 @@ function closeSettingsModal() {
 function openMusicSettings() {
     pendingMusicSelections = { ...musicSelections };
     updateSettingsDisplay();
+    queueMusicSettingsPreload();
     // 停掉 BGM，讓試聽音樂獨佔
     bgmAudio.pause();
     bgmPausedForSFX = false;
@@ -4644,6 +4696,7 @@ document.querySelectorAll('.settings-arrow').forEach(btn => {
         const tracks = AUDIO_LIBRARY[slot];
         pendingMusicSelections[slot] = Math.max(0, Math.min(pendingMusicSelections[slot] + dir, tracks.length - 1));
         updateSettingsDisplay();
+        queueMusicSettingsPreload();
         const track = tracks[pendingMusicSelections[slot]] ?? _NO_TRACK;
         if (track.url) playPreview(track.url);
     });
