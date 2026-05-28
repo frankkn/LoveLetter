@@ -4631,6 +4631,7 @@ function stopPreview() {
 function playPreview(url: string) {
     previewAudio.pause();
     previewAudio.muted = isMuted;
+    applyAudioVolume(pendingAudioVolumePercent);
     previewAudio.src = url;
     previewAudio.currentTime = 0;
     previewAudio.play().catch(() => {});
