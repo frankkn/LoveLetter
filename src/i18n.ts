@@ -758,8 +758,20 @@ function createRulesBodyHTML_zh(coinTarget = 4): string {
         </tr>`).join('');
     return `
         <div style="text-align:left;font-size:0.92rem;line-height:1.65;max-height:68vh;overflow-y:auto;padding-right:0.4rem;">
+            <section style="margin-bottom:1.1rem;">
+                <h3 style="margin:0 0 0.45rem;color:#ffb000;font-size:1.08rem;">1. 遊戲流程</h3>
+                <p style="margin:0;">遊戲開始時，會先從 16 張卡牌（請看 4. 卡牌種類與效果）中隨機移除一張（銷毀牌）。每位玩家先發一張手牌。每個回合「抽一張牌，選一張牌打出」，設法透過卡牌效果淘汰其他對手。</p>
+            </section>
+            <section style="margin-bottom:1.1rem;">
+                <h3 style="margin:0 0 0.45rem;color:#ffb000;font-size:1.08rem;">2. 勝負判定</h3>
+                <p style="margin:0;">當牌堆沒有卡牌時，所有存活玩家攤牌比點數，點數最大者獲勝。若點數相同，則比較各自已打出牌堆的點數總和，大者獲勝。</p>
+            </section>
+            <section style="margin-bottom:1.1rem;">
+                <h3 style="margin:0 0 0.45rem;color:#ffb000;font-size:1.08rem;">3. 次局規則與聯賽勝利</h3>
+                <p style="margin:0;">每局遊戲結束後，由該局的勝出者擔任下一局遊戲的先攻（最先開始抽卡的人）。<br>率先取得 <strong style="color:#ffb000;">${coinTarget}</strong> 枚硬幣的玩家成為聯賽總冠軍。</p>
+            </section>
             <section style="margin-bottom:1.35rem;">
-                <h3 style="margin:0 0 0.75rem;color:#ffb000;font-size:1.15rem;">1. 卡牌種類與效果（整副牌共 16 張）</h3>
+                <h3 style="margin:0 0 0.75rem;color:#ffb000;font-size:1.15rem;">4. 卡牌種類與效果（整副牌共 16 張）</h3>
                 <table style="width:100%;border-collapse:collapse;overflow:hidden;border-radius:8px;background:rgba(255,255,255,0.04);">
                     <thead><tr style="background:rgba(255,176,0,0.16);color:#ffd36a;">
                         <th style="padding:0.65rem 0.7rem;text-align:left;white-space:nowrap;">點數 / 名稱</th>
@@ -768,18 +780,6 @@ function createRulesBodyHTML_zh(coinTarget = 4): string {
                     </tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
-            </section>
-            <section style="margin-bottom:1.1rem;">
-                <h3 style="margin:0 0 0.45rem;color:#ffb000;font-size:1.08rem;">2. 遊戲流程</h3>
-                <p style="margin:0;">遊戲開始時，會先從 16 張卡牌中隨機移除一張（銷毀牌）。每位玩家先發一張手牌。每個回合「抽一張牌，選一張牌打出」，設法透過卡牌效果淘汰其他對手。</p>
-            </section>
-            <section style="margin-bottom:1.1rem;">
-                <h3 style="margin:0 0 0.45rem;color:#ffb000;font-size:1.08rem;">3. 勝負判定</h3>
-                <p style="margin:0;">當牌堆沒有卡牌時，所有存活玩家攤牌比點數，點數最大者獲勝。若點數相同，則比較各自已打出牌堆的點數總和，大者獲勝。</p>
-            </section>
-            <section>
-                <h3 style="margin:0 0 0.45rem;color:#ffb000;font-size:1.08rem;">4. 次局規則與聯賽勝利</h3>
-                <p style="margin:0;">每局遊戲結束後，由該局的勝出者擔任下一局遊戲的先攻（最先開始抽卡的人）。<br>率先取得 <strong style="color:#ffb000;">${coinTarget}</strong> 枚硬幣的玩家成為聯賽總冠軍。</p>
             </section>
         </div>`;
 }
@@ -803,8 +803,20 @@ function createRulesBodyHTML_en(coinTarget = 4): string {
         </tr>`).join('');
     return `
         <div style="text-align:left;font-size:0.92rem;line-height:1.65;max-height:68vh;overflow-y:auto;padding-right:0.4rem;">
+            <section style="margin-bottom:1.1rem;">
+                <h3 style="margin:0 0 0.45rem;color:#ffb000;font-size:1.08rem;">1. Game Flow</h3>
+                <p style="margin:0;">At the start, one card is removed from the 16-card deck (see 4. Card Types) face-down. Each player starts with 1 card. On your turn: draw 1 card, then play 1. Use card effects to eliminate opponents.</p>
+            </section>
+            <section style="margin-bottom:1.1rem;">
+                <h3 style="margin:0 0 0.45rem;color:#ffb000;font-size:1.08rem;">2. Winning a Round</h3>
+                <p style="margin:0;">When the deck runs out, all survivors reveal their hands. The highest card wins. Ties are broken by the highest total value of discarded cards.</p>
+            </section>
+            <section style="margin-bottom:1.1rem;">
+                <h3 style="margin:0 0 0.45rem;color:#ffb000;font-size:1.08rem;">3. League Rules</h3>
+                <p style="margin:0;">The round winner goes first in the next round. The first player to reach <strong style="color:#ffb000;">${coinTarget}</strong> token${coinTarget !== 1 ? 's' : ''} wins the league.</p>
+            </section>
             <section style="margin-bottom:1.35rem;">
-                <h3 style="margin:0 0 0.75rem;color:#ffb000;font-size:1.15rem;">1. Card Types (16 cards total)</h3>
+                <h3 style="margin:0 0 0.75rem;color:#ffb000;font-size:1.15rem;">4. Card Types (16 cards total)</h3>
                 <table style="width:100%;border-collapse:collapse;overflow:hidden;border-radius:8px;background:rgba(255,255,255,0.04);">
                     <thead><tr style="background:rgba(255,176,0,0.16);color:#ffd36a;">
                         <th style="padding:0.65rem 0.7rem;text-align:left;white-space:nowrap;">Value / Name</th>
@@ -813,18 +825,6 @@ function createRulesBodyHTML_en(coinTarget = 4): string {
                     </tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
-            </section>
-            <section style="margin-bottom:1.1rem;">
-                <h3 style="margin:0 0 0.45rem;color:#ffb000;font-size:1.08rem;">2. Game Flow</h3>
-                <p style="margin:0;">At the start one card is burned face-down. Each player starts with 1 card. On your turn: draw 1 card, then play 1. Use card effects to eliminate opponents.</p>
-            </section>
-            <section style="margin-bottom:1.1rem;">
-                <h3 style="margin:0 0 0.45rem;color:#ffb000;font-size:1.08rem;">3. Winning a Round</h3>
-                <p style="margin:0;">When the deck runs out, all survivors reveal their hands. The highest card wins. Ties are broken by the highest total value of discarded cards.</p>
-            </section>
-            <section>
-                <h3 style="margin:0 0 0.45rem;color:#ffb000;font-size:1.08rem;">4. League Rules</h3>
-                <p style="margin:0;">The round winner goes first in the next round. The first player to reach <strong style="color:#ffb000;">${coinTarget}</strong> token${coinTarget !== 1 ? 's' : ''} wins the league.</p>
             </section>
         </div>`;
 }
