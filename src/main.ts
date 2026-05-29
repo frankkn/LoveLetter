@@ -359,6 +359,7 @@ let voiceAudioContext: AudioContext | null = null;
 /** sessionId → 是否正在說話 */
 const voiceSpeakingStates = new Map<string, boolean>();
 let hasShownEndGameModal = false;
+let showStatsNextRoundButton = false;
 let nextRoundReadyPlayerIds: number[] = [];
 let restartReadyPlayerIds: number[] = [];
 let pendingOnlineNotifications: OnlineNotification[] = [];
@@ -657,6 +658,7 @@ const deckCountEl = document.getElementById('deck-count')!;
 const drawBtn = document.getElementById('draw-btn') as HTMLButtonElement;
 const drawBtnDesktop = document.getElementById('draw-btn-desktop') as HTMLButtonElement | null;
 const showResultBtn = document.getElementById('show-result-btn') as HTMLButtonElement;
+const statsNextRoundBtn = document.getElementById('stats-next-round-btn') as HTMLButtonElement;
 const showLogBtn = document.getElementById('show-log-btn') as HTMLButtonElement;
 const gameLogEl = document.getElementById('game-log')!;
 const turnIndicatorEl = document.getElementById('turn-indicator')!;
@@ -748,6 +750,17 @@ function renderPlayedCardStats() {
         row.append(value, name, total);
         playedCardStatsEl.appendChild(row);
     }
+}
+
+function updateStatsNextRoundButton() {
+    const canStartNextRoundFromStats = Boolean(
+        showStatsNextRoundButton &&
+        state.isGameOver &&
+        state.winner &&
+        !getLeagueChampion()
+    );
+
+    statsNextRoundBtn.style.display = canStartNextRoundFromStats ? 'block' : 'none';
 }
 
 function createPlayedCardStatsHTML(): string {
@@ -973,6 +986,7 @@ function render() {
         drawBtnDesktop.style.display = canDraw ? 'flex' : 'none';
     }
     showResultBtn.style.display = state.isGameOver ? 'block' : 'none';
+    updateStatsNextRoundButton();
 
     // "離開本局遊戲" 僅在線上遊戲進行中顯示，並取代 "回主選單" 的位置
     const leaveGameBtn = document.getElementById('leave-game-btn') as HTMLButtonElement | null;
@@ -2323,6 +2337,7 @@ function endGame(winner: Player, reason: string) {
     isHandlingPendingForcedEffect = false;
     state.isGameOver = true;
     state.winner = winner;
+    showStatsNextRoundButton = false;
     endGameReason = reason;
     winner.coins += 1;
     addLog(t('log.gameOver', winner.name, reason));
@@ -2377,6 +2392,8 @@ function showEndGameModal() {
     rankingReturnBtn.onclick = () => {
         closeModal();
         showResultBtn.style.display = 'block';
+        showStatsNextRoundButton = true;
+        updateStatsNextRoundButton();
     };
 }
 
@@ -3531,6 +3548,7 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
         pendingKingExchange = incomingPendingKingExchange;
         nextRoundReadyPlayerIds = [...(data.nextRoundReadyPlayerIds ?? [])];
         hasShownEndGameModal = false;
+        showStatsNextRoundButton = false;
         if (data.forfeitedPlayerIds) {
             data.forfeitedPlayerIds.forEach(id => forfeitedOnlinePlayerIds.add(id));
         }
@@ -4496,6 +4514,7 @@ document.getElementById('back-home-btn')!.onclick = async () => {
     }
 };
 showResultBtn.onclick = showEndGameModal;
+statsNextRoundBtn.onclick = handleStatsNextRoundClick;
 showLogBtn.onclick = showBattleLogModal;
 document.getElementById('leave-game-btn')!.onclick = () => {
     if (confirm(t('disconnect.forfeitConfirm'))) {
@@ -5135,6 +5154,12 @@ function startNewLeague() {
 
 // ── Next round ─────────────────────────────────────────────────────────────
 
+function handleStatsNextRoundClick() {
+    showStatsNextRoundButton = false;
+    updateStatsNextRoundButton();
+    requestNextRound();
+}
+
 function requestNextRound() {
     if (!state.winner) return;
 
@@ -5165,6 +5190,7 @@ function startNextRound() {
     endGameReason = '';
     nextRoundReadyPlayerIds = [];
     restartReadyPlayerIds = [];
+    showStatsNextRoundButton = false;
     queuedBotTurnId = null;
     selectedCardId = null;
     isResolvingTurnAction = false;

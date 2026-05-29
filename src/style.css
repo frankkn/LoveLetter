@@ -612,6 +612,9 @@ h3 {
   position: sticky;
   top: 12px;
   height: fit-content;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   overflow: visible !important;
 }
 
@@ -623,6 +626,21 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 0 0 auto;
+}
+
+.stats-next-round-btn {
+  align-self: stretch;
+  width: auto;
+  box-sizing: border-box;
+  min-height: 54px;
+  margin-top: 12px;
+  padding: 13px 18px;
+  border-radius: 8px;
+  font-size: 1.08rem;
+  line-height: 1.2;
+  letter-spacing: 0;
+  box-shadow: 0 0 20px rgba(46, 213, 115, 0.24);
 }
 
 .card-stat-row {
@@ -1836,6 +1854,7 @@ body.game-scene-active #mute-btn-global {
   /* .log-container is display:none globally (used as modal on mobile); override for desktop inline panel */
   #game-log-panel #game-log { display: flex !important; flex-direction: column; flex: 1; overflow-y: auto; }
   .card-stats-area { grid-area: stats; position: static; height: auto; overflow-y: auto; }
+  .card-stats-area .stats-next-round-btn { margin-top: 12px; }
 
   /* 桌機版已有日誌面板，隱藏 show-log-btn */
   body.game-scene-active .stats #show-log-btn { display: none !important; }
