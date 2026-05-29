@@ -5,8 +5,13 @@ import { LoveLetterRoom } from '../../src/server/rooms/LoveLetterRoom.js';
 const port = Number(process.env.COLYSEUS_PORT ?? 2567);
 
 const gameServer = new Server({
-    // Match production: raise the 4KB default maxPayload so full-state syncs fit.
-    transport: new WebSocketTransport({ maxPayload: 1024 * 1024 }),
+    // Match production: raise the 4KB default maxPayload so full-state syncs fit,
+    // and relax the heartbeat (3s × 4 ≈ 12s tolerance) so brief stalls don't drop clients.
+    transport: new WebSocketTransport({
+        maxPayload: 1024 * 1024,
+        pingInterval: 3000,
+        pingMaxRetries: 4
+    }),
     greet: false,
     express: app => {
         app.get('/health', (_req: unknown, res: { status: (code: number) => { send: (body: string) => void } }) => {
