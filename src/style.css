@@ -2326,9 +2326,8 @@ body.game-scene-active #mute-btn-global {
      令其子元素直接成為 .stats 的 flex item，再用 order 重排位置。
      此技巧僅影響桌機，手機版 DOM 結構完全不變。 */
   body.game-scene-active .stats {
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: nowrap;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
     align-items: center;
     gap: 10px;
     width: 100%;
@@ -2342,8 +2341,8 @@ body.game-scene-active #mute-btn-global {
 
   /* 左側三項：各佔 flex:1 均等分配 */
   body.game-scene-active .stats #turn-indicator {
-    order: 1;
-    flex: 1 1 0 !important;
+    grid-column: 1;
+    grid-row: 1;
     min-width: 0;
     white-space: nowrap;
     overflow: hidden;
@@ -2351,8 +2350,8 @@ body.game-scene-active #mute-btn-global {
     text-align: center;
   }
   body.game-scene-active .stats #deck-count {
-    order: 2;
-    flex: 1 1 0 !important;
+    grid-column: 2;
+    grid-row: 1;
     min-width: 0;
     white-space: nowrap;
     overflow: hidden;
@@ -2366,11 +2365,11 @@ body.game-scene-active #mute-btn-global {
     font-variant-numeric: tabular-nums;
   }
   body.game-scene-active .stats #back-home-btn {
-    order: 3;
-    flex: 1 1 0 !important;
+    grid-column: 3;
+    grid-row: 1;
     min-width: 0;
     padding: 3px 10px !important;
-    width: auto !important;
+    width: 100% !important;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2381,22 +2380,28 @@ body.game-scene-active #mute-btn-global {
   body.game-scene-active .stats #show-result-btn,
   body.game-scene-active .stats #leave-game-btn,
   body.game-scene-active .stats #chat-btn {
-    flex: 0 1 auto;
     min-width: 0;
-    max-width: 9rem;
+    max-width: none;
+    width: 100%;
     padding: 5px 10px !important;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  body.game-scene-active .stats #show-result-btn { order: 4; }
-  body.game-scene-active .stats #leave-game-btn  { order: 5; }
-  body.game-scene-active .stats #chat-btn        { order: 6; }
+  body.game-scene-active .stats #show-result-btn,
+  body.game-scene-active .stats #leave-game-btn {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  body.game-scene-active .stats #chat-btn {
+    grid-column: 4;
+    grid-row: 1;
+  }
 
   /* 右側 icon 群：margin-left:auto 推到最右 */
   body.game-scene-active .stats .game-icon-group {
-    order: 99;
-    flex: 0 0 auto;
+    grid-column: 5;
+    grid-row: 1;
     margin-left: 0;
     gap: 8px;
   }
@@ -2406,7 +2411,6 @@ body.game-scene-active #mute-btn-global {
   body.game-scene-active .stats #draw-btn         { display: none !important; }
   body.game-scene-active .stats #show-log-btn     { display: none !important; }
   body.game-scene-active .stats .top-sep          { display: none !important; }
-  body.game-scene-active .stats #mic-btn          { display: none !important; }
 
   /* ── 所有 area 面板預設 overflow visible（卡牌 hover 效果需要）── */
   body.game-scene-active #game-scene .area {
