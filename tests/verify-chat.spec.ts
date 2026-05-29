@@ -137,8 +137,9 @@ test.describe('聊天室功能驗證', () => {
         await page.locator('#start-game-btn').click();
         // 選本機模式
         await page.locator('#local-mode-btn').click();
-        // 直接進入遊戲（選 1 個 bot）
-        await page.locator('.count-btn').first().click();
+        // 遊戲設定畫面 → 直接以預設值開始遊戲
+        await expect(page.locator('#bot-settings-select')).toBeVisible({ timeout: 3000 });
+        await page.locator('#bot-settings-start-btn').click();
 
         await expect(page.locator('#game-scene')).toBeVisible({ timeout: 5000 });
         // 聊天按鈕應為隱藏

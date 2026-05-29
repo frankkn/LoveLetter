@@ -334,6 +334,13 @@ let pendingKingExchange: PendingKingExchange | null = null;
 let activeKingExchangeModalKey: string | null = null;
 let isHandlingPendingForcedEffect = false;
 
+// ── 增量 log 同步狀態（host 端）─────────────────────────────────────────────
+// sync_game_state 不再每次重傳整個 logs 陣列；host 只送上次同步後新增的尾段
+// （logsBaseIndex 標記尾段在完整陣列中的起點）。logs 每局會重置，這兩個計數器
+// 偵測重置/回捲時改送完整 logs。
+let lastSyncedLogLength = 0;
+let lastSyncedRoundIndex = -1;
+
 // ── 聊天室狀態 ──────────────────────────────────────────────────────────────
 interface ChatMsg { sessionId: string; name: string; text: string; timestamp: number; }
 let chatMessages: ChatMsg[] = [];
@@ -2622,6 +2629,9 @@ interface OnlineGameStateData extends OnlineGameData {
     restartReadyPlayerIds?: number[];
     pendingNotifications?: OnlineNotification[];
     forfeitedPlayerIds?: number[];
+    // 增量 log 同步：當 logsBaseIndex 為正數時，`logs` 只是完整陣列從該索引起的尾段，
+    // 接收端需與本地既有 logs 合併。缺省 / 0 代表 `logs` 即完整快照。
+    logsBaseIndex?: number;
 }
 
 function getConnectionErrorMessage(error: unknown): string {
@@ -2786,6 +2796,12 @@ function createInitialOnlineGameData(roomState: RoomWaitViewState): OnlineGameDa
         player.hand = [deck.pop()!];
     });
 
+    // Reset host-side delta tracking: this is a brand-new game, so the first
+    // sync_game_state must send the full logs (roundIndex mismatch forces it,
+    // but reset the counters explicitly for clarity).
+    lastSyncedLogLength = 0;
+    lastSyncedRoundIndex = -1;
+
     return {
         deck,
         burnedCard,
@@ -2853,6 +2869,20 @@ function restoreLocalPrivateHints(players: Player[]): Player[] {
     return players;
 }
 
+// Merge an incoming log payload (which may be a tail-only delta) against the
+// receiver's current logs. Mirrors the host's delta logic in reverse.
+function mergeOnlineLogs(incomingLogs: string[], baseIndex: number | undefined): string[] {
+    const base = baseIndex ?? 0;
+    if (base <= 0) return [...incomingLogs];                  // full snapshot → replace
+    const local = state?.logs ?? [];
+    if (local.length === base) return [...local, ...incomingLogs];        // exact append
+    if (local.length > base) return [...local.slice(0, base), ...incomingLogs]; // rebuild from base (rollback/replay)
+    // Gap: we missed entries between local.length and base (e.g. syncs skipped
+    // during a Baron/King interaction). Display-only; mark the omission and
+    // append the tail. Self-heals on the next round reset.
+    return [...local, '…', ...incomingLogs];
+}
+
 function createOnlineGameStateData(): OnlineGameStateData {
     // Take a snapshot of active notifications, then decay their broadcast counter.
     // Each notification is sent up to `remainingBroadcasts` times so that brief
@@ -2861,6 +2891,16 @@ function createOnlineGameStateData(): OnlineGameStateData {
     pendingOnlineNotifications = notificationsToSend
         .map(n => ({ ...n, remainingBroadcasts: n.remainingBroadcasts - 1 }))
         .filter(n => n.remainingBroadcasts > 0);
+
+    // Incremental logs: send only the entries added since the last sync. Logs
+    // reset per round (and shrink on rollback), so when the round changed or the
+    // array got shorter we fall back to sending the full array (baseIndex 0).
+    const sameRound = state.roundIndex === lastSyncedRoundIndex;
+    const canDelta = sameRound && state.logs.length >= lastSyncedLogLength;
+    const logsBaseIndex = canDelta ? lastSyncedLogLength : 0;
+    const logsTail = canDelta ? state.logs.slice(lastSyncedLogLength) : [...state.logs];
+    lastSyncedLogLength = state.logs.length;
+    lastSyncedRoundIndex = state.roundIndex;
 
     return {
         deck: [...state.deck],
@@ -2876,7 +2916,8 @@ function createOnlineGameStateData(): OnlineGameStateData {
         currentTurnPlayerId: state.currentTurnPlayerId,
         isGameOver: state.isGameOver,
         winner: state.winner ? cloneOnlinePlayer(state.winner) : null,
-        logs: [...state.logs],
+        logs: logsTail,
+        logsBaseIndex,
         roundIndex: state.roundIndex,
         pendingForcedEffectsQueue: pendingForcedEffectsQueue.map(effect => ({
             ...effect,
@@ -3350,7 +3391,7 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
                 currentTurnPlayerId: data.currentTurnPlayerId,
                 isGameOver: true,
                 winner: data.winner ? players.find(player => player.id === data.winner?.id) ?? cloneOnlinePlayer(data.winner) : null,
-                logs: [...data.logs],
+                logs: mergeOnlineLogs(data.logs, data.logsBaseIndex),
                 aiMemory: {},
                 aiExcludedGuesses: {},
                 roundIndex: data.roundIndex ?? 0
@@ -3471,7 +3512,7 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
             currentTurnPlayerId: data.currentTurnPlayerId,
             isGameOver: data.isGameOver,
             winner: data.winner ? players.find(player => player.id === data.winner?.id) ?? cloneOnlinePlayer(data.winner) : null,
-            logs: [...data.logs],
+            logs: mergeOnlineLogs(data.logs, data.logsBaseIndex),
             aiMemory: {},
             aiExcludedGuesses: {},
             roundIndex: data.roundIndex ?? 0
