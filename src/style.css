@@ -1879,7 +1879,7 @@ body.game-scene-active #mute-btn-global {
     align-items: stretch;
     gap: 10px;
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
   }
 
   /* hand zone: fixed width for exactly 2 cards */
@@ -1905,7 +1905,7 @@ body.game-scene-active #mute-btn-global {
     border: 1px solid rgba(100,130,200,0.28);
     border-radius: 8px;
     padding: 5px 6px;
-    overflow: hidden;
+    overflow: visible;
   }
 
   /* zone label */
@@ -2130,6 +2130,17 @@ body.game-scene-active #mute-btn-global {
   #game-scene[data-opponent-count="3"] .opponent-area .discard-container .card-action-hints {
     width: 110px;
     margin-left: -25px; /* center 110px hint under 60px card */
+  }
+
+  /* card-value badge + card-name: 縮至約 75% 配合 60×84px 卡牌 */
+  #game-scene[data-opponent-count="3"] .card-value {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    font-size: 0.62rem;
+  }
+  #game-scene[data-opponent-count="3"] .card-name {
+    font-size: 0.6rem;
   }
 
   /* 保護中 badge: 桌機版 opponent-area / player-area 有 overflow:hidden，
