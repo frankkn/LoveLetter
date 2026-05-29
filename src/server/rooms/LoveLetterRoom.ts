@@ -81,6 +81,7 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
                 throw new LobbyException("Room is full.");
             }
             this.state.botCount++;
+            this.state.botDifficulties.push("hard");
             console.log(`[LoveLetterRoom] Bot added to room ${this.roomId}. Bot count: ${this.state.botCount}`);
         });
 
@@ -96,7 +97,29 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
                 throw new LobbyException("No bots to remove.");
             }
             this.state.botCount--;
+            this.state.botDifficulties.pop();
             console.log(`[LoveLetterRoom] Bot removed from room ${this.roomId}. Bot count: ${this.state.botCount}`);
+        });
+
+        this.onMessage("set_bot_difficulty", (client, data: { index: number; difficulty: string }) => {
+            const player = this.getPlayerOrThrow(client.sessionId);
+            if (!player.isHost) throw new LobbyException("Only the host can set bot difficulty.", 403);
+            if (this.state.isGameStarted) throw new LobbyException("Cannot change difficulty after the game has started.");
+            const valid = ['easy', 'medium', 'hard'];
+            if (typeof data?.index !== 'number' || data.index < 0 || data.index >= this.state.botCount) {
+                throw new LobbyException("Invalid bot index.");
+            }
+            if (!valid.includes(data?.difficulty)) throw new LobbyException("Invalid difficulty value.");
+            this.state.botDifficulties[data.index] = data.difficulty;
+        });
+
+        this.onMessage("set_champion_coins", (client, data: { value: number }) => {
+            const player = this.getPlayerOrThrow(client.sessionId);
+            if (!player.isHost) throw new LobbyException("Only the host can set champion coins.", 403);
+            if (this.state.isGameStarted) throw new LobbyException("Cannot change champion coins after the game has started.");
+            const v = data?.value;
+            if (typeof v !== 'number' || v < 1 || v > 10) throw new LobbyException("Champion coins must be between 1 and 10.");
+            this.state.championCoins = v;
         });
 
         this.onMessage("kick_player", (client, data: { targetSessionId: string }) => {

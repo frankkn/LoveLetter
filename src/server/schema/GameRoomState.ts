@@ -1,4 +1,4 @@
-import { MapSchema, Schema, type } from "@colyseus/schema";
+import { ArraySchema, MapSchema, Schema, type } from "@colyseus/schema";
 import { PlayerState } from "./PlayerState.js";
 
 export class GameRoomState extends Schema {
@@ -16,4 +16,10 @@ export class GameRoomState extends Schema {
 
     @type("number")
     botCount = 0;
+
+    @type(["string"])
+    botDifficulties = new ArraySchema<string>();
+
+    @type("number")
+    championCoins = 4;
 }

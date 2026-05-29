@@ -291,6 +291,8 @@ interface RoomWaitViewState {
     selfId: string;
     isGameStarted: boolean;
     botCount: number;
+    botDifficulties: string[];
+    championCoins: number;
 }
 
 interface SyncedRoomPlayerState {
@@ -309,6 +311,8 @@ interface SyncedRoomState {
         values: () => IterableIterator<SyncedRoomPlayerState>;
     };
     botCount?: number;
+    botDifficulties?: { toArray?: () => string[] } | string[];
+    championCoins?: number;
 }
 
 const colyseusEndpoint = import.meta.env.VITE_COLYSEUS_ENDPOINT ||
@@ -2702,12 +2706,23 @@ function getSyncedPlayers(state: SyncedRoomState): RoomWaitPlayerView[] {
         .filter((player): player is RoomWaitPlayerView => player !== null);
 }
 
+function normalizeBotDifficulties(raw: SyncedRoomState['botDifficulties']): string[] {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return [...raw];
+    if (typeof (raw as { toArray?: () => string[] }).toArray === 'function') {
+        return (raw as { toArray: () => string[] }).toArray();
+    }
+    return Array.from(raw as Iterable<string>);
+}
+
 function normalizeRoomWaitState(roomState: RoomWaitViewState | SyncedRoomState): RoomWaitViewState {
     if (Array.isArray((roomState as RoomWaitViewState).players)) {
         const viewState = roomState as RoomWaitViewState;
         return {
             ...viewState,
             botCount: viewState.botCount ?? 0,
+            botDifficulties: viewState.botDifficulties ?? [],
+            championCoins: viewState.championCoins ?? 4,
             players: viewState.players
                 .map(player => toRoomWaitPlayerView(player))
                 .filter((player): player is RoomWaitPlayerView => player !== null)
@@ -2720,7 +2735,9 @@ function normalizeRoomWaitState(roomState: RoomWaitViewState | SyncedRoomState):
         players: getSyncedPlayers(syncedState),
         selfId: activeGameRoom?.sessionId || '',
         isGameStarted: syncedState.isGameStarted,
-        botCount: syncedState.botCount ?? 0
+        botCount: syncedState.botCount ?? 0,
+        botDifficulties: normalizeBotDifficulties(syncedState.botDifficulties),
+        championCoins: syncedState.championCoins ?? 4
     };
 }
 
@@ -2748,11 +2765,13 @@ function createInitialOnlineGameData(roomState: RoomWaitViewState): OnlineGameDa
     // Append bot players after real players
     const BOT_NAMES = ['電腦 A', '電腦 B', '電腦 C'];
     const botCount = roomState.botCount ?? 0;
+    const botDifficulties = roomState.botDifficulties ?? [];
     for (let i = 0; i < botCount; i++) {
         players.push({
             id: players.length,
             name: BOT_NAMES[i] ?? `電腦 ${i + 1}`,
             isBot: true,
+            difficulty: (botDifficulties[i] ?? 'hard') as BotDifficulty,
             coins: 0,
             hand: [],
             isProtected: false,
@@ -3559,11 +3578,13 @@ function initOnlineGame(roomState: RoomWaitViewState) {
 
     // ── Normal first-join path ───────────────────────────────────────────────
     if (!selfPlayer?.isHost) {
+        championThreshold = DEV_MODE ? 1 : (roomState.championCoins ?? 4);
         activeGameRoom?.send('request_game_data');
         return;
     }
 
     window.setTimeout(() => {
+        championThreshold = DEV_MODE ? 1 : (roomState.championCoins ?? 4);
         const gameData = createInitialOnlineGameData(roomState);
         activeGameRoom?.send('init_game_data', gameData);
     }, 100);
@@ -3657,14 +3678,27 @@ function renderRoomWaitArea(roomState: RoomWaitViewState | SyncedRoomState) {
 
     // Build bot rows
     const BOT_NAMES_DISPLAY = ['電腦 A', '電腦 B', '電腦 C'];
+    const DIFF_LABELS: Record<string, string> = { easy: t('difficulty.easy'), medium: t('difficulty.medium'), hard: t('difficulty.hard') };
     const botRows = Array.from({ length: botCount }, (_, i) => {
+        const diff = normalizedState.botDifficulties[i] ?? 'hard';
+        const diffLabel = DIFF_LABELS[diff] ?? diff;
         const removeBtnHtml = isHost && !normalizedState.isGameStarted && i === botCount - 1
             ? `<button class="remove-bot-btn">${t('room.removeBot')}</button>`
+            : '';
+        const diffSelector = !normalizedState.isGameStarted
+            ? isHost
+                ? `<div class="room-diff-selector">
+                     <button class="room-diff-arrow" data-bot-idx="${i}" data-dir="-1" ${diff === 'easy' ? 'disabled' : ''}>◀</button>
+                     <span class="room-diff-value">${diffLabel}</span>
+                     <button class="room-diff-arrow" data-bot-idx="${i}" data-dir="1" ${diff === 'hard' ? 'disabled' : ''}>▶</button>
+                   </div>`
+                : `<span class="room-diff-readonly">${diffLabel}</span>`
             : '';
         return `
             <div class="room-player-row bot-slot">
                 <div class="room-player-name">
                     <strong>${escapeHTML(BOT_NAMES_DISPLAY[i] ?? `電腦 ${i + 1}`)}</strong>
+                    ${diffSelector}
                 </div>
                 <div class="room-player-actions">
                     <span class="player-status ready">${t('room.botStatus')}</span>
@@ -3691,7 +3725,25 @@ function renderRoomWaitArea(roomState: RoomWaitViewState | SyncedRoomState) {
         `;
     });
 
-    roomPlayerListEl.innerHTML = [...realPlayerRows, ...botRows, ...emptyRows].join('');
+    // Champion coins row (visible to all, editable by host only)
+    const coins = normalizedState.championCoins ?? 4;
+    const coinsRow = !normalizedState.isGameStarted
+        ? isHost
+            ? `<div class="room-champion-coins-row">
+                 <span class="room-coins-label">${t('menu.championCoins')}</span>
+                 <div class="room-diff-selector">
+                   <button id="room-coins-left" class="room-diff-arrow" ${coins <= 1 ? 'disabled' : ''}>◀</button>
+                   <span class="room-diff-value">${coins}</span>
+                   <button id="room-coins-right" class="room-diff-arrow" ${coins >= 10 ? 'disabled' : ''}>▶</button>
+                 </div>
+               </div>`
+            : `<div class="room-champion-coins-row">
+                 <span class="room-coins-label">${t('menu.championCoins')}</span>
+                 <span class="room-diff-readonly">${coins}</span>
+               </div>`
+        : '';
+
+    roomPlayerListEl.innerHTML = [...realPlayerRows, ...botRows, ...emptyRows].join('') + coinsRow;
 
     // Wire up host-only buttons
     roomPlayerListEl.querySelectorAll<HTMLButtonElement>('.kick-player-btn').forEach(btn => {
@@ -3709,6 +3761,26 @@ function renderRoomWaitArea(roomState: RoomWaitViewState | SyncedRoomState) {
 
     roomPlayerListEl.querySelector<HTMLButtonElement>('.remove-bot-btn')?.addEventListener('click', () => {
         activeGameRoom?.send('remove_bot');
+    });
+
+    // Bot difficulty arrows (host only)
+    roomPlayerListEl.querySelectorAll<HTMLButtonElement>('.room-diff-arrow[data-bot-idx]').forEach(btn => {
+        btn.onclick = () => {
+            const idx = parseInt(btn.dataset.botIdx!);
+            const dir = parseInt(btn.dataset.dir!);
+            const levels = ['easy', 'medium', 'hard'];
+            const cur = levels.indexOf(normalizedState.botDifficulties[idx] ?? 'hard');
+            const next = Math.max(0, Math.min(levels.length - 1, cur + dir));
+            activeGameRoom?.send('set_bot_difficulty', { index: idx, difficulty: levels[next] });
+        };
+    });
+
+    // Champion coins arrows (host only)
+    roomPlayerListEl.querySelector<HTMLButtonElement>('#room-coins-left')?.addEventListener('click', () => {
+        activeGameRoom?.send('set_champion_coins', { value: Math.max(1, coins - 1) });
+    });
+    roomPlayerListEl.querySelector<HTMLButtonElement>('#room-coins-right')?.addEventListener('click', () => {
+        activeGameRoom?.send('set_champion_coins', { value: Math.min(10, coins + 1) });
     });
 
     const guestsReady = normalizedState.players

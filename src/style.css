@@ -1417,6 +1417,65 @@ body.game-scene-active #mute-btn-global {
   background: rgba(100, 160, 255, 0.06);
 }
 
+/* ── 房間等待：電腦難度選擇器 ── */
+.room-diff-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(197, 160, 60, 0.22);
+  border-radius: 4px;
+  padding: 0.15rem 0.35rem;
+}
+
+.room-diff-arrow {
+  background: none;
+  border: none;
+  color: var(--gold-mid, #c9a227);
+  cursor: pointer;
+  font-size: 0.72rem;
+  padding: 0 0.15rem;
+  line-height: 1;
+  opacity: 0.85;
+  transition: opacity 0.12s;
+}
+.room-diff-arrow:hover:not(:disabled) { opacity: 1; }
+.room-diff-arrow:disabled { opacity: 0.3; cursor: default; }
+
+.room-diff-value {
+  font-size: 0.78rem;
+  color: #f0e6cc;
+  min-width: 2.4rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.room-diff-readonly {
+  font-size: 0.78rem;
+  color: rgba(197, 160, 60, 0.75);
+  padding: 0 0.2rem;
+}
+
+/* ── 房間等待：總冠軍硬幣數列 ── */
+.room-champion-coins-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  margin-top: 0.5rem;
+  border: 1px solid rgba(197, 160, 60, 0.28);
+  border-radius: 7px;
+  background: rgba(197, 160, 60, 0.06);
+}
+
+.room-coins-label {
+  font-size: 0.85rem;
+  color: var(--gold-mid, #c9a227);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .room-player-name {
   display: flex;
   align-items: center;
