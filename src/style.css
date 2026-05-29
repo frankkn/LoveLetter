@@ -2401,6 +2401,13 @@ body.game-scene-active #mute-btn-global {
   body.game-scene-active .stats #chat-btn {
     grid-column: 4;
     grid-row: 1;
+    background: linear-gradient(
+      180deg,
+      rgba(20, 55, 85, 0.88) 0%,
+      rgba(8,  28, 52, 0.95) 100%
+    ) !important;
+    border-color: rgba(100, 160, 210, 0.55) !important;
+    color: #b8d8f0 !important;
   }
 
   /* 右側 icon 群：margin-left:auto 推到最右 */
