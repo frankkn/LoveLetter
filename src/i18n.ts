@@ -105,6 +105,8 @@ const zh: TransMap = {
     'game.backHome':     '回主選單',
     'game.eliminated':   '已出局',
     'game.winner':       '勝利者',
+    'game.handLabel':    '手牌',
+    'game.discardLabel': '棄牌紀錄',
 
     // Card names
     'card.guard':     '衛兵',
@@ -452,6 +454,8 @@ const en: TransMap = {
     'game.backHome':     'Menu',
     'game.eliminated':   'Eliminated',
     'game.winner':       'Winner',
+    'game.handLabel':    'Hand',
+    'game.discardLabel': 'Discard',
 
     // Card names
     'card.guard':     'Guard',

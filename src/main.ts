@@ -873,8 +873,16 @@ function render() {
         botArea.innerHTML = `
             ${isWinner ? `<div class="winner-crown" title="${t('game.winner')}">♛</div>` : ''}
             <h3>${getPlayerTitleHTML(bot)}<span class="voice-speaking-dot" title="說話中"></span></h3>
-            <div class="discard-container"></div>
-            <div class="hand-container"></div>
+            <div class="opp-body">
+                <div class="opp-hand-zone zone-box zone-hand">
+                    <span class="zone-label-text">${t('game.handLabel')}</span>
+                    <div class="hand-container"></div>
+                </div>
+                <div class="opp-discard-zone zone-box zone-discard">
+                    <span class="zone-label-text">${t('game.discardLabel')}</span>
+                    <div class="discard-container"></div>
+                </div>
+            </div>
         `;
         const discardContainer = botArea.querySelector('.discard-container')!;
         bot.discardPile.forEach(card => discardContainer.appendChild(createCardUI(card, false)));
