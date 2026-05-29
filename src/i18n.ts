@@ -734,12 +734,12 @@ function rowColor(i: number): string {
     return bg[i] ?? '#888';
 }
 
-export function createRulesBodyHTML(): string {
-    if (_lang === 'en') return createRulesBodyHTML_en();
-    return createRulesBodyHTML_zh();
+export function createRulesBodyHTML(coinTarget = 4): string {
+    if (_lang === 'en') return createRulesBodyHTML_en(coinTarget);
+    return createRulesBodyHTML_zh(coinTarget);
 }
 
-function createRulesBodyHTML_zh(): string {
+function createRulesBodyHTML_zh(coinTarget = 4): string {
     const cards = [
         { val: 1, name: '衛兵',    count: '5', effect: '選擇一名對手並猜測其手牌（不能猜衛兵），若猜中則對方直接出局。' },
         { val: 2, name: '神父',    count: '2', effect: '選擇一名對手並秘密查看他的手牌。' },
@@ -778,13 +778,13 @@ function createRulesBodyHTML_zh(): string {
                 <p style="margin:0;">當牌堆沒有卡牌時，所有存活玩家攤牌比點數，點數最大者獲勝。若點數相同，則比較各自已打出牌堆的點數總和，大者獲勝。</p>
             </section>
             <section>
-                <h3 style="margin:0 0 0.45rem;color:#ffb000;font-size:1.08rem;">4. 次局規則</h3>
-                <p style="margin:0;">每局遊戲結束後，由該局的勝出者擔任下一局遊戲的先攻（最先開始抽卡的人）。</p>
+                <h3 style="margin:0 0 0.45rem;color:#ffb000;font-size:1.08rem;">4. 次局規則與聯賽勝利</h3>
+                <p style="margin:0;">每局遊戲結束後，由該局的勝出者擔任下一局遊戲的先攻（最先開始抽卡的人）。<br>率先取得 <strong style="color:#ffb000;">${coinTarget}</strong> 枚硬幣的玩家成為聯賽總冠軍。</p>
             </section>
         </div>`;
 }
 
-function createRulesBodyHTML_en(): string {
+function createRulesBodyHTML_en(coinTarget = 4): string {
     const cards = [
         { val: 1, name: 'Guard',    count: '5', effect: "Choose an opponent and guess their card (not Guard). If correct, they are immediately eliminated." },
         { val: 2, name: 'Priest',   count: '2', effect: "Choose an opponent and secretly look at their hand." },
@@ -824,7 +824,7 @@ function createRulesBodyHTML_en(): string {
             </section>
             <section>
                 <h3 style="margin:0 0 0.45rem;color:#ffb000;font-size:1.08rem;">4. League Rules</h3>
-                <p style="margin:0;">The round winner goes first in the next round. The first player to reach 4 tokens wins the league.</p>
+                <p style="margin:0;">The round winner goes first in the next round. The first player to reach <strong style="color:#ffb000;">${coinTarget}</strong> token${coinTarget !== 1 ? 's' : ''} wins the league.</p>
             </section>
         </div>`;
 }

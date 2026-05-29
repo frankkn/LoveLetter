@@ -4690,7 +4690,7 @@ document.addEventListener('click', event => {
     render();
 });
 document.getElementById('show-rules-btn')!.onclick = () => {
-    showModal(t('menu.gameRules'), createRulesBodyHTML(),
+    showModal(t('menu.gameRules'), createRulesBodyHTML(championThreshold),
         `<button class="modal-confirm-btn" onclick="this.closest('.modal-overlay').style.display='none'">${t('btn.close')}</button>`);
 };
 // ── 遊戲設置 ────────────────────────────────────────────────────────────────
