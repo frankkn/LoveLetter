@@ -256,7 +256,7 @@ let onlineGameInitialized = false;
 
 // Dev mode: ?dev=1 lowers the champion threshold to 1 win for quick testing
 const DEV_MODE = new URLSearchParams(window.location.search).get('dev') === '1';
-const CHAMPION_THRESHOLD = DEV_MODE ? 1 : 4;
+let championThreshold = DEV_MODE ? 1 : 4;
 let isApplyingOnlineState = false;
 
 interface LobbyRoomSummary {
@@ -323,8 +323,9 @@ let resolvingForcedEffect: PendingForcedEffect | null = null;
 let pendingBaronDuel: PendingBaronDuel | null = null;
 let activeBaronDuelModalKey: string | null = null;
 let recentBaronGuardClue: BaronGuardClue | null = null;
-let pendingBotCount = 1;
-let botDifficulties: BotDifficulty[] = ['hard', 'hard', 'hard'];
+let pendingBotCount = 2;
+let pendingDifficulty: BotDifficulty = 'hard';
+let pendingChampionCoins = 4;
 let pendingKingExchange: PendingKingExchange | null = null;
 let activeKingExchangeModalKey: string | null = null;
 let isHandlingPendingForcedEffect = false;
@@ -626,8 +627,7 @@ function resetClientState() {
 // 4. DOM 元素
 const mainMenuEl = document.getElementById('main-menu')!;
 const modeSelectEl = document.getElementById('mode-select')!;
-const botCountSelectEl = document.getElementById('bot-count-select')!;
-const botDifficultySelectEl = document.getElementById('bot-difficulty-select')!;
+const botSettingsSelectEl = document.getElementById('bot-settings-select')!;
 const lobbySceneEl = document.getElementById('lobby-scene')!;
 const roomWaitSceneEl = document.getElementById('room-wait-scene')!;
 const gameSceneEl = document.getElementById('game-scene')!;
@@ -2243,7 +2243,7 @@ function getRankedPlayers() {
 }
 
 function getLeagueChampion(): Player | null {
-    return state.players.find(player => player.coins >= CHAMPION_THRESHOLD) ?? null;
+    return state.players.find(player => player.coins >= championThreshold) ?? null;
 }
 
 function createRankingHTML(): string {
@@ -2259,7 +2259,7 @@ function createRankingHTML(): string {
         <div style="text-align: left; line-height: 1.6;">
             <div style="text-align: center; margin-bottom: 1rem;">
                 <h3 style="margin: 0 0 0.35rem; color: #ffb000; font-size: 1.65rem;">${t('ranking.title')}</h3>
-                <p style="margin: 0; color: #ddd;">${t('ranking.desc')}</p>
+                <p style="margin: 0; color: #ddd;">${t('ranking.desc', String(championThreshold))}</p>
             </div>
             <div style="display: grid; gap: 0.65rem;">
                 ${rows}
@@ -2279,7 +2279,7 @@ function showChampionModal() {
         <div style="text-align: center; line-height: 1.6; padding: 0.35rem 0;">
             <div style="font-size: 3rem; margin-bottom: 0.3rem;">♛</div>
             <h3 style="margin: 0; color: #ffb000; font-size: 1.85rem;">${champion.name}</h3>
-            <p style="margin: 0.65rem 0 0; font-size: 1.05rem;">${t('champion.desc')}</p>
+            <p style="margin: 0.65rem 0 0; font-size: 1.05rem;">${t('champion.desc', String(championThreshold))}</p>
             <div style="margin-top: 1rem; font-size: 1.65rem;">${getCoinIcons(champion.coins)}</div>
         </div>
     `, `<button class="modal-confirm-btn" id="champion-restart-btn" style="background: #16a34a;">${t('btn.restart')}</button><button class="modal-confirm-btn" id="champion-return-btn" style="margin-left: 0.65rem; background: #64748b;">${t('btn.back')}</button>`);
@@ -4313,8 +4313,8 @@ function setMobileStatsOpen(isOpen: boolean) {
     mobileStatsToggleBtn.setAttribute('aria-expanded', String(isOpen));
 }
 
-function showScene(sceneId: 'main-menu' | 'mode-select' | 'bot-count-select' | 'bot-difficulty-select' | 'lobby-scene' | 'room-wait-scene' | 'game-scene') {
-    [mainMenuEl, modeSelectEl, botCountSelectEl, botDifficultySelectEl, lobbySceneEl, roomWaitSceneEl, gameSceneEl].forEach(el => el.style.display = 'none');
+function showScene(sceneId: 'main-menu' | 'mode-select' | 'bot-settings-select' | 'lobby-scene' | 'room-wait-scene' | 'game-scene') {
+    [mainMenuEl, modeSelectEl, botSettingsSelectEl, lobbySceneEl, roomWaitSceneEl, gameSceneEl].forEach(el => el.style.display = 'none');
     document.body.classList.toggle('game-scene-active', sceneId === 'game-scene');
     if (sceneId !== 'game-scene') {
         setMobileStatsOpen(false);
@@ -4338,12 +4338,11 @@ document.getElementById('back-to-menu-btn')!.onclick = async () => {
     await resetClientState();
     showScene('main-menu');
 };
-document.getElementById('local-mode-btn')!.onclick = () => showScene('bot-count-select');
+document.getElementById('local-mode-btn')!.onclick = () => { showBotSettings(); };
 document.getElementById('online-mode-btn')!.onclick = async () => {
     showScene('lobby-scene');
     await connectLobbyRoom();
 };
-document.getElementById('back-to-mode-btn')!.onclick = () => showScene('mode-select');
 document.getElementById('back-to-mode-from-lobby-btn')!.onclick = () => showScene('mode-select');
 document.getElementById('create-room-btn')!.onclick = openCreateRoomModal;
 document.getElementById('refresh-room-list-btn')!.onclick = () => void connectLobbyRoom();
@@ -4748,64 +4747,74 @@ document.getElementById('settings-volume-range')!.addEventListener('input', (e) 
 });
 
 const DIFFICULTY_LEVELS: BotDifficulty[] = ['easy', 'medium', 'hard'];
-const BOT_LABELS = ['A', 'B', 'C'];
+const BOT_COUNT_MIN = 1;
+const BOT_COUNT_MAX = 3;
+const COINS_MIN = 1;
+const COINS_MAX = 10;
 
-function showDifficultySelect(botCount: number) {
-    pendingBotCount = botCount;
-    const rowsEl = document.getElementById('difficulty-rows')!;
-    rowsEl.innerHTML = '';
-    for (let i = 0; i < botCount; i++) {
-        const row = document.createElement('div');
-        row.className = 'settings-row';
-        row.innerHTML = `
-            <span class="settings-label">${t('player.bot' + BOT_LABELS[i])}</span>
-            <div class="settings-selector">
-                <button class="diff-arrow" data-bot="${i}" data-dir="-1">◀</button>
-                <span class="settings-value" id="diff-value-${i}"></span>
-                <button class="diff-arrow" data-bot="${i}" data-dir="1">▶</button>
-            </div>`;
-        rowsEl.appendChild(row);
-    }
-    updateDifficultyDisplay();
-    // Attach arrow listeners (fresh each time)
-    rowsEl.querySelectorAll('.diff-arrow').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const target = e.currentTarget as HTMLElement;
-            const botIdx = parseInt(target.dataset.bot!);
-            const dir = parseInt(target.dataset.dir!);
-            const cur = DIFFICULTY_LEVELS.indexOf(botDifficulties[botIdx]);
-            botDifficulties[botIdx] = DIFFICULTY_LEVELS[Math.max(0, Math.min(cur + dir, DIFFICULTY_LEVELS.length - 1))];
-            updateDifficultyDisplay();
-        });
-    });
-    showScene('bot-difficulty-select');
+function showBotSettings() {
+    updateBotSettingsDisplay();
+    showScene('bot-settings-select');
 }
 
-function updateDifficultyDisplay() {
-    for (let i = 0; i < pendingBotCount; i++) {
-        const valueEl = document.getElementById(`diff-value-${i}`);
-        if (valueEl) valueEl.textContent = t(`difficulty.${botDifficulties[i]}`);
-        const leftBtn  = document.querySelector(`.diff-arrow[data-bot="${i}"][data-dir="-1"]`) as HTMLButtonElement | null;
-        const rightBtn = document.querySelector(`.diff-arrow[data-bot="${i}"][data-dir="1"]`)  as HTMLButtonElement | null;
-        const curIdx = DIFFICULTY_LEVELS.indexOf(botDifficulties[i]);
-        if (leftBtn)  leftBtn.disabled  = curIdx <= 0;
-        if (rightBtn) rightBtn.disabled = curIdx >= DIFFICULTY_LEVELS.length - 1;
-    }
+function updateBotSettingsDisplay() {
+    const bcVal   = document.getElementById('botcount-value')   as HTMLSpanElement;
+    const diffVal = document.getElementById('difficulty-value') as HTMLSpanElement;
+    const coinsVal= document.getElementById('coins-value')      as HTMLSpanElement;
+    const bcL  = document.getElementById('botcount-arrow-left')   as HTMLButtonElement;
+    const bcR  = document.getElementById('botcount-arrow-right')  as HTMLButtonElement;
+    const difL = document.getElementById('difficulty-arrow-left') as HTMLButtonElement;
+    const difR = document.getElementById('difficulty-arrow-right')as HTMLButtonElement;
+    const coL  = document.getElementById('coins-arrow-left')      as HTMLButtonElement;
+    const coR  = document.getElementById('coins-arrow-right')     as HTMLButtonElement;
+
+    bcVal.textContent    = String(pendingBotCount);
+    diffVal.textContent  = t(`difficulty.${pendingDifficulty}`);
+    coinsVal.textContent = String(pendingChampionCoins);
+
+    bcL.disabled  = pendingBotCount <= BOT_COUNT_MIN;
+    bcR.disabled  = pendingBotCount >= BOT_COUNT_MAX;
+    const diffIdx = DIFFICULTY_LEVELS.indexOf(pendingDifficulty);
+    difL.disabled = diffIdx <= 0;
+    difR.disabled = diffIdx >= DIFFICULTY_LEVELS.length - 1;
+    coL.disabled  = pendingChampionCoins <= COINS_MIN;
+    coR.disabled  = pendingChampionCoins >= COINS_MAX;
 }
 
-document.getElementById('difficulty-start-btn')!.onclick = () => {
-    initGame(pendingBotCount, botDifficulties.slice(0, pendingBotCount));
+document.getElementById('botcount-arrow-left')!.onclick = () => {
+    pendingBotCount = Math.max(BOT_COUNT_MIN, pendingBotCount - 1);
+    updateBotSettingsDisplay();
 };
-document.getElementById('difficulty-back-btn')!.onclick = () => {
-    showScene('bot-count-select');
+document.getElementById('botcount-arrow-right')!.onclick = () => {
+    pendingBotCount = Math.min(BOT_COUNT_MAX, pendingBotCount + 1);
+    updateBotSettingsDisplay();
+};
+document.getElementById('difficulty-arrow-left')!.onclick = () => {
+    const idx = DIFFICULTY_LEVELS.indexOf(pendingDifficulty);
+    pendingDifficulty = DIFFICULTY_LEVELS[Math.max(0, idx - 1)];
+    updateBotSettingsDisplay();
+};
+document.getElementById('difficulty-arrow-right')!.onclick = () => {
+    const idx = DIFFICULTY_LEVELS.indexOf(pendingDifficulty);
+    pendingDifficulty = DIFFICULTY_LEVELS[Math.min(DIFFICULTY_LEVELS.length - 1, idx + 1)];
+    updateBotSettingsDisplay();
+};
+document.getElementById('coins-arrow-left')!.onclick = () => {
+    pendingChampionCoins = Math.max(COINS_MIN, pendingChampionCoins - 1);
+    updateBotSettingsDisplay();
+};
+document.getElementById('coins-arrow-right')!.onclick = () => {
+    pendingChampionCoins = Math.min(COINS_MAX, pendingChampionCoins + 1);
+    updateBotSettingsDisplay();
 };
 
-document.querySelectorAll('.count-btn').forEach(btn => {
-    (btn as HTMLElement).onclick = () => {
-        const botCount = parseInt((btn as HTMLElement).dataset.count!);
-        showDifficultySelect(botCount);
-    };
-});
+document.getElementById('bot-settings-start-btn')!.onclick = () => {
+    championThreshold = DEV_MODE ? 1 : pendingChampionCoins;
+    initGame(pendingBotCount, Array(pendingBotCount).fill(pendingDifficulty));
+};
+document.getElementById('bot-settings-back-btn')!.onclick = () => {
+    showScene('mode-select');
+};
 
 // 10. 初始化
 function initGame(botCount: number, difficulties: BotDifficulty[] = []) {

@@ -17,10 +17,14 @@ const zh: TransMap = {
     'menu.gameRules':   '遊戲說明',
     'menu.language':    '切換語言',
     'menu.selectMode':  '選擇遊戲模式',
-    'menu.onlineMode':  '多人連線大廳 (PVP)',
-    'menu.localMode':   '電腦對戰 (單機)',
-    'menu.selectBots':  '請選擇電腦對手人數',
-    'menu.back':        '返回',
+    'menu.onlineMode':      '多人連線大廳 (PVP)',
+    'menu.localMode':       '電腦對戰 (單機)',
+    'menu.selectBots':      '請選擇電腦對手人數',
+    'menu.back':            '返回',
+    'menu.botSettings':     '遊戲設定',
+    'menu.botCount':        '電腦人數',
+    'menu.botDifficulty':   '電腦難度',
+    'menu.championCoins':   '冠軍硬幣數',
 
     // Difficulty
     'difficulty.title':  '難度設置',
@@ -255,12 +259,12 @@ const zh: TransMap = {
 
     // Rankings
     'ranking.title':   '目前聯賽排行榜',
-    'ranking.desc':    '先取得 4 枚硬幣的玩家，成為 Love Letter 總冠軍。',
+    'ranking.desc':    (n: string) => `先取得 ${n} 枚硬幣的玩家，成為 Love Letter 總冠軍。`,
     'ranking.rank':    (r: string) => `第 ${r} 名`,
     'ranking.noScore': '尚未得分',
 
     // Champion modal
-    'champion.desc': '最終拿滿 4 枚硬幣的 Love Letter 總冠軍大贏家！🎉',
+    'champion.desc': (n: string) => `最終拿滿 ${n} 枚硬幣的 Love Letter 總冠軍大贏家！🎉`,
 
     // End-game modal
     'endgame.wins': (name: string) => `${name} 獲勝！`,
@@ -360,10 +364,14 @@ const en: TransMap = {
     'menu.gameRules':   'Game Rules',
     'menu.language':    'Language',
     'menu.selectMode':  'Select Mode',
-    'menu.onlineMode':  'Online Lobby (PVP)',
-    'menu.localMode':   'vs. Computer (Solo)',
-    'menu.selectBots':  'Number of Opponents',
-    'menu.back':        'Back',
+    'menu.onlineMode':      'Online Lobby (PVP)',
+    'menu.localMode':       'vs. Computer (Solo)',
+    'menu.selectBots':      'Number of Opponents',
+    'menu.back':            'Back',
+    'menu.botSettings':     'Game Settings',
+    'menu.botCount':        'Bots',
+    'menu.botDifficulty':   'Difficulty',
+    'menu.championCoins':   'Champion Tokens',
 
     // Difficulty
     'difficulty.title':  'Difficulty',
@@ -598,12 +606,12 @@ const en: TransMap = {
 
     // Rankings
     'ranking.title':   'League Standings',
-    'ranking.desc':    'First to 4 tokens wins the league.',
+    'ranking.desc':    (n: string) => `First to ${n} tokens wins the league.`,
     'ranking.rank':    (r: string) => `#${r}`,
     'ranking.noScore': 'No tokens yet',
 
     // Champion modal
-    'champion.desc': 'Congratulations — League Champion with 4 tokens! 🎉',
+    'champion.desc': (n: string) => `Congratulations — League Champion with ${n} token${parseInt(n) !== 1 ? 's' : ''}! 🎉`,
 
     // End-game modal
     'endgame.wins': (name: string) => `${name} wins!`,

@@ -71,36 +71,48 @@
       </div>
 
       <!-- 電腦人數選擇 -->
-      <div id="bot-count-select" class="menu-container glass-panel" style="display: none;">
+      <!-- 遊戲設定（電腦人數 / 難度 / 冠軍硬幣數） -->
+      <div id="bot-settings-select" class="menu-container glass-panel" style="display: none;">
         <span class="corner-bl" aria-hidden="true">◈</span>
         <span class="corner-br" aria-hidden="true">◈</span>
         <div class="panel-inner-border" aria-hidden="true"></div>
         <div class="panel-title">
-          <h2 data-i18n="menu.selectBots">請選擇電腦對手人數</h2>
+          <h2 data-i18n="menu.botSettings">遊戲設定</h2>
         </div>
         <div class="panel-divider" aria-hidden="true">❧</div>
-        <div class="menu-buttons count-buttons">
-          <button class="count-btn" data-count="1">1</button>
-          <button class="count-btn" data-count="2">2</button>
-          <button class="count-btn" data-count="3">3</button>
+        <div class="settings-rows">
+          <!-- 電腦人數 -->
+          <div class="settings-row">
+            <span class="settings-label" data-i18n="menu.botCount">電腦人數</span>
+            <div class="settings-selector">
+              <button class="diff-arrow" id="botcount-arrow-left">◀</button>
+              <span class="settings-value" id="botcount-value"></span>
+              <button class="diff-arrow" id="botcount-arrow-right">▶</button>
+            </div>
+          </div>
+          <!-- 電腦難度 -->
+          <div class="settings-row">
+            <span class="settings-label" data-i18n="menu.botDifficulty">電腦難度</span>
+            <div class="settings-selector">
+              <button class="diff-arrow" id="difficulty-arrow-left">◀</button>
+              <span class="settings-value" id="difficulty-value"></span>
+              <button class="diff-arrow" id="difficulty-arrow-right">▶</button>
+            </div>
+          </div>
+          <!-- 冠軍硬幣數 -->
+          <div class="settings-row">
+            <span class="settings-label" data-i18n="menu.championCoins">冠軍硬幣數</span>
+            <div class="settings-selector">
+              <button class="diff-arrow" id="coins-arrow-left">◀</button>
+              <span class="settings-value" id="coins-value"></span>
+              <button class="diff-arrow" id="coins-arrow-right">▶</button>
+            </div>
+          </div>
         </div>
-        <button id="back-to-mode-btn" class="menu-btn secondary" style="margin-top: 1rem;" data-i18n="menu.back">返回</button>
-      </div>
-
-      <!-- 電腦難度選擇 -->
-      <div id="bot-difficulty-select" class="menu-container glass-panel" style="display: none;">
-        <span class="corner-bl" aria-hidden="true">◈</span>
-        <span class="corner-br" aria-hidden="true">◈</span>
-        <div class="panel-inner-border" aria-hidden="true"></div>
-        <div class="panel-title">
-          <h2 data-i18n="difficulty.title">難度設置</h2>
-        </div>
-        <div class="panel-divider" aria-hidden="true">❧</div>
-        <div id="difficulty-rows" class="settings-rows"></div>
         <div class="panel-divider" aria-hidden="true">❧</div>
         <div class="menu-buttons" style="gap: 0.6rem;">
-          <button id="difficulty-start-btn" class="menu-btn primary" data-i18n="menu.startGame">開始遊戲</button>
-          <button id="difficulty-back-btn" class="menu-btn secondary" data-i18n="menu.back">返回</button>
+          <button id="bot-settings-start-btn" class="menu-btn primary" data-i18n="menu.startGame">開始遊戲</button>
+          <button id="bot-settings-back-btn" class="menu-btn secondary" data-i18n="menu.back">返回</button>
         </div>
       </div>
 
