@@ -2368,20 +2368,10 @@ body.game-scene-active #mute-btn-global {
     font-size: 0.9rem;
     font-variant-numeric: tabular-nums;
   }
-  body.game-scene-active .stats #back-home-btn {
-    grid-column: 3;
-    grid-row: 1;
-    min-width: 0;
-    padding: 3px 10px !important;
-    width: 100% !important;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-align: center;
-  }
 
-  /* 次要按鈕（結果/離場/聊天）：緊接 back 後，有需要時由 JS 顯示 */
+  /* 次要按鈕（結果/離場/聊天）：有需要時由 JS 顯示 */
   body.game-scene-active .stats #show-result-btn,
+  body.game-scene-active .stats #back-home-btn,
   body.game-scene-active .stats #leave-game-btn,
   body.game-scene-active .stats #chat-btn {
     min-width: 0;
@@ -2394,13 +2384,28 @@ body.game-scene-active #mute-btn-global {
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid rgba(197, 160, 60, 0.38) !important;
     border-radius: 6px;
   }
   body.game-scene-active .stats #show-result-btn,
   body.game-scene-active .stats #leave-game-btn {
     grid-column: 3;
     grid-row: 1;
+  }
+  /* 離線模式：back-home-btn 在 col 3 */
+  body.game-scene-active:not(.online-game-active) .stats #back-home-btn {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  /* 離開本局遊戲（離線 back-home + 線上 leave-game）：深琥珀紅 */
+  body.game-scene-active .stats #back-home-btn,
+  body.game-scene-active .stats #leave-game-btn {
+    background: linear-gradient(
+      180deg,
+      rgba(90, 30, 20, 0.88) 0%,
+      rgba(50, 12,  8, 0.95) 100%
+    ) !important;
+    border: 1px solid rgba(200, 80, 60, 0.55) !important;
+    color: #f0b8a8 !important;
   }
   body.game-scene-active .stats #chat-btn {
     grid-column: 4;
@@ -2410,7 +2415,7 @@ body.game-scene-active #mute-btn-global {
       rgba(20, 55, 85, 0.88) 0%,
       rgba(8,  28, 52, 0.95) 100%
     ) !important;
-    border-color: rgba(100, 160, 210, 0.55) !important;
+    border: 1px solid rgba(100, 160, 210, 0.55) !important;
     color: #b8d8f0 !important;
   }
 
