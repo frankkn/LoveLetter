@@ -346,6 +346,32 @@
       </div>
     </div>
 
+    <!-- 表情輪盤 Overlay -->
+    <div id="emoji-wheel-overlay" style="display:none;">
+      <div id="emoji-wheel-backdrop"></div>
+      <svg id="emoji-wheel-svg" viewBox="-1.15 -1.15 2.3 2.3" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="0" cy="0" r="1" fill="rgba(20,15,40,0.82)" stroke="rgba(197,160,60,0.45)" stroke-width="0.04"/>
+        <line x1="0" y1="0" x2="0" y2="-1" stroke="rgba(197,160,60,0.4)" stroke-width="0.025"/>
+        <line x1="0" y1="0" x2="0.866" y2="-0.5" stroke="rgba(197,160,60,0.4)" stroke-width="0.025"/>
+        <line x1="0" y1="0" x2="0.866" y2="0.5" stroke="rgba(197,160,60,0.4)" stroke-width="0.025"/>
+        <line x1="0" y1="0" x2="0" y2="1" stroke="rgba(197,160,60,0.4)" stroke-width="0.025"/>
+        <line x1="0" y1="0" x2="-0.866" y2="0.5" stroke="rgba(197,160,60,0.4)" stroke-width="0.025"/>
+        <line x1="0" y1="0" x2="-0.866" y2="-0.5" stroke="rgba(197,160,60,0.4)" stroke-width="0.025"/>
+        <path class="emoji-sector" data-emoji="😊" d="M0,0 L0,-1 A1,1,0,0,1,0.866,-0.5 Z"/>
+        <path class="emoji-sector" data-emoji="😡" d="M0,0 L0.866,-0.5 A1,1,0,0,1,0.866,0.5 Z"/>
+        <path class="emoji-sector" data-emoji="😢" d="M0,0 L0.866,0.5 A1,1,0,0,1,0,1 Z"/>
+        <path class="emoji-sector" data-emoji="🤔" d="M0,0 L0,1 A1,1,0,0,1,-0.866,0.5 Z"/>
+        <path class="emoji-sector" data-emoji="❌" d="M0,0 L-0.866,0.5 A1,1,0,0,1,-0.866,-0.5 Z"/>
+        <path class="emoji-sector" data-emoji="💯" d="M0,0 L-0.866,-0.5 A1,1,0,0,1,0,-1 Z"/>
+        <text class="emoji-label" x="0.31"  y="-0.537">😊</text>
+        <text class="emoji-label" x="0.62"  y="0">😡</text>
+        <text class="emoji-label" x="0.31"  y="0.537">😢</text>
+        <text class="emoji-label" x="-0.31" y="0.537">🤔</text>
+        <text class="emoji-label" x="-0.62" y="0">❌</text>
+        <text class="emoji-label" x="-0.31" y="-0.537">💯</text>
+      </svg>
+    </div>
+
     <!-- 全域 Modal 彈窗 -->
     <div id="modal-overlay" class="modal-overlay" style="display: none;">
       <div id="modal-content" class="modal-content">

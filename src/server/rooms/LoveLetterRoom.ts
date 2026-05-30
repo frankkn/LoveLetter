@@ -218,6 +218,15 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
             }
         });
 
+        // 表情反應：廣播給房間所有人（包含發送者）
+        this.onMessage("emoji_react", (_client, data: { emoji: string; playerId: number }) => {
+            if (!this.state.isGameStarted) return;
+            const validEmojis = ['😊', '😡', '😢', '🤔', '❌', '💯'];
+            if (!validEmojis.includes(data?.emoji)) return;
+            if (typeof data?.playerId !== 'number') return;
+            this.broadcast("emoji_react", { emoji: data.emoji, playerId: data.playerId });
+        });
+
         // 文字聊天：廣播給房間所有人（包含發送者，保持一致性）
         this.onMessage("chat_message", (client, data: { text: string }) => {
             const player = this.state.players.get(client.sessionId);

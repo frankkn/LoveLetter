@@ -918,6 +918,72 @@ body.game-scene-active #mute-btn-global {
   background: rgba(255,255,255,0.32);
 }
 
+/* ── 表情輪盤 ──────────────────────────────────────────────────── */
+#emoji-wheel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#emoji-wheel-backdrop {
+  position: absolute;
+  inset: 0;
+  cursor: default;
+}
+
+#emoji-wheel-svg {
+  position: relative;
+  width: min(33vw, 33vh);
+  height: min(33vw, 33vh);
+  min-width: 160px;
+  min-height: 160px;
+  cursor: pointer;
+  filter: drop-shadow(0 4px 24px rgba(0,0,0,0.6));
+}
+
+.emoji-sector {
+  fill: transparent;
+  transition: fill 0.12s ease;
+}
+
+.emoji-sector:hover { fill: rgba(197,160,60,0.22); }
+.emoji-sector:active { fill: rgba(197,160,60,0.42); }
+
+.emoji-label {
+  font-size: 0.38px;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+  user-select: none;
+  font-family: "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+}
+
+/* ── 浮動 Emoji 動畫 ────────────────────────────────────────────── */
+@keyframes floatEmoji {
+  0%   { opacity: 0; transform: scale(0.6) translateY(10px); }
+  15%  { opacity: 1; transform: scale(1)   translateY(0); }
+  80%  { opacity: 1; transform: scale(1)   translateY(-50px); }
+  100% { opacity: 0; transform: scale(0.9) translateY(-80px); }
+}
+
+.floating-emoji {
+  position: fixed;
+  width: 80px;
+  height: 112px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 60px;
+  font-family: "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+  animation: floatEmoji 2s ease-out forwards;
+  pointer-events: none;
+  z-index: 800;
+  user-select: none;
+}
+
 /* Modal 樣式 */
 .modal-overlay {
   position: fixed;
