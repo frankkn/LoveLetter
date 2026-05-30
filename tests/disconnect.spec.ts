@@ -221,6 +221,51 @@ test.describe('Disconnect / reconnect / forfeit', () => {
         }
     });
 
+    test('HOST disconnect: host sees reconnect modal; guest sees host-disconnect banner', async ({ browser }) => {
+        test.setTimeout(30_000);
+
+        const [host, guest] = await startTwoPlayerGame(browser);
+        try {
+            // Force-close the HOST's WS → triggers room.onLeave on host
+            await forceDisconnect(host.page);
+
+            // Host should see the reconnect modal (same flow as any disconnected player)
+            await expect(host.page.locator('#modal-overlay')).toBeVisible({ timeout: 8_000 });
+            await expect(host.page.locator('#modal-title')).toContainText('斷線');
+            await expect(host.page.locator('#reconnect-btn')).toBeVisible();
+
+            // Guest should see the host-disconnect banner
+            await expect(guest.page.locator('#disconnect-banner')).toBeVisible({ timeout: 8_000 });
+
+        } finally {
+            await host.close();
+            await guest.close();
+        }
+    });
+
+    test('HOST reconnect: host returns and game resumes for both players', async ({ browser }) => {
+        test.setTimeout(40_000);
+
+        const [host, guest] = await startTwoPlayerGame(browser);
+        try {
+            await forceDisconnect(host.page);
+
+            await expect(host.page.locator('#reconnect-btn')).toBeVisible({ timeout: 8_000 });
+            await host.page.locator('#reconnect-btn').click();
+
+            // Host should be back in the game
+            await expect(host.page.locator('#modal-overlay')).not.toBeVisible({ timeout: 15_000 });
+            await expect(host.page.locator('#game-scene')).toBeVisible();
+
+            // Guest's host-disconnect banner should disappear
+            await expect(guest.page.locator('#disconnect-banner')).not.toBeVisible({ timeout: 8_000 });
+
+        } finally {
+            await host.close();
+            await guest.close();
+        }
+    });
+
     test('clicking "Give up & Leave" in the reconnect modal returns to main menu', async ({ browser }) => {
         test.setTimeout(30_000);
 

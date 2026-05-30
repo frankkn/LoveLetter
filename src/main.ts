@@ -3745,8 +3745,13 @@ function renderRoomWaitArea(roomState: RoomWaitViewState | SyncedRoomState) {
     if (normalizedState.isGameStarted) {
         console.log('\u623f\u9593\u72c0\u614b\u8b8a\u66f4\uff1a\u904a\u6232\u958b\u59cb\uff0c\u6e96\u5099\u52a0\u8f09\u904a\u6232\u6230\u5834');
         if (!wasGameStarted) {
-            showModal(t('modal.gameStarted'), `<p>${t('gameStarted.body')}</p>`, `<button class="modal-confirm-btn" id="game-started-ok-btn">${t('btn.confirm')}</button>`);
-            document.getElementById('game-started-ok-btn')!.onclick = closeModal;
+            // On reconnect, currentRoomWaitState was nulled so wasGameStarted is false,
+            // but the game is already running \u2014 skip the "Game Started" modal (the
+            // reconnect flow re-syncs state directly) to avoid a stuck overlay.
+            if (!isReconnecting) {
+                showModal(t('modal.gameStarted'), `<p>${t('gameStarted.body')}</p>`, `<button class="modal-confirm-btn" id="game-started-ok-btn">${t('btn.confirm')}</button>`);
+                document.getElementById('game-started-ok-btn')!.onclick = closeModal;
+            }
             initOnlineGame(normalizedState);
         }
     }
@@ -4386,8 +4391,10 @@ function maybeHandlePlayerDisconnections(
         if (wasConnected && !isConnected) {
             // Player newly disconnected
             if (player.isHost) {
-                // Host went offline → non-host clients start the 20 s disband timer
+                // Host went offline → non-host clients start the disband timer
                 // (unless the host already forfeited, which is handled above).
+                // Must match the server reconnection window (60 s) so guests don't
+                // disband while the host is still able to reconnect.
                 if (!isHost && pendingAbortTimer === null && !player.hasForfeited) {
                     pendingAbortTimer = window.setTimeout(() => {
                         pendingAbortTimer = null;
@@ -4396,7 +4403,7 @@ function maybeHandlePlayerDisconnections(
                         if (!hostNow || (hostNow.isConnected ?? true)) return; // host reconnected
                         if (modalOverlay.style.display === 'flex' && modalTitle.textContent === t('modal.gameAborted')) return;
                         showGameAbortedModal(t('disconnect.hostBanner'));
-                    }, 20_000);
+                    }, 60_000);
                 }
             } else {
                 // Non-host went offline → host starts a 20 s elimination timer.
@@ -4418,7 +4425,11 @@ function maybeHandlePlayerDisconnections(
     updateDisconnectBanner();
 }
 
-/** (Host only) After 20 s of the player being disconnected, eliminate them. */
+/**
+ * (Host only) After the reconnection window elapses, eliminate the disconnected
+ * player from the round. Must match the server reconnection window (60 s) so a
+ * player who reconnects within the window isn't eliminated before they return.
+ */
 function scheduleDisconnectedPlayerElimination(playerIndex: number, playerName: string) {
     if (disconnectionTimers.has(playerIndex)) return;
 
@@ -4428,10 +4439,10 @@ function scheduleDisconnectedPlayerElimination(playerIndex: number, playerName: 
         const roomPlayer = currentRoomWaitState?.players[playerIndex];
         if (!roomPlayer || (roomPlayer.isConnected ?? true)) return; // reconnected in time
         eliminateDisconnectedPlayer(playerIndex, t('reason.disconnected'));
-    }, 20_000);
+    }, 60_000);
 
     disconnectionTimers.set(playerIndex, timer);
-    console.log(`[disconnect] started 20 s elimination timer for player ${playerIndex} (${playerName})`);
+    console.log(`[disconnect] started 60 s elimination timer for player ${playerIndex} (${playerName})`);
 }
 
 /** (Host only) Mark player as forfeited and eliminate them from the current round. */
