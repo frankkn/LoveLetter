@@ -2496,12 +2496,13 @@ body.game-scene-active #mute-btn-global {
     grid-column: 5;
   }
 
-  /* 桌機版隱藏：出牌統計切換鈕、抽牌（已移至玩家區）、查看紀錄、表情輪盤、分隔線 */
-  body.game-scene-active .stats #stats-toggle-btn { display: none !important; }
-  body.game-scene-active .stats #draw-btn         { display: none !important; }
-  body.game-scene-active .stats #show-log-btn     { display: none !important; }
-  body.game-scene-active .stats #emoji-btn        { display: none !important; }
-  body.game-scene-active .stats .top-sep          { display: none !important; }
+  /* 桌機版隱藏：出牌統計切換鈕、抽牌（已移至玩家區）、查看紀錄、表情輪盤、開始下一局（sidebar已有）、分隔線 */
+  body.game-scene-active .stats #stats-toggle-btn      { display: none !important; }
+  body.game-scene-active .stats #draw-btn              { display: none !important; }
+  body.game-scene-active .stats #show-log-btn          { display: none !important; }
+  body.game-scene-active .stats #emoji-btn             { display: none !important; }
+  body.game-scene-active .stats #action-next-round-btn { display: none !important; }
+  body.game-scene-active .stats .top-sep               { display: none !important; }
 
   /* ── 所有 area 面板預設 overflow visible（卡牌 hover 效果需要）── */
   body.game-scene-active #game-scene .area {

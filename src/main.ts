@@ -762,6 +762,11 @@ function updateStatsNextRoundButton() {
     );
 
     statsNextRoundBtn.style.display = canStartNextRoundFromStats ? 'block' : 'none';
+
+    const actionNextRoundBtn = document.getElementById('action-next-round-btn') as HTMLButtonElement | null;
+    if (actionNextRoundBtn) {
+        actionNextRoundBtn.style.display = canStartNextRoundFromStats ? 'block' : 'none';
+    }
 }
 
 function createPlayedCardStatsHTML(): string {
@@ -986,7 +991,7 @@ function render() {
         drawBtnDesktop.disabled = !canDraw;
         drawBtnDesktop.style.display = canDraw ? 'flex' : 'none';
     }
-    showResultBtn.style.display = state.isGameOver ? 'block' : 'none';
+    showResultBtn.style.display = state.isGameOver ? 'flex' : 'none';
     updateStatsNextRoundButton();
 
     // "離開本局遊戲" 僅在線上遊戲進行中顯示，並取代 "回主選單" 的位置
@@ -2378,7 +2383,7 @@ function showEndGameModal() {
         const track = getSelectedTrack('loser');
         if (track.url) playSFX(track.url);
     }
-    showResultBtn.style.display = 'block';
+    showResultBtn.style.display = 'flex';
 
     const champion = getLeagueChampion();
     const primaryButton = champion
@@ -2411,7 +2416,7 @@ function showEndGameModal() {
 
     rankingReturnBtn.onclick = () => {
         closeModal();
-        showResultBtn.style.display = 'block';
+        showResultBtn.style.display = 'flex';
         showStatsNextRoundButton = true;
         updateStatsNextRoundButton();
     };
@@ -4539,6 +4544,7 @@ document.getElementById('back-home-btn')!.onclick = async () => {
 };
 showResultBtn.onclick = showEndGameModal;
 statsNextRoundBtn.onclick = handleStatsNextRoundClick;
+(document.getElementById('action-next-round-btn') as HTMLButtonElement).onclick = handleStatsNextRoundClick;
 showLogBtn.onclick = showBattleLogModal;
 document.getElementById('leave-game-btn')!.onclick = () => {
     if (confirm(t('disconnect.forfeitConfirm'))) {
@@ -5164,7 +5170,7 @@ function showNextRoundWaitingModal() {
 
     document.getElementById('next-round-wait-log-btn')!.onclick = () => {
         closeModal();
-        showResultBtn.style.display = 'block';
+        showResultBtn.style.display = 'flex';
     };
 }
 
