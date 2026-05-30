@@ -2181,7 +2181,7 @@ async function discardAndDraw(targetId: number, returnTurnPlayerId: number, shou
         addLog(t('log.redrewBurned', player.name));
     }
 
-    if (isForcedEffectCard(discarded) && isOnlineGameActive() && targetId !== localPlayerId) {
+    if (isForcedEffectCard(discarded) && isOnlineGameActive() && targetId !== localPlayerId && !player.isBot) {
         const inheritedReturnTurnPlayerId = resolvingForcedEffect && !shouldEndTurnAfterResolution
             ? resolvingForcedEffect.returnTurnPlayerId
             : returnTurnPlayerId;
