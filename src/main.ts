@@ -4102,7 +4102,7 @@ function bindGameRoom(room: Room<unknown, SyncedRoomState>, isReconnect = false)
 
         const token = savedReconnectionToken ?? sessionStorage.getItem('ll_reconnect_token');
         savedReconnectionToken = null;
-        sessionStorage.removeItem('ll_reconnect_token');
+        // 不在此刪除 sessionStorage token：若用戶刷新頁面，頁面載入時仍可讀取並重連
         const wasInOnlineGame = onlineGameInitialized;
         activeGameRoom = null;
         currentRoomWaitState = null;
@@ -4250,6 +4250,7 @@ function showReconnectModal(token: string) {
 
     document.getElementById('forfeit-leave-btn')?.addEventListener('click', () => {
         clearReconnectCountdown();
+        sessionStorage.removeItem('ll_reconnect_token');
         closeModal();
         resetClientState();
         showScene('main-menu');
@@ -4261,6 +4262,7 @@ function showReconnectModal(token: string) {
         updateBody();
         if (secondsLeft <= 0) {
             clearReconnectCountdown();
+            sessionStorage.removeItem('ll_reconnect_token');
             closeModal();
             resetClientState();
             showScene('main-menu');
@@ -5341,10 +5343,10 @@ initGame(1); // 預設進來時背景跑一個 (雖然會被 menu 蓋住)
 showScene('main-menu');
 
 // 頁面重載後若有未使用的重連 token，自動提示玩家嘗試重連
+// 不預先刪除 token：若用戶又刷新頁面，仍可再次讀取
 {
     const storedToken = sessionStorage.getItem('ll_reconnect_token');
     if (storedToken) {
-        sessionStorage.removeItem('ll_reconnect_token');
         showReconnectModal(storedToken);
     }
 }
