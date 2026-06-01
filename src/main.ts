@@ -672,11 +672,13 @@ const CARD_KEY: Record<number, string> = {
 };
 
 function getCardName(type: number): string {
-    return t(`card.${CARD_KEY[type] ?? type}`);
+    const cardKey = CARD_KEY[type];
+    return cardKey ? t(`card.${cardKey}`) : t('card.unknown');
 }
 
 function getCardDesc(type: number): string {
-    return t(`card.desc.${CARD_KEY[type] ?? type}`);
+    const cardKey = CARD_KEY[type];
+    return cardKey ? t(`card.desc.${cardKey}`) : '';
 }
 
 function applyStaticTranslations(): void {
@@ -2895,6 +2897,39 @@ function cloneOnlinePlayer(player: Player): Player {
     };
 }
 
+function isHiddenOnlineCard(card: Card): boolean {
+    const type = Number(card.type);
+    return type === 0 || !(type in CARD_DEFINITIONS);
+}
+
+function preserveHostBotHands(players: Player[]): Player[] {
+    if (!isLocalRoomHost() || !state?.players?.length || state.isGameOver) {
+        return players;
+    }
+
+    const currentBotPlayers = new Map(
+        state.players
+            .filter(player => player.isBot)
+            .map(player => [player.id, player])
+    );
+
+    return players.map(player => {
+        if (!player.isBot || !player.hand.some(isHiddenOnlineCard)) {
+            return player;
+        }
+
+        const currentBot = currentBotPlayers.get(player.id);
+        if (!currentBot) {
+            return player;
+        }
+
+        return {
+            ...player,
+            hand: currentBot.hand.map(cloneCardForOnlineSync)
+        };
+    });
+}
+
 function restoreLocalPrivateHints(players: Player[]): Player[] {
     const previousLocalPlayer = state.players[localPlayerId];
     const incomingLocalPlayer = players[localPlayerId];
@@ -3554,7 +3589,7 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
         selectedCardId = null;
         isResolvingTurnAction = false;
 
-        const players = restoreLocalPrivateHints(data.players.map(cloneOnlinePlayer));
+        const players = preserveHostBotHands(restoreLocalPrivateHints(data.players.map(cloneOnlinePlayer)));
 
         state = {
             deck: [...data.deck],

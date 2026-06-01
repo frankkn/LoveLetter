@@ -118,6 +118,7 @@ const zh: TransMap = {
     'card.king':      '國王',
     'card.countess':  '伯爵夫人',
     'card.princess':  '公主',
+    'card.unknown':   '未知牌',
 
     // Card descriptions (compact, shown on card)
     'card.desc.guard':    '猜對手手牌（衛兵除外），猜中則對方出局。',
@@ -467,6 +468,7 @@ const en: TransMap = {
     'card.king':      'King',
     'card.countess':  'Countess',
     'card.princess':  'Princess',
+    'card.unknown':   'Unknown card',
 
     // Card descriptions
     'card.desc.guard':    "Guess an opponent's card (not Guard). Correct = they're out.",
