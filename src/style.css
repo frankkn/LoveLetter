@@ -2399,9 +2399,9 @@ body.game-scene-active #mute-btn-global {
     width: 100%;
     min-width: 0;
   }
-  /* 線上模式：多一欄給聊天室 */
+  /* 線上模式：多兩欄給表情輪盤與聊天室 */
   body.game-scene-active.online-game-active .stats {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
   }
 
   body.game-scene-active .stats .game-top-row,
@@ -2439,6 +2439,7 @@ body.game-scene-active #mute-btn-global {
   body.game-scene-active .stats #show-result-btn,
   body.game-scene-active .stats #back-home-btn,
   body.game-scene-active .stats #leave-game-btn,
+  body.game-scene-active .stats #emoji-btn,
   body.game-scene-active .stats #chat-btn {
     min-width: 0;
     max-width: none;
@@ -2485,7 +2486,23 @@ body.game-scene-active #mute-btn-global {
     color: #b8d8f0 !important;
   }
 
-  /* 右側 icon 群：離線第4欄，線上第5欄 */
+  /* 右側 icon 群：離線第4欄，線上第6欄 */
+  body.game-scene-active.online-game-active .stats #emoji-btn {
+    grid-column: 4;
+    grid-row: 1;
+    background: linear-gradient(
+      180deg,
+      rgba(74, 48, 98, 0.88) 0%,
+      rgba(38, 18, 62, 0.95) 100%
+    ) !important;
+    border: 1px solid rgba(185, 140, 225, 0.55) !important;
+    color: #ead8ff !important;
+  }
+
+  body.game-scene-active.online-game-active .stats #chat-btn {
+    grid-column: 5;
+  }
+
   body.game-scene-active .stats .game-icon-group {
     grid-column: 4;
     grid-row: 1;
@@ -2493,14 +2510,14 @@ body.game-scene-active #mute-btn-global {
     gap: 8px;
   }
   body.game-scene-active.online-game-active .stats .game-icon-group {
-    grid-column: 5;
+    grid-column: 6;
   }
 
   /* 桌機版隱藏：出牌統計切換鈕、抽牌（已移至玩家區）、查看紀錄、表情輪盤、開始下一局（sidebar已有）、分隔線 */
   body.game-scene-active .stats #stats-toggle-btn      { display: none !important; }
   body.game-scene-active .stats #draw-btn              { display: none !important; }
   body.game-scene-active .stats #show-log-btn          { display: none !important; }
-  body.game-scene-active .stats #emoji-btn             { display: none !important; }
+  body.game-scene-active:not(.online-game-active) .stats #emoji-btn { display: none !important; }
   body.game-scene-active .stats #action-next-round-btn { display: none !important; }
   body.game-scene-active .stats .top-sep               { display: none !important; }
 
