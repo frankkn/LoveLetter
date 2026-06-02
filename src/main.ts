@@ -13,6 +13,7 @@ import { createVoiceController } from './ui/voice.js';
 import { createChatController, type ChatMsg } from './ui/chat.js';
 import { initParticles } from './ui/particles.js';
 import { sleep, escapeHTML, withTimeout } from './utils.js';
+import { getCoinIcons, getPlayerTitleHTML } from './ui/player-badges.js';
 import { getInviteRoomIdFromURL, clearInviteRoomIdFromURL, getRoomInviteURL } from './net/invite-url.js';
 import {
     createAIMemory,
@@ -439,22 +440,6 @@ function createTargetSelectModalBodyHTML(card: Card, targets: Player[]): string 
         ${createPlayedCardStatsHTML()}
         <div class="target-list">${buttonsHTML}</div>
     `;
-}
-
-function coinIconHTML(): string {
-    return `<svg class="coin-icon" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="width:1em;height:1em;display:inline-block;vertical-align:-0.12em;flex:0 0 auto;"><circle cx="12" cy="12" r="10" fill="#f6c85f" stroke="#9b6b13" stroke-width="1.8"></circle><circle cx="12" cy="12" r="6.7" fill="#ffd978" stroke="#c58a1d" stroke-width="1.2"></circle><path d="M8.6 12.9h6.8M9.6 9.6h4.8M9.6 16.1h4.8" stroke="#8b5a0a" stroke-width="1.6" stroke-linecap="round"></path></svg>`;
-}
-
-function getCoinIcons(coins: number): string {
-    return coins > 0
-        ? `<span class="coin-icons" aria-label="${t('coins.label', String(coins))}" style="display:inline-flex;align-items:center;gap:0.12em;line-height:1;vertical-align:-0.12em;">${coinIconHTML().repeat(coins)}</span>`
-        : '';
-}
-
-function getPlayerTitleHTML(player: Player, suffix = ''): string {
-    const statusBadge = player.isAlive ? '' : `<span class="player-status-badge">${t('game.eliminated')}</span>`;
-    const title = `${escapeHTML(player.name)}${suffix ? ` ${escapeHTML(suffix)}` : ''}`;
-    return `<span class="player-title-name">${title}</span>${getCoinIcons(player.coins)}${statusBadge}`;
 }
 
 function render() {
