@@ -3,7 +3,7 @@ import { t, setLang, getLang, type LangCode, createRulesBodyHTML, getCardName, g
 import { Client, type Room, type RoomAvailable } from '@colyseus/sdk';
 import { CardType, CARD_DEFINITIONS, CARD_IMAGES, createDeck, shuffle } from './domain/cards.js';
 import type { Card, CardActionHint } from './domain/cards.js';
-import type { BaronGuardClue, BotDifficulty, GameState, Player, PlayRollback, PrinceDiscardResult } from './domain/game-state.js';
+import type { BotDifficulty, GameState, Player, PlayRollback, PrinceDiscardResult } from './domain/game-state.js';
 import { GameRoomState } from './server/schema/GameRoomState.js';
 import { mainMenuEl, modeSelectEl, botSettingsSelectEl, lobbySceneEl, roomWaitSceneEl, gameSceneEl, roomListContainerEl, currentRoomIdEl, roomPlayerCountEl, roomPlayerListEl, inviteRoomBtn, readyToggleBtn, cardStatsAreaEl, playedCardStatsEl, opponentsContainerEl, playerAreaEl, playerHandEl, playerDiscardEl, deckCountEl, drawBtn, drawBtnDesktop, showResultBtn, statsNextRoundBtn, showLogBtn, gameLogEl, turnIndicatorEl, modalOverlay, modalTitle, modalBody, modalFooter, mobileStatsToggleBtn } from './ui/elements.js';
 import { AUDIO_LIBRARY, adjustPendingMusicSelection, beginMusicSettingsEdit, cancelMusicSettingsEdit, confirmMusicSettingsEdit, getPendingAudioVolumePercent, getPendingSelection, getPendingTrack, getSelectedTrack, initializeAudioUnlock, pauseBGMForSettingsPreview, playBGM, playChampionTheme, playPreview, playSelectedMenuBGM, playSFX, queueMusicSettingsPreload, setPendingAudioVolumePercent, stopPreview, toggleMute, type MusicSlot } from './audio/music.js';
@@ -17,7 +17,6 @@ import { getInviteRoomIdFromURL, clearInviteRoomIdFromURL, getRoomInviteURL } fr
 import {
     createAIMemory,
     createAIExcludedGuesses,
-    isUsefulBaronGuardClue,
     rememberKnownCard,
     rememberGuardMiss,
     clearExcludedGuardGuessesForPlayer,
@@ -27,6 +26,12 @@ import {
     getBaronLegalTargets,
     isKnownBaronLoss,
     getSafeBaronTargets,
+    rememberBaronGuardClue,
+    getActiveBaronGuardClue,
+    getBaronGuardClueTarget,
+    clearKnownCardForPlayer,
+    getRecentBaronGuardClue,
+    setRecentBaronGuardClue,
 } from './domain/ai-memory.js';
 
 // 1. 定義型別
@@ -111,7 +116,6 @@ let pendingForcedEffectsQueue: PendingForcedEffect[] = [];
 let resolvingForcedEffect: PendingForcedEffect | null = null;
 let pendingBaronDuel: PendingBaronDuel | null = null;
 let activeBaronDuelModalKey: string | null = null;
-let recentBaronGuardClue: BaronGuardClue | null = null;
 let pendingBotCount = 2;
 let pendingDifficulty: BotDifficulty = 'hard';
 let pendingChampionCoins = 4;
@@ -147,7 +151,7 @@ function saveGame() {
         version: 1,
         savedAt: new Date().toISOString(),
         state: { ...stateWithoutWinner, winnerId: state.winner?.id ?? null },
-        recentBaronGuardClue,
+        recentBaronGuardClue: getRecentBaronGuardClue(),
         championThreshold,
     });
     updateContinueBtn();
@@ -172,7 +176,7 @@ function loadAndStartSave(): boolean {
                 ? data.state.players.find((p: Player) => p.id === data.state.winnerId) ?? null
                 : null,
         };
-        recentBaronGuardClue = data.recentBaronGuardClue;
+        setRecentBaronGuardClue(data.recentBaronGuardClue);
         championThreshold = data.championThreshold;
 
         localPlayerId = 0;
@@ -241,7 +245,7 @@ function resetLocalClientState() {
     resolvingForcedEffect = null;
     pendingBaronDuel = null;
     activeBaronDuelModalKey = null;
-    recentBaronGuardClue = null;
+    setRecentBaronGuardClue(null);
     pendingKingExchange = null;
     activeKingExchangeModalKey = null;
     isHandlingPendingForcedEffect = false;
@@ -769,58 +773,6 @@ function addLog(msg: string) {
     render();
 }
 
-function rememberBaronGuardClue(winnerId: number, loserId: number, loserCardType: CardType, sourceCardId: string) {
-    if (!isUsefulBaronGuardClue(loserCardType)) {
-        recentBaronGuardClue = null;
-        return;
-    }
-
-    recentBaronGuardClue = {
-        winnerId,
-        loserId,
-        loserCardType,
-        sourceCardId
-    };
-}
-
-function clearBaronGuardClueForPlayer(playerId: number) {
-    if (recentBaronGuardClue?.winnerId === playerId) {
-        recentBaronGuardClue = null;
-    }
-}
-
-function getActiveBaronGuardClue(botId: number, targetId?: number): BaronGuardClue | null {
-    const clue = recentBaronGuardClue;
-    if (!clue || clue.winnerId === botId) return null;
-    if (targetId !== undefined && clue.winnerId !== targetId) return null;
-
-    const winner = state.players[clue.winnerId];
-    if (!winner?.isAlive || winner.isProtected || winner.hand.length === 0) {
-        recentBaronGuardClue = null;
-        return null;
-    }
-
-    return clue;
-}
-
-function getBaronGuardClueTarget(botId: number, potentialTargets: Player[]): Player | null {
-    const clue = getActiveBaronGuardClue(botId);
-    if (!clue) return null;
-
-    return potentialTargets.find(target => target.id === clue.winnerId) ?? null;
-}
-
-function clearKnownCardForPlayer(playerId: number) {
-    Object.values(state.aiMemory).forEach(memory => {
-        delete memory[playerId];
-    });
-    if (state.players[playerId]) {
-        state.players[playerId].handKnownToOpponent = false;
-    }
-    clearBaronGuardClueForPlayer(playerId);
-    clearExcludedGuardGuessesForPlayer(state, playerId);
-}
-
 function drawCard(playerId: number): boolean {
     const player = state.players[playerId];
     if (
@@ -1119,7 +1071,7 @@ async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, r
                 ? getKnownGuardTarget(state, playerId, botTargets)
                 : null;
             const inferredGuardTarget = card.type === CardType.Guard && player.difficulty === 'hard'
-                ? getBaronGuardClueTarget(playerId, botTargets)
+                ? getBaronGuardClueTarget(state, playerId, botTargets)
                 : null;
             const target = knownGuardTarget ?? inferredGuardTarget ?? botTargets[Math.floor(Math.random() * botTargets.length)];
             await sleep(1000); // 模擬選標準備
@@ -1535,8 +1487,8 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             const temp = actor.hand;
             actor.hand = target.hand;
             target.hand = temp;
-            clearKnownCardForPlayer(actorId);
-            clearKnownCardForPlayer(targetId);
+            clearKnownCardForPlayer(state, actorId);
+            clearKnownCardForPlayer(state, targetId);
             if (actorTransferredCard) {
                 rememberKnownCard(state, actorId, targetId, actorTransferredCard.type);
             }
@@ -1597,7 +1549,7 @@ function getAISmartGuess(botId: number, targetId: number): number {
 
     // Hard only: use baron clue to narrow the range
     if (difficulty === 'hard') {
-        const baronClue = getActiveBaronGuardClue(botId, targetId);
+        const baronClue = getActiveBaronGuardClue(state, botId, targetId);
         if (baronClue) {
             const inferredGuesses: number[] = [];
             for (let i = Math.max(CardType.Priest, baronClue.loserCardType + 1); i <= CardType.Princess; i++) {
@@ -1635,7 +1587,7 @@ async function discardAndDraw(targetId: number, returnTurnPlayerId: number, shou
     if (player.hand.length === 0) {
         return { discarded: null, hasPendingForcedEffect: false };
     }
-    clearKnownCardForPlayer(targetId);
+    clearKnownCardForPlayer(state, targetId);
     const discarded = player.hand.pop()!;
     player.discardPile.push(discarded);
     addLog(t('log.discarded', player.name, getCardName(discarded.type)));
@@ -1701,7 +1653,7 @@ function eliminate(
     const player = state.players[playerId];
     if (!player || !player.isAlive) return;
 
-    clearKnownCardForPlayer(playerId);
+    clearKnownCardForPlayer(state, playerId);
     player.isAlive = false;
     player.discardPile.push(...player.hand);
     player.hand = [];
@@ -1835,7 +1787,7 @@ function endGame(winner: Player, reason: string) {
     resolvingForcedEffect = null;
     pendingBaronDuel = null;
     activeBaronDuelModalKey = null;
-    recentBaronGuardClue = null;
+    setRecentBaronGuardClue(null);
     pendingKingExchange = null;
     activeKingExchangeModalKey = null;
     isHandlingPendingForcedEffect = false;
@@ -1934,7 +1886,7 @@ function getAICardPlayWeight(bot: Player, card: Card): number {
         case CardType.Guard:
             weight = 28;
             // Hard only: extra boost when baron clue gives a strong lead
-            if (difficulty === 'hard' && getBaronGuardClueTarget(bot.id, state.players.filter(player => (
+            if (difficulty === 'hard' && getBaronGuardClueTarget(state, bot.id, state.players.filter(player => (
                 player.id !== bot.id &&
                 player.isAlive &&
                 !player.isProtected
@@ -2923,7 +2875,7 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
             resolvingForcedEffect = null;
             pendingBaronDuel = null;
             activeBaronDuelModalKey = null;
-            recentBaronGuardClue = null;
+            setRecentBaronGuardClue(null);
             pendingKingExchange = null;
             activeKingExchangeModalKey = null;
             isHandlingPendingForcedEffect = false;
@@ -3076,7 +3028,7 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
         };
         pendingForcedEffectsQueue = incomingPendingForcedEffectsQueue;
         pendingBaronDuel = incomingPendingBaronDuel;
-        recentBaronGuardClue = null;
+        setRecentBaronGuardClue(null);
         pendingKingExchange = incomingPendingKingExchange;
         nextRoundReadyPlayerIds = [...(data.nextRoundReadyPlayerIds ?? [])];
         hasShownEndGameModal = false;
@@ -4397,7 +4349,7 @@ function initGame(botCount: number, difficulties: BotDifficulty[] = []) {
     resolvingForcedEffect = null;
     pendingBaronDuel = null;
     activeBaronDuelModalKey = null;
-    recentBaronGuardClue = null;
+    setRecentBaronGuardClue(null);
     pendingKingExchange = null;
     activeKingExchangeModalKey = null;
     isHandlingPendingForcedEffect = false;
@@ -4614,7 +4566,7 @@ function startNextRound() {
     resolvingForcedEffect = null;
     pendingBaronDuel = null;
     activeBaronDuelModalKey = null;
-    recentBaronGuardClue = null;
+    setRecentBaronGuardClue(null);
     pendingKingExchange = null;
     activeKingExchangeModalKey = null;
     isHandlingPendingForcedEffect = false;

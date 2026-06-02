@@ -1,5 +1,5 @@
 import { CardType, type Card } from './cards.js';
-import type { GameState, Player } from './game-state.js';
+import type { BaronGuardClue, GameState, Player } from './game-state.js';
 
 // 電腦玩家的記憶系統：記住對手手牌（神父/國王/男爵得知）與失敗的衛兵猜測，
 // 全部以 GameState.aiMemory / aiExcludedGuesses 為儲存體，函式皆傳入 state 操作。
@@ -124,4 +124,70 @@ export function isKnownBaronLoss(state: GameState, bot: Player, baron: Card, tar
 
 export function getSafeBaronTargets(state: GameState, bot: Player, baron: Card, targets: Player[]): Player[] {
     return targets.filter(target => !isKnownBaronLoss(state, bot, baron, target));
+}
+
+// ── 男爵/衛兵線索 ────────────────────────────────────────────────────────────
+// 當男爵對決結束，敗者的牌型（若值得記憶）會被存成一條線索；困難 AI 用它推測
+// 對手手牌、提高衛兵猜中率並優先攻擊該玩家。線索為跨函式的單一可變狀態，
+// 由 get/set 存取器供存檔/同步/生命週期等非 AI 程式碼讀寫。
+let recentBaronGuardClue: BaronGuardClue | null = null;
+
+export function getRecentBaronGuardClue(): BaronGuardClue | null {
+    return recentBaronGuardClue;
+}
+
+export function setRecentBaronGuardClue(clue: BaronGuardClue | null): void {
+    recentBaronGuardClue = clue;
+}
+
+export function rememberBaronGuardClue(winnerId: number, loserId: number, loserCardType: CardType, sourceCardId: string) {
+    if (!isUsefulBaronGuardClue(loserCardType)) {
+        recentBaronGuardClue = null;
+        return;
+    }
+
+    recentBaronGuardClue = {
+        winnerId,
+        loserId,
+        loserCardType,
+        sourceCardId
+    };
+}
+
+export function clearBaronGuardClueForPlayer(playerId: number) {
+    if (recentBaronGuardClue?.winnerId === playerId) {
+        recentBaronGuardClue = null;
+    }
+}
+
+export function getActiveBaronGuardClue(state: GameState, botId: number, targetId?: number): BaronGuardClue | null {
+    const clue = recentBaronGuardClue;
+    if (!clue || clue.winnerId === botId) return null;
+    if (targetId !== undefined && clue.winnerId !== targetId) return null;
+
+    const winner = state.players[clue.winnerId];
+    if (!winner?.isAlive || winner.isProtected || winner.hand.length === 0) {
+        recentBaronGuardClue = null;
+        return null;
+    }
+
+    return clue;
+}
+
+export function getBaronGuardClueTarget(state: GameState, botId: number, potentialTargets: Player[]): Player | null {
+    const clue = getActiveBaronGuardClue(state, botId);
+    if (!clue) return null;
+
+    return potentialTargets.find(target => target.id === clue.winnerId) ?? null;
+}
+
+export function clearKnownCardForPlayer(state: GameState, playerId: number) {
+    Object.values(state.aiMemory).forEach(memory => {
+        delete memory[playerId];
+    });
+    if (state.players[playerId]) {
+        state.players[playerId].handKnownToOpponent = false;
+    }
+    clearBaronGuardClueForPlayer(playerId);
+    clearExcludedGuardGuessesForPlayer(state, playerId);
 }
