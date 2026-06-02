@@ -1325,6 +1325,28 @@ body.game-scene-active #mute-btn-global {
     0 0  12px rgba(255, 200, 120, 0.10) inset;
 }
 
+#continue-game-btn {
+  background: linear-gradient(
+    180deg,
+    rgba(220, 38, 38, 0.90) 0%,
+    rgba(153, 20, 20, 0.96) 100%
+  );
+  border-color: rgba(255, 160, 160, 0.60);
+  box-shadow: 0 0 22px rgba(220, 38, 38, 0.30);
+}
+
+#continue-game-btn:hover:not(:disabled) {
+  background: linear-gradient(
+    180deg,
+    rgba(239, 68, 68, 0.96) 0%,
+    rgba(185, 28, 28, 1.00) 100%
+  );
+  border-color: rgba(255, 180, 180, 0.85);
+  box-shadow:
+    0 5px 28px rgba(239, 68, 68, 0.50),
+    0 0  12px rgba(255, 160, 160, 0.12) inset;
+}
+
 .menu-btn.secondary {
   background: linear-gradient(
     180deg,
