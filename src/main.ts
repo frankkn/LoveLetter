@@ -1,15 +1,11 @@
 import './style.css'
 import { t, setLang, getLang, type LangCode, createRulesBodyHTML } from './i18n.js';
 import { Client, type Room, type RoomAvailable } from '@colyseus/sdk';
-import guardImage from './assets/cards/guard.webp';
-import priestImage from './assets/cards/priest.webp';
-import baronImage from './assets/cards/baron.webp';
-import handmaidImage from './assets/cards/handmaid.webp';
-import princeImage from './assets/cards/prince.webp';
-import kingImage from './assets/cards/king.webp';
-import countessImage from './assets/cards/countess.webp';
-import princessImage from './assets/cards/princess.webp';
+import { CardType, CARD_DEFINITIONS, CARD_IMAGES, createDeck, shuffle } from './domain/cards.js';
+import type { Card, CardActionHint } from './domain/cards.js';
+import type { BaronGuardClue, BotDifficulty, GameState, Player, PlayRollback, PrinceDiscardResult } from './domain/game-state.js';
 import { GameRoomState } from './server/schema/GameRoomState.js';
+import { mainMenuEl, modeSelectEl, botSettingsSelectEl, lobbySceneEl, roomWaitSceneEl, gameSceneEl, roomListContainerEl, currentRoomIdEl, roomPlayerCountEl, roomPlayerListEl, inviteRoomBtn, readyToggleBtn, cardStatsAreaEl, playedCardStatsEl, opponentsContainerEl, playerAreaEl, playerHandEl, playerDiscardEl, deckCountEl, drawBtn, drawBtnDesktop, showResultBtn, statsNextRoundBtn, showLogBtn, gameLogEl, turnIndicatorEl, modalOverlay, modalTitle, modalBody, modalFooter, mobileStatsToggleBtn } from './ui/elements.js';
 
 type TrackInfo = { name: string; url: string };
 type MusicSlot = 'menu' | 'game' | 'winner' | 'loser' | 'champion';
@@ -115,137 +111,6 @@ function getSelectedTrack(slot: MusicSlot): TrackInfo {
 loadMusicSettings();
 
 // 1. 定義型別
-export enum CardType {
-    Guard = 1,
-    Priest = 2,
-    Baron = 3,
-    Handmaid = 4,
-    Prince = 5,
-    King = 6,
-    Countess = 7,
-    Princess = 8
-}
-
-export interface Card {
-    readonly id: string;
-    readonly type: CardType;
-    readonly name: string;
-    readonly value: number;
-    readonly description: string;
-    actionHints?: CardActionHint[];
-    privateActionHints?: CardActionHint[];
-    privateHintOwnerId?: number;
-    targetName?: string;
-    guessedCardName?: string;
-}
-
-export interface CardActionHint {
-    text: string;
-    variant?: 'default' | 'danger' | 'tie';
-}
-
-export type BotDifficulty = 'easy' | 'medium' | 'hard';
-
-export interface Player {
-    id: number;           // 0 為人類玩家，1~3 為電腦
-    name: string;         // "玩家", "電腦 A", "電腦 B", "電腦 C"
-    isBot: boolean;       // 是否為電腦
-    difficulty?: BotDifficulty; // 僅 bot 使用
-    coins: number;        // 聯賽硬幣數，先取得 4 枚者獲勝
-    hand: Card[];         // 手牌 (1~2張)
-    isProtected: boolean; // 侍女保護狀態
-    isAlive: boolean;     // 是否還活著
-    discardPile: Card[];  // 已打出的牌堆
-    isHandRevealed?: boolean;      // 是否需在畫面上暫時強制翻開手牌
-    handKnownToOpponent?: boolean; // 神父/國王後，目前手牌已被對手得知
-}
-
-export interface GameState {
-    deck: Card[];
-    burnedCard: Card | null;
-    players: Player[];
-    currentTurnPlayerId: number;
-    isGameOver: boolean;
-    winner: Player | null;
-    logs: string[];
-    aiMemory: Record<number, Record<number, CardType>>;
-    aiExcludedGuesses: Record<number, Record<number, CardType[]>>;
-    // Monotonically increasing per round. Used to discard stale online syncs that arrive
-    // after a newer round has already started locally (3+ player "next round" race).
-    roundIndex: number;
-}
-
-interface PlayRollback {
-    playerId: number;
-    hand: Card[];
-    discardPile: Card[];
-    isProtected: boolean;
-    logLength: number;
-}
-
-interface PrinceDiscardResult {
-    discarded: Card | null;
-    hasPendingForcedEffect: boolean;
-}
-
-interface BaronGuardClue {
-    winnerId: number;
-    loserId: number;
-    loserCardType: CardType;
-    sourceCardId: string;
-}
-
-// 2. 宣告原版 16 張卡牌資料
-const CARD_DEFINITIONS: Record<CardType, { name: string; count: number; desc: string }> = {
-    [CardType.Guard]: { name: '衛兵', count: 5, desc: '猜對手手牌（衛兵除外），猜中則對方出局。' },
-    [CardType.Priest]: { name: '神父', count: 2, desc: '看一名對手的手牌。' },
-    [CardType.Baron]: { name: '男爵', count: 2, desc: '與一名對手比大小，小者出局。' },
-    [CardType.Handmaid]: { name: '侍女', count: 2, desc: '直到下一回合，你免疫所有卡牌效果。' },
-    [CardType.Prince]: { name: '王子', count: 2, desc: '選擇一人棄掉手牌並重抽。' },
-    [CardType.King]: { name: '國王', count: 1, desc: '與一名對手交換手牌。' },
-    [CardType.Countess]: { name: '伯爵夫人', count: 1, desc: '若持有王子或國王，則必須打出此牌。' },
-    [CardType.Princess]: { name: '公主', count: 1, desc: '打出或棄掉此牌時，你直接出局。' },
-};
-
-const CARD_IMAGES: Record<CardType, string> = {
-    [CardType.Guard]: guardImage,
-    [CardType.Priest]: priestImage,
-    [CardType.Baron]: baronImage,
-    [CardType.Handmaid]: handmaidImage,
-    [CardType.Prince]: princeImage,
-    [CardType.King]: kingImage,
-    [CardType.Countess]: countessImage,
-    [CardType.Princess]: princessImage
-};
-
-function createDeck(): Card[] {
-    const deck: Card[] = [];
-    let idCounter = 0;
-    for (const typeStr in CARD_DEFINITIONS) {
-        const type = Number(typeStr) as CardType;
-        const def = CARD_DEFINITIONS[type];
-        for (let i = 0; i < def.count; i++) {
-            deck.push({
-                id: `card-${idCounter++}`,
-                type,
-                name: def.name,
-                value: type,
-                description: def.desc
-            });
-        }
-    }
-    return deck;
-}
-
-function shuffle<T>(array: T[]): T[] {
-    const newArray = [...array];
-    for (let i = newArray.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-    }
-    return newArray;
-}
-
 // 3. 全域狀態
 let state: GameState;
 let selectedCardId: string | null = null;
@@ -718,35 +583,7 @@ function resetClientState() {
     leaveRoomInBackground(leavingLobbyRoom, 'lobby room during client reset');
 }
 
-// 4. DOM 元素
-const mainMenuEl = document.getElementById('main-menu')!;
-const modeSelectEl = document.getElementById('mode-select')!;
-const botSettingsSelectEl = document.getElementById('bot-settings-select')!;
-const lobbySceneEl = document.getElementById('lobby-scene')!;
-const roomWaitSceneEl = document.getElementById('room-wait-scene')!;
-const gameSceneEl = document.getElementById('game-scene')!;
-const roomListContainerEl = document.getElementById('room-list-container')!;
-const currentRoomIdEl = document.getElementById('current-room-id')!;
-const roomPlayerCountEl = document.getElementById('room-player-count')!;
-const roomPlayerListEl = document.getElementById('room-player-list')!;
-const inviteRoomBtn = document.getElementById('invite-room-btn') as HTMLButtonElement;
-const readyToggleBtn = document.getElementById('ready-toggle-btn') as HTMLButtonElement;
-const cardStatsAreaEl = document.querySelector('.card-stats-area') as HTMLElement;
-const playedCardStatsEl = document.getElementById('played-card-stats')!;
-const opponentsContainerEl = document.getElementById('opponents-container')!;
-const playerAreaEl = document.getElementById('player-area')!;
-const playerHandEl = document.getElementById('player-hand')!;
-const playerDiscardEl = document.getElementById('player-discard')!;
-const deckCountEl = document.getElementById('deck-count')!;
-const drawBtn = document.getElementById('draw-btn') as HTMLButtonElement;
-const drawBtnDesktop = document.getElementById('draw-btn-desktop') as HTMLButtonElement | null;
-const showResultBtn = document.getElementById('show-result-btn') as HTMLButtonElement;
-const statsNextRoundBtn = document.getElementById('stats-next-round-btn') as HTMLButtonElement;
-const showLogBtn = document.getElementById('show-log-btn') as HTMLButtonElement;
-const gameLogEl = document.getElementById('game-log')!;
-const turnIndicatorEl = document.getElementById('turn-indicator')!;
-// ── i18n helpers ───────────────────────────────────────────────────────────
-
+// i18n helpers
 const CARD_KEY: Record<number, string> = {
     1: 'guard', 2: 'priest', 3: 'baron', 4: 'handmaid',
     5: 'prince', 6: 'king',  7: 'countess', 8: 'princess'
@@ -794,20 +631,11 @@ function showLanguageModal(): void {
     document.getElementById('lang-modal-cancel-btn')!.onclick = closeModal;
 }
 
-// Modal 相關
-const modalOverlay = document.getElementById('modal-overlay')!;
-const modalTitle = document.getElementById('modal-title')!;
-const modalBody = document.getElementById('modal-body')!;
-const modalFooter = document.getElementById('modal-footer')!;
+// Modal state
 let endGameReason = '';
 
-// 出牌統計切換按鈕（HTML 中已靜態宣告為 #stats-toggle-btn）
-const mobileStatsToggleBtn = document.getElementById('stats-toggle-btn') as HTMLButtonElement;
-
-// 5. 輔助函式
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// 6. 渲染函式
 function renderPlayedCardStats() {
     const counts = new Map<CardType, number>();
     state.players
