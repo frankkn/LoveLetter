@@ -45,11 +45,11 @@ import {
     cloneCardForOnlineSync,
     hiddenBotCard,
     cloneOnlinePlayer,
-    isHiddenOnlineCard,
     clonePendingForcedEffectsQueue,
     clonePendingBaronDuel,
     clonePendingKingExchange,
 } from './net/online-serialization.js';
+import { preserveHostBotHands, restoreLocalPrivateHints, mergeOnlineLogs } from './net/online-reconcile.js';
 
 // 1. 定義型別
 // 3. 全域狀態
@@ -1938,73 +1938,6 @@ function isOnlineGameActive(): boolean {
     return Boolean(activeGameRoom && onlineGameInitialized);
 }
 
-function preserveHostBotHands(players: Player[]): Player[] {
-    if (!isLocalRoomHost() || !state?.players?.length || state.isGameOver) {
-        return players;
-    }
-
-    const currentBotPlayers = new Map(
-        state.players
-            .filter(player => player.isBot)
-            .map(player => [player.id, player])
-    );
-
-    return players.map(player => {
-        if (!player.isBot || !player.hand.some(isHiddenOnlineCard)) {
-            return player;
-        }
-
-        const currentBot = currentBotPlayers.get(player.id);
-        if (!currentBot) {
-            return player;
-        }
-
-        return {
-            ...player,
-            hand: currentBot.hand.map(cloneCardForOnlineSync)
-        };
-    });
-}
-
-function restoreLocalPrivateHints(players: Player[]): Player[] {
-    const previousLocalPlayer = state.players[localPlayerId];
-    const incomingLocalPlayer = players[localPlayerId];
-    if (!previousLocalPlayer || !incomingLocalPlayer) return players;
-
-    const privateHintsByCardId = new Map<string, Pick<Card, 'privateActionHints' | 'privateHintOwnerId'>>();
-    [...previousLocalPlayer.hand, ...previousLocalPlayer.discardPile].forEach(card => {
-        if (card.privateHintOwnerId === localPlayerId && card.privateActionHints?.length) {
-            privateHintsByCardId.set(card.id, {
-                privateActionHints: card.privateActionHints.map(hint => ({ ...hint })),
-                privateHintOwnerId: card.privateHintOwnerId
-            });
-        }
-    });
-
-    const restoreCard = (card: Card): Card => {
-        const privateHint = privateHintsByCardId.get(card.id);
-        return privateHint ? { ...card, ...privateHint } : card;
-    };
-
-    incomingLocalPlayer.hand = incomingLocalPlayer.hand.map(restoreCard);
-    incomingLocalPlayer.discardPile = incomingLocalPlayer.discardPile.map(restoreCard);
-    return players;
-}
-
-// Merge an incoming log payload (which may be a tail-only delta) against the
-// receiver's current logs. Mirrors the host's delta logic in reverse.
-function mergeOnlineLogs(incomingLogs: string[], baseIndex: number | undefined): string[] {
-    const base = baseIndex ?? 0;
-    if (base <= 0) return [...incomingLogs];                  // full snapshot → replace
-    const local = state?.logs ?? [];
-    if (local.length === base) return [...local, ...incomingLogs];        // exact append
-    if (local.length > base) return [...local.slice(0, base), ...incomingLogs]; // rebuild from base (rollback/replay)
-    // Gap: we missed entries between local.length and base (e.g. syncs skipped
-    // during a Baron/King interaction). Display-only; mark the omission and
-    // append the tail. Self-heals on the next round reset.
-    return [...local, '…', ...incomingLogs];
-}
-
 function createOnlineGameStateData(): OnlineGameStateData {
     // Take a snapshot of active notifications, then decay their broadcast counter.
     // Each notification is sent up to `remainingBroadcasts` times so that brief
@@ -2407,7 +2340,7 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
                 data.forfeitedPlayerIds.forEach(id => forfeitedOnlinePlayerIds.add(id));
             }
 
-            const players = restoreLocalPrivateHints(data.players.map(cloneOnlinePlayer));
+            const players = restoreLocalPrivateHints(state, localPlayerId, data.players.map(cloneOnlinePlayer));
 
             state = {
                 deck: [...data.deck],
@@ -2416,7 +2349,7 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
                 currentTurnPlayerId: data.currentTurnPlayerId,
                 isGameOver: true,
                 winner: data.winner ? players.find(player => player.id === data.winner?.id) ?? cloneOnlinePlayer(data.winner) : null,
-                logs: mergeOnlineLogs(data.logs, data.logsBaseIndex),
+                logs: mergeOnlineLogs(state?.logs ?? [], data.logs, data.logsBaseIndex),
                 aiMemory: {},
                 aiExcludedGuesses: {},
                 roundIndex: data.roundIndex ?? 0
@@ -2528,7 +2461,7 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
         selectedCardId = null;
         isResolvingTurnAction = false;
 
-        const players = preserveHostBotHands(restoreLocalPrivateHints(data.players.map(cloneOnlinePlayer)));
+        const players = preserveHostBotHands(state, restoreLocalPrivateHints(state, localPlayerId, data.players.map(cloneOnlinePlayer)), isLocalRoomHost());
 
         state = {
             deck: [...data.deck],
@@ -2537,7 +2470,7 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
             currentTurnPlayerId: data.currentTurnPlayerId,
             isGameOver: data.isGameOver,
             winner: data.winner ? players.find(player => player.id === data.winner?.id) ?? cloneOnlinePlayer(data.winner) : null,
-            logs: mergeOnlineLogs(data.logs, data.logsBaseIndex),
+            logs: mergeOnlineLogs(state?.logs ?? [], data.logs, data.logsBaseIndex),
             aiMemory: {},
             aiExcludedGuesses: {},
             roundIndex: data.roundIndex ?? 0
