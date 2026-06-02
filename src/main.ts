@@ -50,6 +50,15 @@ import {
     clonePendingKingExchange,
 } from './net/online-serialization.js';
 import { preserveHostBotHands, restoreLocalPrivateHints, mergeOnlineLogs } from './net/online-reconcile.js';
+import type {
+    LobbyRoomSummary,
+    LobbyRoomMetadata,
+    LobbyRoomAddMessage,
+    RoomWaitPlayerView,
+    RoomWaitViewState,
+    SyncedRoomPlayerState,
+    SyncedRoomState,
+} from './net/room-types.js';
 
 // 1. 定義型別
 // 3. 全域狀態
@@ -64,63 +73,6 @@ let onlineGameInitialized = false;
 const DEV_MODE = new URLSearchParams(window.location.search).get('dev') === '1';
 let championThreshold = DEV_MODE ? 1 : 4;
 let isApplyingOnlineState = false;
-
-interface LobbyRoomSummary {
-    roomId: string;
-    playerCount: number;
-    maxClients: number;
-    hasPassword: boolean;
-    isGameStarted: boolean;
-}
-
-interface LobbyRoomMetadata {
-    hasPassword?: boolean;
-    isGameStarted?: boolean;
-    botCount?: number;
-}
-
-type LobbyRoomAddMessage =
-    | RoomAvailable<LobbyRoomMetadata>
-    | [string, RoomAvailable<LobbyRoomMetadata>];
-
-interface RoomWaitPlayerView {
-    id: string;
-    name: string;
-    isReady: boolean;
-    isHost: boolean;
-    isConnected?: boolean;
-    hasForfeited?: boolean;
-}
-
-interface RoomWaitViewState {
-    roomId: string;
-    players: RoomWaitPlayerView[];
-    selfId: string;
-    isGameStarted: boolean;
-    botCount: number;
-    botDifficulties: string[];
-    championCoins: number;
-}
-
-interface SyncedRoomPlayerState {
-    id: string;
-    name: string;
-    isReady: boolean;
-    isHost: boolean;
-    isConnected?: boolean;
-    hasForfeited?: boolean;
-}
-
-interface SyncedRoomState {
-    roomId: string;
-    isGameStarted: boolean;
-    players: Map<string, SyncedRoomPlayerState> | Record<string, SyncedRoomPlayerState> | {
-        values: () => IterableIterator<SyncedRoomPlayerState>;
-    };
-    botCount?: number;
-    botDifficulties?: { toArray?: () => string[] } | string[];
-    championCoins?: number;
-}
 
 const colyseusEndpoint = import.meta.env.VITE_COLYSEUS_ENDPOINT ||
     `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.hostname}:2567`;
