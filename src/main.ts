@@ -1,7 +1,7 @@
 import './style.css'
-import { t, setLang, getLang, type LangCode, createRulesBodyHTML, getCardName, getCardDesc } from './i18n.js';
+import { t, setLang, getLang, type LangCode, createRulesBodyHTML, getCardName } from './i18n.js';
 import { Client, type Room, type RoomAvailable } from '@colyseus/sdk';
-import { CardType, CARD_DEFINITIONS, CARD_IMAGES, createDeck, shuffle } from './domain/cards.js';
+import { CardType, CARD_DEFINITIONS, createDeck, shuffle } from './domain/cards.js';
 import type { Card, CardActionHint } from './domain/cards.js';
 import type { BotDifficulty, GameState, Player, PlayRollback, PrinceDiscardResult } from './domain/game-state.js';
 import { GameRoomState } from './server/schema/GameRoomState.js';
@@ -15,6 +15,7 @@ import { initParticles } from './ui/particles.js';
 import { sleep, escapeHTML, withTimeout } from './utils.js';
 import { getCoinIcons, getPlayerTitleHTML } from './ui/player-badges.js';
 import { createStatsModalBodyHTML, createTargetSelectModalBodyHTML } from './ui/modal-templates.js';
+import { createCardUI, positionCardDescription } from './ui/card-render.js';
 import { getInviteRoomIdFromURL, clearInviteRoomIdFromURL, getRoomInviteURL } from './net/invite-url.js';
 import {
     createAIMemory,
@@ -432,11 +433,11 @@ function render() {
             </div>
         `;
         const discardContainer = botArea.querySelector('.discard-container')!;
-        bot.discardPile.forEach(card => discardContainer.appendChild(createCardUI(card, false)));
+        bot.discardPile.forEach(card => discardContainer.appendChild(createCardUI(card, false, localPlayerId)));
         const handContainer = botArea.querySelector('.hand-container')!;
         bot.hand.forEach(card => {
             if (shouldRevealHand) {
-                handContainer.appendChild(createCardUI(card, false));
+                handContainer.appendChild(createCardUI(card, false, localPlayerId));
             } else {
                 const hiddenCard = document.createElement('div');
                 hiddenCard.className = 'card ai-card';
@@ -478,7 +479,7 @@ function render() {
     playerHandEl.innerHTML = '';
     human.hand.forEach(card => {
         const isPlayable = isHumanTurn && human.hand.length === 2 && !state.isGameOver && !isResolvingTurnAction;
-        const cardUI = createCardUI(card, isPlayable);
+        const cardUI = createCardUI(card, isPlayable, localPlayerId);
         const cardEl = cardUI.querySelector('.card');
         cardEl?.classList.toggle('card-selected', selectedCardId === card.id);
         cardUI.onclick = event => {
@@ -500,7 +501,7 @@ function render() {
     });
 
     playerDiscardEl.innerHTML = '';
-    human.discardPile.forEach(card => playerDiscardEl.appendChild(createCardUI(card, false)));
+    human.discardPile.forEach(card => playerDiscardEl.appendChild(createCardUI(card, false, localPlayerId)));
 
     // 日誌
     gameLogEl.innerHTML = '';
@@ -555,86 +556,6 @@ function render() {
 
     // topbar grid 欄數：線上4欄（含聊天室），離線3欄
     document.body.classList.toggle('online-game-active', isOnlineGameActive());
-}
-
-function createCardUI(card: Card, isPlayable: boolean): HTMLElement {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'card-wrapper';
-    if (!isPlayable) wrapper.style.cursor = 'default';
-
-    const visiblePrivateHints = card.privateHintOwnerId === localPlayerId
-        ? card.privateActionHints
-        : undefined;
-    const actionHints = visiblePrivateHints ?? card.actionHints ?? (card.targetName && card.guessedCardName
-        ? [{ text: t('hint.guardGuess', card.targetName!, card.guessedCardName!) }]
-        : []);
-
-    const cardDiv = document.createElement('div');
-    cardDiv.className = 'card';
-    cardDiv.innerHTML = `
-        <div class="card-header">
-            <span class="card-name">${getCardName(card.type)}</span>
-            <div class="card-value">${card.value}</div>
-        </div>
-        <div class="card-img">
-            <img src="${CARD_IMAGES[card.type]}" alt="${getCardName(card.type)}" loading="lazy">
-        </div>
-        <div class="card-desc">${getCardDesc(card.type)}</div>
-    `;
-    cardDiv.addEventListener('pointerenter', () => {
-        wrapper.classList.add('card-wrapper-hovering');
-        wrapper.closest('.area')?.classList.add('card-area-hovering');
-        positionCardDescription(cardDiv);
-    });
-    cardDiv.addEventListener('pointerleave', () => {
-        wrapper.classList.remove('card-wrapper-hovering');
-        wrapper.closest('.area')?.classList.remove('card-area-hovering');
-        cardDiv.classList.remove('card-desc-below');
-        cardDiv.style.removeProperty('--card-desc-shift');
-    });
-    wrapper.appendChild(cardDiv);
-
-    if (actionHints.length > 0) {
-        const hintsDiv = document.createElement('div');
-        hintsDiv.className = 'card-action-hints';
-        hintsDiv.innerHTML = actionHints.map(hint => `
-            <div class="card-action-hint ${hint.variant ? `card-action-hint-${hint.variant}` : ''}">
-                ${hint.text}
-            </div>
-        `).join('');
-        wrapper.appendChild(hintsDiv);
-    }
-
-    if (!isPlayable) {
-        cardDiv.style.cursor = 'default';
-    }
-    return wrapper;
-}
-
-function positionCardDescription(cardEl: HTMLElement) {
-    const desc = cardEl.querySelector<HTMLElement>('.card-desc');
-    if (!desc) return;
-
-    cardEl.classList.remove('card-desc-below');
-    cardEl.style.setProperty('--card-desc-shift', '0px');
-
-    window.requestAnimationFrame(() => {
-        const margin = 8;
-        let rect = desc.getBoundingClientRect();
-
-        if (rect.top < margin) {
-            cardEl.classList.add('card-desc-below');
-            rect = desc.getBoundingClientRect();
-        }
-
-        let shift = 0;
-        if (rect.left < margin) {
-            shift = margin - rect.left;
-        } else if (rect.right > window.innerWidth - margin) {
-            shift = window.innerWidth - margin - rect.right;
-        }
-        cardEl.style.setProperty('--card-desc-shift', `${shift}px`);
-    });
 }
 
 // Modal 系統
@@ -1192,7 +1113,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             syncOnlineGameState();
             if (!actor.isBot) {
                 await new Promise<void>(resolve => {
-                const cardUI = createCardUI(target.hand[0], false);
+                const cardUI = createCardUI(target.hand[0], false, localPlayerId);
                 cardUI.style.margin = '0 auto';
                 showModal(t('modal.priestSees', target.name), createStatsModalBodyHTML(state, cardUI.outerHTML), `<button class="modal-confirm-btn" id="modal-ok-btn">${t('btn.iUnderstand')}</button>`);
                 document.getElementById('modal-ok-btn')!.onclick = async () => {
@@ -2340,11 +2261,11 @@ function createHandRevealBodyHTML(message: string, actorName: string, actorCard:
         <div class="duel-card-row">
             <div class="duel-card-column">
                 <strong>${actorName}</strong>
-                ${createCardUI(actorCard, false).outerHTML}
+                ${createCardUI(actorCard, false, localPlayerId).outerHTML}
             </div>
             <div class="duel-card-column">
                 <strong>${targetName}</strong>
-                ${createCardUI(targetCard, false).outerHTML}
+                ${createCardUI(targetCard, false, localPlayerId).outerHTML}
             </div>
         </div>
     `;
@@ -2353,7 +2274,7 @@ function createHandRevealBodyHTML(message: string, actorName: string, actorCard:
 function createDeckShowdownBodyHTML(sorted: Player[], winner: Player): string {
     const columns = sorted.map(p => {
         const isWinner = p.id === winner.id;
-        const cardEl = p.hand[0] ? createCardUI(p.hand[0], false).outerHTML : '';
+        const cardEl = p.hand[0] ? createCardUI(p.hand[0], false, localPlayerId).outerHTML : '';
         return `
             <div style="display:flex;flex-direction:column;align-items:center;gap:0.35rem;
                         padding:0.5rem 0.65rem;border-radius:8px;
@@ -2524,7 +2445,7 @@ function hasLocalPendingForcedEffect(queue = pendingForcedEffectsQueue) {
 function createForcedEffectNoticeBodyHTML(effect: PendingForcedEffect) {
     const attacker = state.players[effect.sourcePlayerId] ?? state.players[state.currentTurnPlayerId];
     const attackerName = attacker?.name ?? t('player.opponent');
-    const cardUI = createCardUI(effect.card, false);
+    const cardUI = createCardUI(effect.card, false, localPlayerId);
     cardUI.style.margin = '0.5rem auto 0';
 
     return `
