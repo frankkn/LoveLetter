@@ -41,6 +41,15 @@ import type {
     PendingKingExchange,
     OnlineNotification,
 } from './domain/online-types.js';
+import {
+    cloneCardForOnlineSync,
+    hiddenBotCard,
+    cloneOnlinePlayer,
+    isHiddenOnlineCard,
+    clonePendingForcedEffectsQueue,
+    clonePendingBaronDuel,
+    clonePendingKingExchange,
+} from './net/online-serialization.js';
 
 // 1. 定義型別
 // 3. 全域狀態
@@ -1929,39 +1938,6 @@ function isOnlineGameActive(): boolean {
     return Boolean(activeGameRoom && onlineGameInitialized);
 }
 
-function cloneCardForOnlineSync(card: Card): Card {
-    const { privateActionHints, privateHintOwnerId, actionHints, ...publicCard } = card;
-    void privateActionHints;
-    void privateHintOwnerId;
-    return {
-        ...publicCard,
-        ...(actionHints ? { actionHints: actionHints.map(hint => ({ ...hint })) } : {})
-    };
-}
-
-// Produce a face-down placeholder for a bot's hand card.
-// Non-host clients never need the actual card type during play — bots are
-// always rendered as "?" until the round ends. Sending real types would leak
-// bot hands to anyone with browser dev-tools open.
-function hiddenBotCard(card: Card): Card {
-    return { id: card.id, type: 0 as CardType, name: '', value: 0, description: '' };
-}
-
-function cloneOnlinePlayer(player: Player): Player {
-    return {
-        ...player,
-        hand: player.hand.map(cloneCardForOnlineSync),
-        discardPile: player.discardPile.map(cloneCardForOnlineSync)
-        // isBot is intentionally preserved so all clients can identify bot players for
-        // turn-logic routing (queueBotTurn is host-guarded and safe for non-host clients).
-    };
-}
-
-function isHiddenOnlineCard(card: Card): boolean {
-    const type = Number(card.type);
-    return type === 0 || !(type in CARD_DEFINITIONS);
-}
-
 function preserveHostBotHands(players: Player[]): Player[] {
     if (!isLocalRoomHost() || !state?.players?.length || state.isGameOver) {
         return players;
@@ -2127,38 +2103,6 @@ function isForcedEffectCard(card: Card) {
     // all other cards (including Handmaid) go through the queue so that the
     // target always sees the forced-chain modal before the effect activates.
     return card.type !== CardType.Princess;
-}
-
-function clonePendingForcedEffect(effect: PendingForcedEffect): PendingForcedEffect {
-    return {
-        ...effect,
-        sourcePlayerId: effect.sourcePlayerId ?? effect.returnTurnPlayerId,
-        card: { ...effect.card }
-    };
-}
-
-function clonePendingForcedEffectsQueue(queue: PendingForcedEffect[] | undefined, fallback?: PendingForcedEffect | null) {
-    if (queue) {
-        return queue.map(clonePendingForcedEffect);
-    }
-
-    return fallback ? [clonePendingForcedEffect(fallback)] : [];
-}
-
-function clonePendingBaronDuel(duel: PendingBaronDuel): PendingBaronDuel {
-    return {
-        ...duel,
-        actorCard: { ...duel.actorCard },
-        targetCard: { ...duel.targetCard },
-        confirmedPlayerIds: [...duel.confirmedPlayerIds]
-    };
-}
-
-function clonePendingKingExchange(exchange: PendingKingExchange): PendingKingExchange {
-    return {
-        ...exchange,
-        confirmedPlayerIds: [...exchange.confirmedPlayerIds]
-    };
 }
 
 function isSamePendingForcedEffect(a: PendingForcedEffect | null, b: PendingForcedEffect | null) {
