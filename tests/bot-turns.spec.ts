@@ -53,12 +53,27 @@ async function dismissModalIfVisible(page: Page): Promise<boolean> {
 }
 
 /**
+ * 是否為「伯爵夫人/公主」出牌限制提示。
+ * 這類提示只有一個關閉鈕、沒有任何動作按鈕（選目標 / 猜牌 / 確認），
+ * 用來區分「出牌被規則擋下」與「正常開啟的動作 modal」。
+ */
+async function isConstraintWarning(page: Page): Promise<boolean> {
+    const overlay = page.locator('#modal-overlay');
+    if (!(await overlay.isVisible().catch(() => false))) return false;
+    const actionBtns = overlay.locator(
+        '.target-btn, .guess-btn, #modal-stats-confirm-btn, #modal-ok-btn, #game-started-ok-btn, #show-result-btn'
+    );
+    if (await actionBtns.count() > 0) return false;
+    return (await overlay.locator('.modal-confirm-btn').count()) > 0;
+}
+
+/**
  * 自動操作人類玩家，直到遊戲結束或逾時。
  * 每次迴圈：
  *   1. 若遊戲結束 → 回傳
  *   2. 若有 modal → 關閉
  *   3. 若抽牌按鈕可用 → 抽牌
- *   4. 若手牌有 2 張 → 點第 1 張選取，再點一次打出
+ *   4. 若手牌有 2 張 → 依序試打每張牌；被伯爵夫人/公主限制擋下的牌就換下一張
  */
 async function driveGameToEnd(page: Page) {
     const deadline = Date.now() + GAME_TIMEOUT;
@@ -87,18 +102,26 @@ async function driveGameToEnd(page: Page) {
             continue;
         }
 
-        // 手牌有 2 張 → 選第 1 張再打出（click × 2）
+        // 手牌有 2 張 → 依序試打每張牌（click × 2）。
+        // 若被伯爵夫人/公主出牌限制擋下，關閉提示後改試下一張（必有一張合法）。
         const cards = page.locator('#player-hand .card-wrapper');
         const cardCount = await cards.count();
         if (cardCount >= 2) {
-            const first = cards.nth(0);
-            if (await first.isVisible({ timeout: 100 }).catch(() => false)) {
-                await first.click(); // 第一下：選取
+            for (let i = 0; i < cardCount; i++) {
+                const card = cards.nth(i);
+                if (!(await card.isVisible({ timeout: 100 }).catch(() => false))) continue;
+                await card.click(); // 第一下：選取
                 await page.waitForTimeout(100);
-                await first.click(); // 第二下：打出
+                await card.click(); // 第二下：打出
                 await page.waitForTimeout(200);
-                continue;
+                if (await isConstraintWarning(page)) {
+                    await dismissModalIfVisible(page); // 關閉限制提示，試下一張
+                    await page.waitForTimeout(100);
+                    continue;
+                }
+                break; // 已打出，或開啟了動作 modal（交由下一輪 dismiss 處理）
             }
+            continue;
         }
 
         // 等電腦思考
