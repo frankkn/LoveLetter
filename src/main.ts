@@ -13,6 +13,7 @@ import { createVoiceController } from './ui/voice.js';
 import { createChatController, type ChatMsg } from './ui/chat.js';
 import { initParticles } from './ui/particles.js';
 import { sleep, escapeHTML, withTimeout } from './utils.js';
+import { getInviteRoomIdFromURL, clearInviteRoomIdFromURL, getRoomInviteURL } from './net/invite-url.js';
 
 // 1. 定義型別
 // 3. 全域狀態
@@ -2295,23 +2296,6 @@ function getJoinRoomErrorMessage(error: unknown): string {
     if (/already started|game that has already started/i.test(message)) return t('invite.gameStarted');
     if (/not found|doesn't exist|does not exist/i.test(message)) return t('invite.roomMissing');
     return message;
-}
-
-function getInviteRoomIdFromURL(): string | null {
-    return new URLSearchParams(window.location.search).get('room')?.trim() || null;
-}
-
-function clearInviteRoomIdFromURL() {
-    const url = new URL(window.location.href);
-    if (!url.searchParams.has('room')) return;
-    url.searchParams.delete('room');
-    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
-}
-
-function getRoomInviteURL(roomId: string): string {
-    const url = new URL(window.location.href);
-    url.searchParams.set('room', roomId);
-    return url.toString();
 }
 
 function toLobbyRoomSummary(room: RoomAvailable<LobbyRoomMetadata>): LobbyRoomSummary {
