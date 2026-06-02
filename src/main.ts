@@ -12,6 +12,7 @@ import { createEmojiController } from './ui/emoji.js';
 import { createVoiceController } from './ui/voice.js';
 import { createChatController, type ChatMsg } from './ui/chat.js';
 import { initParticles } from './ui/particles.js';
+import { sleep, escapeHTML, withTimeout } from './utils.js';
 
 // 1. 定義型別
 // 3. 全域狀態
@@ -320,8 +321,6 @@ function showLanguageModal(): void {
 
 // Modal state
 let endGameReason = '';
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 function renderPlayedCardStats() {
     const counts = new Map<CardType, number>();
@@ -2208,16 +2207,6 @@ async function botTurn(botId: number) {
     }
 }
 
-function escapeHTML(value: string): string {
-    return value.replace(/[&<>"']/g, char => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    })[char]!);
-}
-
 function removeSplashScreen() {
     document.getElementById('splash-screen')?.remove();
 }
@@ -2306,16 +2295,6 @@ function getJoinRoomErrorMessage(error: unknown): string {
     if (/already started|game that has already started/i.test(message)) return t('invite.gameStarted');
     if (/not found|doesn't exist|does not exist/i.test(message)) return t('invite.roomMissing');
     return message;
-}
-
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
-    return new Promise((resolve, reject) => {
-        const timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
-        promise
-            .then(resolve)
-            .catch(reject)
-            .finally(() => window.clearTimeout(timeoutId));
-    });
 }
 
 function getInviteRoomIdFromURL(): string | null {
