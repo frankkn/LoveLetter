@@ -371,6 +371,85 @@ let isBotTurnRunning = false;
 // before the player has a chance to read and dismiss it.
 let isShowingNotificationModal = false;
 
+// ── 離線存檔系統 ─────────────────────────────────────────────────────────────
+const OFFLINE_SAVE_KEY = 'loveLetter_offlineSave';
+
+interface SaveData {
+    version: number;
+    savedAt: string;
+    state: Omit<GameState, 'winner'> & { winnerId: number | null };
+    recentBaronGuardClue: BaronGuardClue | null;
+    championThreshold: number;
+}
+
+function hasSave(): boolean {
+    return localStorage.getItem(OFFLINE_SAVE_KEY) !== null;
+}
+
+function saveGame() {
+    if (isOnlineGameActive()) return;
+    const { winner: _winner, ...stateWithoutWinner } = state;
+    const data: SaveData = {
+        version: 1,
+        savedAt: new Date().toISOString(),
+        state: { ...stateWithoutWinner, winnerId: state.winner?.id ?? null },
+        recentBaronGuardClue,
+        championThreshold,
+    };
+    try { localStorage.setItem(OFFLINE_SAVE_KEY, JSON.stringify(data)); } catch { /* quota */ }
+    updateContinueBtn();
+}
+
+function clearSave() {
+    localStorage.removeItem(OFFLINE_SAVE_KEY);
+    updateContinueBtn();
+}
+
+function updateContinueBtn() {
+    const btn = document.getElementById('continue-game-btn') as HTMLButtonElement | null;
+    if (btn) btn.style.display = hasSave() ? '' : 'none';
+}
+
+function loadAndStartSave(): boolean {
+    const raw = localStorage.getItem(OFFLINE_SAVE_KEY);
+    if (!raw) return false;
+    try {
+        const data: SaveData = JSON.parse(raw);
+        if (data.version !== 1 || !Array.isArray(data.state?.players)) return false;
+
+        state = {
+            ...data.state,
+            winner: data.state.winnerId !== null
+                ? data.state.players.find((p: Player) => p.id === data.state.winnerId) ?? null
+                : null,
+        };
+        recentBaronGuardClue = data.recentBaronGuardClue;
+        championThreshold = data.championThreshold;
+
+        localPlayerId = 0;
+        selectedCardId = null;
+        isResolvingTurnAction = false;
+        queuedBotTurnId = null;
+        pendingForcedEffectsQueue = [];
+        resolvingForcedEffect = null;
+        pendingBaronDuel = null;
+        activeBaronDuelModalKey = null;
+        pendingKingExchange = null;
+        activeKingExchangeModalKey = null;
+        isHandlingPendingForcedEffect = false;
+        hasShownEndGameModal = false;
+        showStatsNextRoundButton = false;
+        nextRoundReadyPlayerIds = [];
+        restartReadyPlayerIds = [];
+        endGameReason = '';
+        onlineGameInitialized = false;
+        isApplyingOnlineState = false;
+        isBotTurnRunning = false;
+
+        return true;
+    } catch { return false; }
+}
+
 // Reconnection token saved when we disconnect mid-game (format: "roomId:token").
 // Used to call colyseusClient.reconnect() from the reconnect modal.
 let savedReconnectionToken: string | null = null;
@@ -1009,6 +1088,8 @@ function render() {
     const micBtn = document.getElementById('mic-btn') as HTMLButtonElement | null;
     if (chatBtn) chatBtn.style.display = isOnlineGameActive() ? 'flex' : 'none';
     if (micBtn) micBtn.style.display = isOnlineGameActive() ? 'flex' : 'none';
+    const saveBtn = document.getElementById('save-game-btn') as HTMLButtonElement | null;
+    if (saveBtn) saveBtn.style.display = isOnlineGameActive() ? 'none' : '';
 
     // 表情輪盤：僅多人連線進行中顯示
     const emojiBtn = document.getElementById('emoji-btn') as HTMLButtonElement | null;
@@ -1370,6 +1451,7 @@ function drawCard(playerId: number): boolean {
     pruneInvalidKnownCardsForPlayer(playerId);
     addLog(t('log.drew', player.name));
     render();
+    if (!player.isBot) saveGame();
     syncOnlineGameState();
     return true;
 }
@@ -2332,6 +2414,7 @@ function createRankingHTML(): string {
 function showChampionModal() {
     const champion = getLeagueChampion();
     if (!champion) return;
+    clearSave();
 
     // Only play the champion theme for the local player who won the league.
     if (champion.id === localPlayerId) playChampionTheme();
@@ -4559,6 +4642,8 @@ function showScene(sceneId: 'main-menu' | 'mode-select' | 'bot-settings-select' 
     // so we remove the inline style and let CSS take over; all other scenes use flex.
     document.getElementById(sceneId)!.style.display = sceneId === 'game-scene' ? '' : 'flex';
 
+    if (sceneId === 'main-menu') updateContinueBtn();
+
     // BGM switching — use user-selected tracks with built-in defaults as fallback
     if (sceneId === 'game-scene') {
         const t = getSelectedTrack('game');
@@ -4569,6 +4654,21 @@ function showScene(sceneId: 'main-menu' | 'mode-select' | 'bot-settings-select' 
     }
 }
 
+document.getElementById('continue-game-btn')!.onclick = () => {
+    if (!loadAndStartSave()) return;
+    showScene('game-scene');
+    render();
+    const currentPlayer = state.players[state.currentTurnPlayerId];
+    if (currentPlayer?.isBot && !state.isGameOver) {
+        showModal(t('save.resumeTitle'), `<p>${t('save.resumeBody')}</p>`, `
+            <button class="modal-confirm-btn" id="resume-confirm-btn">${t('btn.confirm')}</button>
+        `);
+        document.getElementById('resume-confirm-btn')!.onclick = () => {
+            closeModal();
+            queueBotTurn(state.currentTurnPlayerId);
+        };
+    }
+};
 document.getElementById('start-game-btn')!.onclick = () => showScene('mode-select');
 document.getElementById('back-to-menu-btn')!.onclick = async () => {
     await resetClientState();
@@ -4591,6 +4691,7 @@ mobileStatsToggleBtn.onclick = event => {
 cardStatsAreaEl.addEventListener('click', event => event.stopPropagation());
 document.getElementById('back-home-btn')!.onclick = async () => {
     if (confirm(t('confirm.backHome'))) {
+        if (!isOnlineGameActive()) saveGame();
         await resetClientState();
         showScene('main-menu');
     }
@@ -4603,6 +4704,14 @@ document.getElementById('leave-game-btn')!.onclick = () => {
     if (confirm(t('disconnect.forfeitConfirm'))) {
         void sendForfeitAndLeave();
     }
+};
+document.getElementById('save-game-btn')!.onclick = () => {
+    showModal(t('save.confirmTitle'), '', `
+        <button class="modal-confirm-btn" id="save-confirm-btn">${t('btn.confirm')}</button>
+        <button class="modal-confirm-btn" id="save-cancel-btn" style="margin-left:0.65rem;background:#64748b;">${t('btn.back')}</button>
+    `);
+    document.getElementById('save-confirm-btn')!.onclick = () => { saveGame(); closeModal(); };
+    document.getElementById('save-cancel-btn')!.onclick = closeModal;
 };
 document.getElementById('mute-btn')!.onclick = toggleMute;
 document.getElementById('mute-btn-global')!.onclick = toggleMute;
