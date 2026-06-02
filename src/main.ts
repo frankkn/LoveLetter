@@ -14,7 +14,7 @@ import { createChatController, type ChatMsg } from './ui/chat.js';
 import { initParticles } from './ui/particles.js';
 import { sleep, escapeHTML, withTimeout } from './utils.js';
 import { getCoinIcons, getPlayerTitleHTML } from './ui/player-badges.js';
-import { createStatsModalBodyHTML, createTargetSelectModalBodyHTML } from './ui/modal-templates.js';
+import { createStatsModalBodyHTML, createTargetSelectModalBodyHTML, createHandRevealBodyHTML, createDeckShowdownBodyHTML } from './ui/modal-templates.js';
 import { createCardUI, positionCardDescription } from './ui/card-render.js';
 import { getInviteRoomIdFromURL, clearInviteRoomIdFromURL, getRoomInviteURL } from './net/invite-url.js';
 import {
@@ -1189,7 +1189,8 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                         actor.name,
                         actorCard,
                         target.name,
-                        targetCard
+                        targetCard,
+                        localPlayerId
                     ),
                     t('btn.confirmDuel')
                 );
@@ -1326,7 +1327,8 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                         actor.name,
                         actor.hand[0],
                         target.name,
-                        target.hand[0]
+                        target.hand[0],
+                        localPlayerId
                     ),
                     t('btn.confirm')
                 );
@@ -1356,7 +1358,8 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                         actor.name,
                         actor.hand[0],
                         target.name,
-                        target.hand[0]
+                        target.hand[0],
+                        localPlayerId
                     ),
                     t('btn.iUnderstand')
                 );
@@ -1492,7 +1495,7 @@ async function checkEndConditions() {
             render();
             await waitForStatsModalConfirm(
                 t('modal.deckShowdown'),
-                createDeckShowdownBodyHTML(survivors, winner),
+                createDeckShowdownBodyHTML(survivors, winner, localPlayerId),
                 t('game.viewResult')
             );
             endGame(winner, t('reason.highestCard', String(winner.hand[0].value)));
@@ -2255,45 +2258,6 @@ function areBaronDuelParticipantsConfirmed(duel: PendingBaronDuel | null) {
     );
 }
 
-function createHandRevealBodyHTML(message: string, actorName: string, actorCard: Card, targetName: string, targetCard: Card) {
-    return `
-        <p>${message}</p>
-        <div class="duel-card-row">
-            <div class="duel-card-column">
-                <strong>${actorName}</strong>
-                ${createCardUI(actorCard, false, localPlayerId).outerHTML}
-            </div>
-            <div class="duel-card-column">
-                <strong>${targetName}</strong>
-                ${createCardUI(targetCard, false, localPlayerId).outerHTML}
-            </div>
-        </div>
-    `;
-}
-
-function createDeckShowdownBodyHTML(sorted: Player[], winner: Player): string {
-    const columns = sorted.map(p => {
-        const isWinner = p.id === winner.id;
-        const cardEl = p.hand[0] ? createCardUI(p.hand[0], false, localPlayerId).outerHTML : '';
-        return `
-            <div style="display:flex;flex-direction:column;align-items:center;gap:0.35rem;
-                        padding:0.5rem 0.65rem;border-radius:8px;
-                        border:2px solid ${isWinner ? '#ffb000' : 'rgba(255,255,255,0.15)'};
-                        background:${isWinner ? 'rgba(255,176,0,0.1)' : 'rgba(255,255,255,0.04)'};">
-                <strong style="color:${isWinner ? '#ffb000' : '#f2f2f2'};font-size:0.95rem;">
-                    ${escapeHTML(p.name)}
-                </strong>
-                ${cardEl}
-                ${isWinner ? `<span style="color:#ffb000;font-weight:bold;font-size:0.85rem;">${t('deckShowdown.winner')}</span>` : ''}
-            </div>`;
-    }).join('');
-    return `
-        <p style="margin:0 0 0.75rem;">${t('deckShowdown.intro')}</p>
-        <div class="duel-card-row" style="flex-wrap:wrap;">
-            ${columns}
-        </div>`;
-}
-
 function createBaronDuelBodyHTML(duel: PendingBaronDuel) {
     const actor = state.players[duel.actorId];
     const target = state.players[duel.targetId];
@@ -2303,7 +2267,8 @@ function createBaronDuelBodyHTML(duel: PendingBaronDuel) {
         actor.name,
         duel.actorCard,
         target.name,
-        duel.targetCard
+        duel.targetCard,
+        localPlayerId
     );
 }
 
@@ -2392,7 +2357,8 @@ async function showKingExchangeModal(exchange: PendingKingExchange) {
             ? createHandRevealBodyHTML(
                 t('king.swapPending', actor.name, target.name),
                 actor.name, actor.hand[0],
-                target.name, target.hand[0]
+                target.name, target.hand[0],
+                localPlayerId
             )
             : `<p>${t('king.swapPending', actor.name, target.name)}</p>`;
         await waitForStatsModalConfirm(

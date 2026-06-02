@@ -1,6 +1,8 @@
 import { CardType, CARD_DEFINITIONS, type Card } from '../domain/cards.js';
 import type { GameState, Player } from '../domain/game-state.js';
 import { t, getCardName } from '../i18n.js';
+import { escapeHTML } from '../utils.js';
+import { createCardUI } from './card-render.js';
 
 // Modal 內共用的 HTML body 片段（出牌統計面板、統計版型、選擇目標版型）。
 // 讀取遊戲狀態的部分以參數傳入 state，不依賴模組外的全域變數。
@@ -61,4 +63,52 @@ export function createTargetSelectModalBodyHTML(state: GameState, card: Card, ta
         ${createPlayedCardStatsHTML(state)}
         <div class="target-list">${buttonsHTML}</div>
     `;
+}
+
+/** 雙方翻牌對照（男爵對決 / 國王交換）的 modal body */
+export function createHandRevealBodyHTML(
+    message: string,
+    actorName: string,
+    actorCard: Card,
+    targetName: string,
+    targetCard: Card,
+    localPlayerId: number,
+): string {
+    return `
+        <p>${message}</p>
+        <div class="duel-card-row">
+            <div class="duel-card-column">
+                <strong>${actorName}</strong>
+                ${createCardUI(actorCard, false, localPlayerId).outerHTML}
+            </div>
+            <div class="duel-card-column">
+                <strong>${targetName}</strong>
+                ${createCardUI(targetCard, false, localPlayerId).outerHTML}
+            </div>
+        </div>
+    `;
+}
+
+/** 牌堆耗盡時的比牌結算 modal body */
+export function createDeckShowdownBodyHTML(sorted: Player[], winner: Player, localPlayerId: number): string {
+    const columns = sorted.map(p => {
+        const isWinner = p.id === winner.id;
+        const cardEl = p.hand[0] ? createCardUI(p.hand[0], false, localPlayerId).outerHTML : '';
+        return `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:0.35rem;
+                        padding:0.5rem 0.65rem;border-radius:8px;
+                        border:2px solid ${isWinner ? '#ffb000' : 'rgba(255,255,255,0.15)'};
+                        background:${isWinner ? 'rgba(255,176,0,0.1)' : 'rgba(255,255,255,0.04)'};">
+                <strong style="color:${isWinner ? '#ffb000' : '#f2f2f2'};font-size:0.95rem;">
+                    ${escapeHTML(p.name)}
+                </strong>
+                ${cardEl}
+                ${isWinner ? `<span style="color:#ffb000;font-weight:bold;font-size:0.85rem;">${t('deckShowdown.winner')}</span>` : ''}
+            </div>`;
+    }).join('');
+    return `
+        <p style="margin:0 0 0.75rem;">${t('deckShowdown.intro')}</p>
+        <div class="duel-card-row" style="flex-wrap:wrap;">
+            ${columns}
+        </div>`;
 }
