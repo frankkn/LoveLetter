@@ -6,109 +6,7 @@ import type { Card, CardActionHint } from './domain/cards.js';
 import type { BaronGuardClue, BotDifficulty, GameState, Player, PlayRollback, PrinceDiscardResult } from './domain/game-state.js';
 import { GameRoomState } from './server/schema/GameRoomState.js';
 import { mainMenuEl, modeSelectEl, botSettingsSelectEl, lobbySceneEl, roomWaitSceneEl, gameSceneEl, roomListContainerEl, currentRoomIdEl, roomPlayerCountEl, roomPlayerListEl, inviteRoomBtn, readyToggleBtn, cardStatsAreaEl, playedCardStatsEl, opponentsContainerEl, playerAreaEl, playerHandEl, playerDiscardEl, deckCountEl, drawBtn, drawBtnDesktop, showResultBtn, statsNextRoundBtn, showLogBtn, gameLogEl, turnIndicatorEl, modalOverlay, modalTitle, modalBody, modalFooter, mobileStatsToggleBtn } from './ui/elements.js';
-
-type TrackInfo = { name: string; url: string };
-type MusicSlot = 'menu' | 'game' | 'winner' | 'loser' | 'champion';
-
-const _NO_TRACK: TrackInfo = { name: '(無)', url: '' };
-
-function _buildTrackList(
-    filenames: string[],
-    subfolder: string,
-    fallback: TrackInfo
-): TrackInfo[] {
-    const base = import.meta.env.BASE_URL; // '/' dev  '/love-letter/' prod
-    const tracks = filenames
-        .map(filename => {
-            const name = filename.replace(/\.mp3$/i, '').replace(/[-_]/g, ' ');
-            const url = `${base}audio/${subfolder}/${encodeURIComponent(filename)}`;
-            return { name, url };
-        })
-        .sort((a, b) => a.name.localeCompare(b.name));
-    return tracks.length > 0 ? tracks : [fallback];
-}
-
-// Keep public audio as static files. Avoid import.meta.glob here because Vite
-// emits duplicate MP3 copies into dist/assets even when only filenames are used.
-const AUDIO_LIBRARY: Record<MusicSlot, TrackInfo[]> = {
-    menu: _buildTrackList([
-        'Royal Intrigue .mp3',
-        'The Gilded Labyrinth.mp3',
-        "The Sovereign's Veil.mp3",
-        'Velvet Armor.mp3',
-    ], 'menu', _NO_TRACK),
-    game: _buildTrackList([
-        'A Game of Hearts .mp3',
-        'Dealroom Lutestring.mp3',
-        'The Algorithmic Court.mp3',
-        'The Crown of Thorns.mp3',
-    ], 'game', _NO_TRACK),
-    winner: _buildTrackList([
-        'Gilded Trumpets.mp3',
-        'The Dawn of Triumph.mp3',
-        "The Sovereign's Fanfare.mp3",
-        "The Victor's Token.mp3",
-    ], 'winner', _NO_TRACK),
-    loser: _buildTrackList([
-        'Farewell, Chevalier .mp3',
-        'Rosin Grief.mp3',
-        "The Bow's Lament.mp3",
-        'The Last Requiem of Glory.mp3',
-    ], 'loser', _NO_TRACK),
-    champion: _buildTrackList([
-        'Dawn of the Golden Age.mp3',
-        'Love Conquers All .mp3',
-        'The Triumph of Aphrodite.mp3',
-        'Trumpet Crowned Love.mp3',
-    ], 'champion', _NO_TRACK),
-};
-
-// Per-slot selected track index; persisted to localStorage.
-const MUSIC_SETTINGS_KEY = 'loveLetter_musicSettings';
-const VOLUME_SETTINGS_KEY = 'loveLetter_audioVolume';
-const DEFAULT_AUDIO_VOLUME_PERCENT = 60;
-const BGM_BASE_VOLUME = 0.45;
-const SFX_BASE_VOLUME = 0.8;
-const PREVIEW_BASE_VOLUME = 0.45;
-let musicSelections: Record<MusicSlot, number> = { menu: 0, game: 0, winner: 0, loser: 0, champion: 0 };
-let audioVolumePercent = DEFAULT_AUDIO_VOLUME_PERCENT;
-// Working copy while the settings panel is open (discarded on "返回").
-let pendingMusicSelections: Record<MusicSlot, number> = { ...musicSelections };
-let pendingAudioVolumePercent = audioVolumePercent;
-
-function clampAudioVolume(value: number): number {
-    return Math.max(0, Math.min(100, Math.round(value)));
-}
-
-function loadMusicSettings() {
-    try {
-        const raw = localStorage.getItem(MUSIC_SETTINGS_KEY);
-        if (!raw) return;
-        const parsed = JSON.parse(raw) as Partial<Record<MusicSlot, number>>;
-        for (const slot of Object.keys(AUDIO_LIBRARY) as MusicSlot[]) {
-            const idx = parsed[slot] ?? 0;
-            musicSelections[slot] = Math.max(0, Math.min(idx, AUDIO_LIBRARY[slot].length - 1));
-        }
-    } catch { /* ignore malformed data */ }
-
-    const storedVolume = Number(localStorage.getItem(VOLUME_SETTINGS_KEY));
-    if (Number.isFinite(storedVolume)) {
-        audioVolumePercent = clampAudioVolume(storedVolume);
-        pendingAudioVolumePercent = audioVolumePercent;
-    }
-}
-
-function saveMusicSettings() {
-    localStorage.setItem(MUSIC_SETTINGS_KEY, JSON.stringify(musicSelections));
-    localStorage.setItem(VOLUME_SETTINGS_KEY, String(audioVolumePercent));
-}
-
-function getSelectedTrack(slot: MusicSlot): TrackInfo {
-    const tracks = AUDIO_LIBRARY[slot];
-    return tracks[Math.max(0, Math.min(musicSelections[slot], tracks.length - 1))] ?? _NO_TRACK;
-}
-
-loadMusicSettings();
+import { AUDIO_LIBRARY, adjustPendingMusicSelection, beginMusicSettingsEdit, cancelMusicSettingsEdit, confirmMusicSettingsEdit, getPendingAudioVolumePercent, getPendingSelection, getPendingTrack, getSelectedTrack, initializeAudioUnlock, pauseBGMForSettingsPreview, playBGM, playChampionTheme, playPreview, playSelectedMenuBGM, playSFX, queueMusicSettingsPreload, setPendingAudioVolumePercent, stopPreview, toggleMute, type MusicSlot } from './audio/music.js';
 
 // 1. 定義型別
 // 3. 全域狀態
@@ -388,186 +286,6 @@ function resetLocalClientState() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Audio System
-// ─────────────────────────────────────────────────────────────────────────────
-const bgmAudio = new Audio();
-bgmAudio.loop = true;
-bgmAudio.volume = BGM_BASE_VOLUME;
-
-const sfxAudio = new Audio();
-sfxAudio.volume = SFX_BASE_VOLUME;
-
-const previewAudio = new Audio();
-previewAudio.loop = true;
-previewAudio.volume = PREVIEW_BASE_VOLUME;
-
-let isMuted = localStorage.getItem('loveLetter_muted') === 'true';
-let currentBGMFile = '';
-let audioUnlocked = false;
-let pendingBGMFile = '';
-const preloadedAudio = new Set<string>();
-const audioPreloadQueue: string[] = [];
-let isAudioPreloadQueueRunning = false;
-// Tracks whether WE paused BGM to make way for an SFX (so we can resume it after)
-let bgmPausedForSFX = false;
-
-function applyAudioVolume(volumePercent = audioVolumePercent) {
-    const ratio = clampAudioVolume(volumePercent) / 100;
-    bgmAudio.volume = BGM_BASE_VOLUME * ratio;
-    sfxAudio.volume = SFX_BASE_VOLUME * ratio;
-    previewAudio.volume = PREVIEW_BASE_VOLUME * ratio;
-}
-
-applyAudioVolume();
-
-function getAudioSrc(filename: string): string {
-    return `${import.meta.env.BASE_URL}audio/${encodeURIComponent(filename)}`;
-}
-
-function applyMuteState() {
-    bgmAudio.muted = isMuted;
-    sfxAudio.muted = isMuted;
-    previewAudio.muted = isMuted;
-    // 遊戲內喇叭：用 CSS class 切換 SVG 音波 / X
-    const btn = document.getElementById('mute-btn') as HTMLButtonElement | null;
-    if (btn) btn.classList.toggle('muted', isMuted);
-    // 全域喇叭（非遊戲場景用，維持 emoji）
-    const btnGlobal = document.getElementById('mute-btn-global') as HTMLButtonElement | null;
-    if (btnGlobal) btnGlobal.textContent = isMuted ? '🔇' : '🔊';
-}
-
-function preloadAudio(url: string) {
-    if (!url || preloadedAudio.has(url)) return;
-    preloadedAudio.add(url);
-    const audio = new Audio();
-    audio.preload = 'auto';
-    audio.src = url;
-    audio.load();
-}
-
-function queueAudioPreload(url: string) {
-    if (!url || preloadedAudio.has(url) || audioPreloadQueue.includes(url)) return;
-    audioPreloadQueue.push(url);
-    void runAudioPreloadQueue();
-}
-
-async function runAudioPreloadQueue() {
-    if (isAudioPreloadQueueRunning) return;
-    isAudioPreloadQueueRunning = true;
-    while (audioPreloadQueue.length > 0) {
-        const url = audioPreloadQueue.shift();
-        if (!url || preloadedAudio.has(url)) continue;
-        preloadAudio(url);
-        await new Promise(resolve => window.setTimeout(resolve, 650));
-    }
-    isAudioPreloadQueueRunning = false;
-}
-
-function preloadSelectedBGM() {
-    const menuTrack = getSelectedTrack('menu');
-    const gameTrack = getSelectedTrack('game');
-    if (menuTrack.url) preloadAudio(menuTrack.url);
-    if (gameTrack.url) preloadAudio(gameTrack.url);
-}
-
-function queueMusicSettingsPreload() {
-    for (const slot of Object.keys(AUDIO_LIBRARY) as MusicSlot[]) {
-        const tracks = AUDIO_LIBRARY[slot];
-        const selectedIndex = pendingMusicSelections[slot] ?? musicSelections[slot] ?? 0;
-        const indexes = [selectedIndex, selectedIndex - 1, selectedIndex + 1];
-        for (const index of indexes) {
-            const track = tracks[index];
-            if (track?.url) queueAudioPreload(track.url);
-        }
-    }
-}
-
-function unlockAudio() {
-    if (audioUnlocked) return;
-    audioUnlocked = true;
-    preloadSelectedBGM();
-    // Fade out the splash screen
-    const splash = document.getElementById('splash-screen');
-    if (splash) {
-        splash.classList.add('fade-out');
-        splash.addEventListener('animationend', removeSplashScreen, { once: true });
-    }
-    // Play the pending BGM immediately (we're now in a user-gesture context)
-    if (pendingBGMFile) {
-        const f = pendingBGMFile;
-        pendingBGMFile = '';
-        playBGM(f);
-    }
-}
-
-function playBGM(filenameOrUrl: string) {
-    if (!audioUnlocked) { pendingBGMFile = filenameOrUrl; return; }
-    if (currentBGMFile === filenameOrUrl) return; // already committed to this track
-    preloadAudio(filenameOrUrl);
-    bgmAudio.loop = true;
-    currentBGMFile = filenameOrUrl;
-    bgmPausedForSFX = false;
-    // Full paths/URLs contain '/'; plain filenames (legacy calls) do not.
-    bgmAudio.src = filenameOrUrl.includes('/') ? filenameOrUrl : getAudioSrc(filenameOrUrl);
-    bgmAudio.currentTime = 0;
-    bgmAudio.play().catch(() => {
-        audioUnlocked = false;
-        pendingBGMFile = filenameOrUrl;
-        currentBGMFile = '';
-    });
-}
-
-function playSFX(filenameOrUrl: string) {
-    if (!audioUnlocked) return;
-    // Pause BGM so it doesn't overlap with the SFX
-    if (!bgmAudio.paused) {
-        bgmAudio.pause();
-        bgmPausedForSFX = true;
-    }
-    const resumeBGM = () => {
-        if (bgmPausedForSFX && currentBGMFile) {
-            bgmPausedForSFX = false;
-            bgmAudio.play().catch(() => {});
-        }
-    };
-    sfxAudio.src = filenameOrUrl.includes('/') ? filenameOrUrl : getAudioSrc(filenameOrUrl);
-    sfxAudio.currentTime = 0;
-    sfxAudio.onended = resumeBGM;
-    sfxAudio.play().catch(resumeBGM);
-}
-
-function playChampionTheme() {
-    // Champion theme takes over BGM; resume game BGM when it ends.
-    const track = getSelectedTrack('champion');
-    if (!track.url) return;
-    bgmPausedForSFX = false;
-    bgmAudio.pause();
-    currentBGMFile = '';
-    sfxAudio.src = track.url;
-    sfxAudio.currentTime = 0;
-    sfxAudio.onended = () => {
-        const gameTrack = getSelectedTrack('game');
-        if (gameTrack.url) playBGM(gameTrack.url);
-    };
-    sfxAudio.play().catch(() => {});
-}
-
-function toggleMute() {
-    isMuted = !isMuted;
-    localStorage.setItem('loveLetter_muted', String(isMuted));
-    applyMuteState();
-    if (!isMuted) unlockAudio();
-}
-
-// Use capture phase so unlockAudio fires BEFORE any button handler,
-// ensuring audio plays from the very first interaction (works on iOS too).
-document.addEventListener('touchstart', unlockAudio, { capture: true, once: true });
-document.addEventListener('click',      unlockAudio, { capture: true, once: true });
-document.addEventListener('keydown',    unlockAudio, { capture: true, once: true });
-applyMuteState();
-
-// ─────────────────────────────────────────────────────────────────────────────
-
 function resetClientState() {
     const leavingGameRoom = activeGameRoom;
     const leavingLobbyRoom = lobbyRoom;
@@ -2535,6 +2253,8 @@ function escapeHTML(value: string): string {
 function removeSplashScreen() {
     document.getElementById('splash-screen')?.remove();
 }
+
+initializeAudioUnlock(removeSplashScreen);
 
 function getPreferredPlayerName(): string {
     return localStorage.getItem('loveLetterPlayerName') || t('player.human');
@@ -5021,20 +4741,6 @@ document.getElementById('show-rules-btn')!.onclick = () => {
         `<button class="modal-confirm-btn" onclick="this.closest('.modal-overlay').style.display='none'">${t('btn.close')}</button>`);
 };
 // ── 遊戲設置 ────────────────────────────────────────────────────────────────
-function stopPreview() {
-    previewAudio.pause();
-    previewAudio.src = '';
-}
-
-function playPreview(url: string) {
-    previewAudio.pause();
-    previewAudio.muted = isMuted;
-    applyAudioVolume(pendingAudioVolumePercent);
-    previewAudio.src = url;
-    previewAudio.currentTime = 0;
-    previewAudio.play().catch(() => {});
-}
-
 function showSettingsView(view: 'main' | 'music') {
     document.getElementById('settings-main-view')!.style.display  = view === 'main'  ? '' : 'none';
     document.getElementById('settings-music-view')!.style.display = view === 'music' ? '' : 'none';
@@ -5051,29 +4757,26 @@ function openSettingsModal() {
 function closeSettingsModal() {
     stopPreview();
     document.getElementById('settings-overlay')!.style.display = 'none';
-    // 恢復原本已套用的 menu 音樂
-    currentBGMFile = '';
-    const menuTrack = AUDIO_LIBRARY['menu'][musicSelections['menu']] ?? _NO_TRACK;
-    if (menuTrack.url) playBGM(menuTrack.url);
+    playSelectedMenuBGM();
 }
 
+
+
 function openMusicSettings() {
-    pendingMusicSelections = { ...musicSelections };
-    pendingAudioVolumePercent = audioVolumePercent;
-    applyAudioVolume(pendingAudioVolumePercent);
+    beginMusicSettingsEdit();
     updateSettingsDisplay();
     queueMusicSettingsPreload();
-    // 停掉 BGM，讓試聽音樂獨佔
-    bgmAudio.pause();
-    bgmPausedForSFX = false;
+    pauseBGMForSettingsPreview();
     showSettingsView('music');
 }
+
+
 
 function updateSettingsDisplay() {
     for (const slot of Object.keys(AUDIO_LIBRARY) as MusicSlot[]) {
         const tracks = AUDIO_LIBRARY[slot];
-        const idx = pendingMusicSelections[slot];
-        const track = tracks[idx] ?? _NO_TRACK;
+        const idx = getPendingSelection(slot);
+        const track = getPendingTrack(slot);
         const valueEl = document.getElementById(`settings-value-${slot}`);
         if (valueEl) valueEl.textContent = track.name;
         const leftArrow  = document.querySelector(`.settings-arrow[data-slot="${slot}"][data-dir="-1"]`) as HTMLButtonElement | null;
@@ -5084,8 +4787,9 @@ function updateSettingsDisplay() {
 
     const volumeRange = document.getElementById('settings-volume-range') as HTMLInputElement | null;
     const volumeValue = document.getElementById('settings-volume-value');
-    if (volumeRange) volumeRange.value = String(pendingAudioVolumePercent);
-    if (volumeValue) volumeValue.textContent = `${pendingAudioVolumePercent}%`;
+    const pendingVolume = getPendingAudioVolumePercent();
+    if (volumeRange) volumeRange.value = String(pendingVolume);
+    if (volumeValue) volumeValue.textContent = `${pendingVolume}%`;
 }
 
 // 主選單按鈕
@@ -5103,24 +4807,13 @@ document.getElementById('settings-lang-btn')!.onclick = () => {
 
 // 音樂設置：返回（回主選單，放棄變更，恢復BGM）
 document.getElementById('settings-back-btn')!.onclick = () => {
-    stopPreview();
-    applyAudioVolume(audioVolumePercent);
-    currentBGMFile = '';
-    const menuTrack = AUDIO_LIBRARY['menu'][musicSelections['menu']] ?? _NO_TRACK;
-    if (menuTrack.url) playBGM(menuTrack.url);
+    cancelMusicSettingsEdit();
     showSettingsView('main');
 };
 
 // 音樂設置：確認
 document.getElementById('settings-confirm-btn')!.onclick = () => {
-    musicSelections = { ...pendingMusicSelections };
-    audioVolumePercent = pendingAudioVolumePercent;
-    saveMusicSettings();
-    applyAudioVolume(audioVolumePercent);
-    stopPreview();
-    currentBGMFile = '';
-    const menuTrack = getSelectedTrack('menu');
-    if (menuTrack.url) playBGM(menuTrack.url);
+    confirmMusicSettingsEdit();
     showSettingsView('main');
 };
 
@@ -5129,19 +4822,16 @@ document.querySelectorAll('.settings-arrow').forEach(btn => {
         const target = e.currentTarget as HTMLElement;
         const slot = target.dataset.slot as MusicSlot;
         const dir = parseInt(target.dataset.dir!);
-        const tracks = AUDIO_LIBRARY[slot];
-        pendingMusicSelections[slot] = Math.max(0, Math.min(pendingMusicSelections[slot] + dir, tracks.length - 1));
+        const track = adjustPendingMusicSelection(slot, dir);
         updateSettingsDisplay();
         queueMusicSettingsPreload();
-        const track = tracks[pendingMusicSelections[slot]] ?? _NO_TRACK;
         if (track.url) playPreview(track.url);
     });
 });
 
 document.getElementById('settings-volume-range')!.addEventListener('input', (e) => {
     const target = e.currentTarget as HTMLInputElement;
-    pendingAudioVolumePercent = clampAudioVolume(Number(target.value));
-    applyAudioVolume(pendingAudioVolumePercent);
+    setPendingAudioVolumePercent(Number(target.value));
     updateSettingsDisplay();
 });
 
