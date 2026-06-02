@@ -42,3 +42,5 @@ test-results/
 
 # Claude Code skills (personal dev tools, not part of the game)
 .claude/skills/
+.claude/settings.json
+.claude/settings.local.json
