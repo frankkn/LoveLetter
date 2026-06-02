@@ -1,5 +1,5 @@
 import './style.css'
-import { t, setLang, getLang, type LangCode, createRulesBodyHTML } from './i18n.js';
+import { t, setLang, getLang, type LangCode, createRulesBodyHTML, getCardName, getCardDesc } from './i18n.js';
 import { Client, type Room, type RoomAvailable } from '@colyseus/sdk';
 import { CardType, CARD_DEFINITIONS, CARD_IMAGES, createDeck, shuffle } from './domain/cards.js';
 import type { Card, CardActionHint } from './domain/cards.js';
@@ -270,22 +270,6 @@ function resetClientState() {
     resetLocalClientState();
     leaveRoomInBackground(leavingGameRoom, 'active game room during client reset');
     leaveRoomInBackground(leavingLobbyRoom, 'lobby room during client reset');
-}
-
-// i18n helpers
-const CARD_KEY: Record<number, string> = {
-    1: 'guard', 2: 'priest', 3: 'baron', 4: 'handmaid',
-    5: 'prince', 6: 'king',  7: 'countess', 8: 'princess'
-};
-
-function getCardName(type: number): string {
-    const cardKey = CARD_KEY[type];
-    return cardKey ? t(`card.${cardKey}`) : t('card.unknown');
-}
-
-function getCardDesc(type: number): string {
-    const cardKey = CARD_KEY[type];
-    return cardKey ? t(`card.desc.${cardKey}`) : '';
 }
 
 function applyStaticTranslations(): void {

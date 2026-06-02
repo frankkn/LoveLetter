@@ -781,6 +781,24 @@ export function t(key: string, ...args: string[]): string {
     return val;
 }
 
+// 卡牌類型值 → 翻譯鍵字根
+const CARD_KEY: Record<number, string> = {
+    1: 'guard', 2: 'priest', 3: 'baron', 4: 'handmaid',
+    5: 'prince', 6: 'king',  7: 'countess', 8: 'princess'
+};
+
+/** 取得卡牌類型的當前語言名稱 */
+export function getCardName(type: number): string {
+    const cardKey = CARD_KEY[type];
+    return cardKey ? t(`card.${cardKey}`) : t('card.unknown');
+}
+
+/** 取得卡牌類型的當前語言效果描述 */
+export function getCardDesc(type: number): string {
+    const cardKey = CARD_KEY[type];
+    return cardKey ? t(`card.desc.${cardKey}`) : '';
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Rules modal HTML (generated per language)
 // ─────────────────────────────────────────────────────────────────────────────
