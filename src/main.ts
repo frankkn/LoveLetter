@@ -33,6 +33,14 @@ import {
     setRecentBaronGuardClue,
 } from './domain/ai-memory.js';
 import { getAISmartGuess, chooseAICardToPlay } from './domain/ai-strategy.js';
+import type {
+    OnlineGameData,
+    OnlineGameStateData,
+    PendingForcedEffect,
+    PendingBaronDuel,
+    PendingKingExchange,
+    OnlineNotification,
+} from './domain/online-types.js';
 
 // 1. 定義型別
 // 3. 全域狀態
@@ -1738,66 +1746,6 @@ function getPreferredPlayerName(): string {
 
 function setPreferredPlayerName(name: string) {
     localStorage.setItem('loveLetterPlayerName', name);
-}
-
-interface OnlineGameData {
-    deck: Card[];
-    burnedCard: Card | null;
-    players: Player[];
-    currentTurnPlayerId: number;
-    logs: string[];
-    roundIndex: number;
-}
-
-interface PendingForcedEffect {
-    reactorId: number;
-    card: Card;
-    sourcePlayerId: number;
-    returnTurnPlayerId: number;
-    shouldEndTurnAfterResolution: boolean;
-}
-
-interface PendingBaronDuel {
-    actorId: number;
-    targetId: number;
-    actorCard: Card;
-    targetCard: Card;
-    sourceCardId: string;
-    confirmedPlayerIds: number[];
-}
-
-interface PendingKingExchange {
-    actorId: number;
-    targetId: number;
-    sourceCardId: string;
-    confirmedPlayerIds: number[];
-}
-
-// Notification sent via online state sync to inform a non-host player about an effect
-// that targeted them (e.g. Guard elimination, Priest peek).
-interface OnlineNotification {
-    nonce: string;
-    senderPlayerId: number;
-    targetPlayerId: number;
-    title: string;
-    bodyHTML: string;
-    remainingBroadcasts: number;
-}
-
-interface OnlineGameStateData extends OnlineGameData {
-    isGameOver: boolean;
-    winner: Player | null;
-    pendingForcedEffect?: PendingForcedEffect | null;
-    pendingForcedEffectsQueue?: PendingForcedEffect[];
-    pendingBaronDuel: PendingBaronDuel | null;
-    pendingKingExchange?: PendingKingExchange | null;
-    nextRoundReadyPlayerIds?: number[];
-    restartReadyPlayerIds?: number[];
-    pendingNotifications?: OnlineNotification[];
-    forfeitedPlayerIds?: number[];
-    // 增量 log 同步：當 logsBaseIndex 為正數時，`logs` 只是完整陣列從該索引起的尾段，
-    // 接收端需與本地既有 logs 合併。缺省 / 0 代表 `logs` 即完整快照。
-    logsBaseIndex?: number;
 }
 
 function getConnectionErrorMessage(error: unknown): string {
