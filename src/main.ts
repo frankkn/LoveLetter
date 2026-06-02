@@ -14,6 +14,7 @@ import { createChatController, type ChatMsg } from './ui/chat.js';
 import { initParticles } from './ui/particles.js';
 import { sleep, escapeHTML, withTimeout } from './utils.js';
 import { getCoinIcons, getPlayerTitleHTML } from './ui/player-badges.js';
+import { createStatsModalBodyHTML, createTargetSelectModalBodyHTML } from './ui/modal-templates.js';
 import { getInviteRoomIdFromURL, clearInviteRoomIdFromURL, getRoomInviteURL } from './net/invite-url.js';
 import {
     createAIMemory,
@@ -371,46 +372,12 @@ function updateStatsNextRoundButton() {
     }
 }
 
-function createPlayedCardStatsHTML(): string {
-    const counts = new Map<CardType, number>();
-    state.players
-        .flatMap(player => player.discardPile)
-        .forEach(card => counts.set(card.type, (counts.get(card.type) || 0) + 1));
-
-    const rows = Array.from({ length: CardType.Princess }, (_, index) => {
-        const type = (index + 1) as CardType;
-        const count = counts.get(type) || 0;
-        const def = CARD_DEFINITIONS[type];
-        return `
-            <div class="modal-card-stat-row ${count === 0 ? 'empty' : ''}">
-                <span class="modal-card-stat-value">${type}</span>
-                <span class="modal-card-stat-name">${getCardName(type)}</span>
-                <span class="modal-card-stat-count">${count}/${def.count}</span>
-            </div>
-        `;
-    }).join('');
-
-    return `
-        <section class="modal-card-stats" aria-label="${t('game.stats')}">
-            <h3>${t('game.stats')}</h3>
-            <div class="modal-card-stats-grid">${rows}</div>
-        </section>
-    `;
-}
-
-function createStatsModalBodyHTML(bodyHTML: string): string {
-    return `
-        ${bodyHTML}
-        ${createPlayedCardStatsHTML()}
-    `;
-}
-
 function waitForStatsModalConfirm(title: string, bodyHTML: string, confirmText?: string): Promise<void> {
     confirmText ??= t('btn.confirm');
     return new Promise(resolve => {
         showModal(
             title,
-            createStatsModalBodyHTML(bodyHTML),
+            createStatsModalBodyHTML(state, bodyHTML),
             `<button class="modal-confirm-btn" id="modal-stats-confirm-btn">${confirmText}</button>`
         );
 
@@ -419,27 +386,6 @@ function waitForStatsModalConfirm(title: string, bodyHTML: string, confirmText?:
             resolve();
         };
     });
-}
-
-function createTargetSelectModalBodyHTML(card: Card, targets: Player[]): string {
-    const hintKeyByType: Partial<Record<CardType, string>> = {
-        [CardType.Guard]:   'target.hint.guard',
-        [CardType.Priest]:  'target.hint.priest',
-        [CardType.Baron]:   'target.hint.baron',
-        [CardType.Prince]:  'target.hint.prince',
-        [CardType.King]:    'target.hint.king',
-    };
-    const hintKey = hintKeyByType[card.type];
-    const hint = hintKey ? t(hintKey) : t('target.hint.default', getCardName(card.type));
-    const buttonsHTML = targets.map(target => (
-        `<button class="target-btn" data-id="${target.id}">${target.name}</button>`
-    )).join('');
-
-    return `
-        <p class="modal-helper-text">${hint}</p>
-        ${createPlayedCardStatsHTML()}
-        <div class="target-list">${buttonsHTML}</div>
-    `;
 }
 
 function render() {
@@ -1063,7 +1009,7 @@ async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, r
             await resolveTargetEffect(playerId, target.id, card, shouldEndTurn);
         } else if (canControlInteractiveEffect) {
             await new Promise<void>(resolve => {
-                showModal(t('modal.selectTarget', getCardName(card.type)), createTargetSelectModalBodyHTML(card, allPotentialTargets), cancelButtonHTML());
+                showModal(t('modal.selectTarget', getCardName(card.type)), createTargetSelectModalBodyHTML(state, card, allPotentialTargets), cancelButtonHTML());
                 bindCancelRollback(rollback);
 
                 const btns = modalBody.querySelectorAll('.target-btn');
@@ -1114,7 +1060,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                     </button>`;
                 }
                 buttonsHTML += '</div>';
-                showModal(t('modal.guardTarget', target.name), createStatsModalBodyHTML(t('guard.prompt') + buttonsHTML), cancelButtonHTML());
+                showModal(t('modal.guardTarget', target.name), createStatsModalBodyHTML(state, t('guard.prompt') + buttonsHTML), cancelButtonHTML());
                 bindCancelRollback(rollback);
 
                 const btns = modalBody.querySelectorAll('.guess-btn');
@@ -1251,7 +1197,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 await new Promise<void>(resolve => {
                 const cardUI = createCardUI(target.hand[0], false);
                 cardUI.style.margin = '0 auto';
-                showModal(t('modal.priestSees', target.name), createStatsModalBodyHTML(cardUI.outerHTML), `<button class="modal-confirm-btn" id="modal-ok-btn">${t('btn.iUnderstand')}</button>`);
+                showModal(t('modal.priestSees', target.name), createStatsModalBodyHTML(state, cardUI.outerHTML), `<button class="modal-confirm-btn" id="modal-ok-btn">${t('btn.iUnderstand')}</button>`);
                 document.getElementById('modal-ok-btn')!.onclick = async () => {
                     closeModal();
                     if (shouldEndTurn) await endTurn(actorId);
