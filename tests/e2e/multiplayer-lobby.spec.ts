@@ -25,11 +25,9 @@ async function joinRoom(page: Page, roomId: string, playerName: string) {
     const joinButton = page.locator(`.join-room-btn[data-room-id="${roomId}"]`);
     await expect(joinButton).toBeVisible();
 
-    page.once('dialog', async dialog => {
-        await dialog.accept(playerName);
-    });
-
     await joinButton.click();
+    await page.locator('#join-room-player-name').fill(playerName);
+    await page.locator('#confirm-join-room-btn').click();
     await expect(page.locator('#room-wait-scene')).toBeVisible();
 }
 
@@ -83,6 +81,133 @@ test('two players can create, join, ready, and start through Colyseus state sync
         await hostPage.locator('#draw-btn-desktop').click();
         await expect(guestPage.locator('#game-log')).toContainText('Alice');
         await expect(guestPage.locator('.opponent-area', { hasText: 'Alice' }).locator('.hand-container .card')).toHaveCount(2);
+    } finally {
+        await guestContext.close();
+        await hostContext.close();
+    }
+});
+
+test('players can copy an invite link and guests can join from it', async ({ browser }) => {
+    const hostContext = await browser.newContext();
+    const guestContext = await browser.newContext();
+    const hostPage = await hostContext.newPage();
+    const guestPage = await guestContext.newPage();
+
+    try {
+        await openOnlineLobby(hostPage);
+        const roomId = await createRoom(hostPage, 'Alice');
+
+        await hostPage.locator('#invite-room-btn').click();
+        await expect(hostPage.locator('#invite-room-id')).toHaveValue(roomId);
+        const inviteURL = await hostPage.locator('#invite-room-url').inputValue();
+        expect(inviteURL).toContain(`room=${roomId}`);
+        await hostPage.locator('#invite-close-btn').click();
+
+        await guestPage.goto(`/?room=${roomId}`);
+        await expect(guestPage.locator('#modal-title')).toBeVisible();
+        await expect(guestPage.locator('#join-room-player-name')).toBeVisible();
+        await guestPage.locator('#join-room-player-name').fill('Bob');
+        await guestPage.locator('#confirm-join-room-btn').click();
+
+        await expect(guestPage.locator('#room-wait-scene')).toBeVisible();
+        await expect(guestPage.locator('#room-player-count')).toHaveText('2/4');
+        await expect(guestPage.locator('#room-player-list')).toContainText('Alice');
+        await expect(guestPage.locator('#room-player-list')).toContainText('Bob');
+        await expect(hostPage.locator('#room-player-list')).toContainText('Bob');
+    } finally {
+        await guestContext.close();
+        await hostContext.close();
+    }
+});
+
+test('invite link follows room capacity as bots are added and removed', async ({ browser }) => {
+    const hostContext = await browser.newContext();
+    const fullGuestContext = await browser.newContext();
+    const availableGuestContext = await browser.newContext();
+    const hostPage = await hostContext.newPage();
+    const fullGuestPage = await fullGuestContext.newPage();
+    const availableGuestPage = await availableGuestContext.newPage();
+
+    try {
+        await openOnlineLobby(hostPage);
+        const roomId = await createRoom(hostPage, 'Alice');
+
+        await hostPage.locator('#invite-room-btn').click();
+        const inviteURL = await hostPage.locator('#invite-room-url').inputValue();
+        await hostPage.locator('#invite-close-btn').click();
+        expect(inviteURL).toContain(`room=${roomId}`);
+
+        for (let i = 0; i < 2; i++) {
+            await hostPage.locator('.add-bot-btn').click();
+        }
+        await expect(hostPage.locator('#room-player-count')).toHaveText('3/4');
+
+        await hostPage.locator('.add-bot-btn').click();
+        await expect(hostPage.locator('#room-player-count')).toHaveText('4/4');
+
+        await hostPage.locator('#invite-room-btn').click();
+        await expect(hostPage.locator('#copy-invite-link-btn')).toBeDisabled();
+        await hostPage.locator('#invite-close-btn').click();
+
+        await fullGuestPage.goto(inviteURL);
+        await expect(fullGuestPage.locator('#modal-title')).toBeVisible();
+        await expect(fullGuestPage.locator('#join-room-player-name')).toHaveCount(0);
+        await expect(fullGuestPage.locator('#room-wait-scene')).toBeHidden();
+
+        await hostPage.locator('.remove-bot-btn').click();
+        await expect(hostPage.locator('#room-player-count')).toHaveText('3/4');
+
+        await hostPage.locator('#invite-room-btn').click();
+        await expect(hostPage.locator('#copy-invite-link-btn')).toBeEnabled();
+        await hostPage.locator('#invite-close-btn').click();
+
+        await availableGuestPage.goto(inviteURL);
+        await expect(availableGuestPage.locator('#join-room-player-name')).toBeVisible();
+        await availableGuestPage.locator('#join-room-player-name').fill('Bob');
+        await availableGuestPage.locator('#confirm-join-room-btn').click();
+
+        await expect(availableGuestPage.locator('#room-wait-scene')).toBeVisible();
+        await expect(availableGuestPage.locator('#room-player-count')).toHaveText('4/4');
+        await expect(availableGuestPage.locator('#room-player-list')).toContainText('Bob');
+        await expect(hostPage.locator('#room-player-list')).toContainText('Bob');
+    } finally {
+        await availableGuestContext.close();
+        await fullGuestContext.close();
+        await hostContext.close();
+    }
+});
+
+test('invite link remains usable while bot slots leave room for guests', async ({ browser }) => {
+    const hostContext = await browser.newContext();
+    const guestContext = await browser.newContext();
+    const hostPage = await hostContext.newPage();
+    const guestPage = await guestContext.newPage();
+
+    try {
+        await openOnlineLobby(hostPage);
+        const roomId = await createRoom(hostPage, 'Alice');
+
+        await hostPage.locator('#invite-room-btn').click();
+        const inviteURL = await hostPage.locator('#invite-room-url').inputValue();
+        await hostPage.locator('#invite-close-btn').click();
+        expect(inviteURL).toContain(`room=${roomId}`);
+
+        for (let i = 0; i < 3; i++) {
+            await hostPage.locator('.add-bot-btn').click();
+        }
+        await expect(hostPage.locator('#room-player-count')).toHaveText('4/4');
+
+        await hostPage.locator('.remove-bot-btn').click();
+        await hostPage.locator('.remove-bot-btn').click();
+        await expect(hostPage.locator('#room-player-count')).toHaveText('2/4');
+
+        await guestPage.goto(inviteURL);
+        await expect(guestPage.locator('#join-room-player-name')).toBeVisible();
+        await guestPage.locator('#join-room-player-name').fill('Bob');
+        await guestPage.locator('#confirm-join-room-btn').click();
+        await expect(guestPage.locator('#room-wait-scene')).toBeVisible();
+        await expect(guestPage.locator('#room-player-count')).toHaveText('3/4');
+        await expect(hostPage.locator('#room-player-list')).toContainText('Bob');
     } finally {
         await guestContext.close();
         await hostContext.close();

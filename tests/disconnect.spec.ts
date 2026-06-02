@@ -110,6 +110,8 @@ async function joinRoom(player: TestPlayer, roomId: string) {
     const joinBtn = player.page.locator(`.join-room-btn[data-room-id="${roomId}"]`);
     await expect(joinBtn).toBeVisible();
     await joinBtn.click();
+    await player.page.locator('#join-room-player-name').fill(player.name);
+    await player.page.locator('#confirm-join-room-btn').click();
     await expect(player.page.locator('#room-wait-scene')).toBeVisible();
 }
 

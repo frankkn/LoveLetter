@@ -61,6 +61,8 @@ async function joinRoom(player: TestPlayer, roomId: string) {
     const joinButton = player.page.locator(`.join-room-btn[data-room-id="${roomId}"]`);
     await expect(joinButton).toBeVisible();
     await joinButton.click();
+    await player.page.locator('#join-room-player-name').fill(player.name);
+    await player.page.locator('#confirm-join-room-btn').click();
 
     await expect(player.page.locator('#room-wait-scene')).toBeVisible();
     await expect(player.page.locator('#room-player-list')).toContainText(player.name);

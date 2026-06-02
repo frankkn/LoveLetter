@@ -270,6 +270,7 @@ interface LobbyRoomSummary {
 interface LobbyRoomMetadata {
     hasPassword?: boolean;
     isGameStarted?: boolean;
+    botCount?: number;
 }
 
 type LobbyRoomAddMessage =
@@ -624,7 +625,7 @@ function unlockAudio() {
     const splash = document.getElementById('splash-screen');
     if (splash) {
         splash.classList.add('fade-out');
-        splash.addEventListener('animationend', () => splash.remove(), { once: true });
+        splash.addEventListener('animationend', removeSplashScreen, { once: true });
     }
     // Play the pending BGM immediately (we're now in a user-gesture context)
     if (pendingBGMFile) {
@@ -728,6 +729,7 @@ const roomListContainerEl = document.getElementById('room-list-container')!;
 const currentRoomIdEl = document.getElementById('current-room-id')!;
 const roomPlayerCountEl = document.getElementById('room-player-count')!;
 const roomPlayerListEl = document.getElementById('room-player-list')!;
+const inviteRoomBtn = document.getElementById('invite-room-btn') as HTMLButtonElement;
 const readyToggleBtn = document.getElementById('ready-toggle-btn') as HTMLButtonElement;
 const cardStatsAreaEl = document.querySelector('.card-stats-area') as HTMLElement;
 const playedCardStatsEl = document.getElementById('played-card-stats')!;
@@ -2702,6 +2704,10 @@ function escapeHTML(value: string): string {
     })[char]!);
 }
 
+function removeSplashScreen() {
+    document.getElementById('splash-screen')?.remove();
+}
+
 function getPreferredPlayerName(): string {
     return localStorage.getItem('loveLetterPlayerName') || t('player.human');
 }
@@ -2778,6 +2784,14 @@ function getConnectionErrorMessage(error: unknown): string {
     return 'Cannot connect to the Colyseus server. Please confirm the backend is running.';
 }
 
+function getJoinRoomErrorMessage(error: unknown): string {
+    const message = getConnectionErrorMessage(error);
+    if (/room is full/i.test(message)) return t('invite.roomFull');
+    if (/already started|game that has already started/i.test(message)) return t('invite.gameStarted');
+    if (/not found|doesn't exist|does not exist/i.test(message)) return t('invite.roomMissing');
+    return message;
+}
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
     return new Promise((resolve, reject) => {
         const timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
@@ -2788,10 +2802,28 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string)
     });
 }
 
+function getInviteRoomIdFromURL(): string | null {
+    return new URLSearchParams(window.location.search).get('room')?.trim() || null;
+}
+
+function clearInviteRoomIdFromURL() {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('room')) return;
+    url.searchParams.delete('room');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+}
+
+function getRoomInviteURL(roomId: string): string {
+    const url = new URL(window.location.href);
+    url.searchParams.set('room', roomId);
+    return url.toString();
+}
+
 function toLobbyRoomSummary(room: RoomAvailable<LobbyRoomMetadata>): LobbyRoomSummary {
+    const botCount = Math.max(0, room.metadata?.botCount ?? 0);
     return {
         roomId: room.roomId,
-        playerCount: room.clients,
+        playerCount: room.clients + botCount,
         maxClients: room.maxClients,
         hasPassword: room.metadata?.hasPassword ?? false,
         isGameStarted: room.metadata?.isGameStarted ?? false
@@ -4023,6 +4055,44 @@ function renderRoomWaitArea(roomState: RoomWaitViewState | SyncedRoomState) {
     readyToggleBtn.disabled = normalizedState.isGameStarted || (isHost && (totalOccupied < 2 || !guestsReady));
 }
 
+function showInviteRoomModal() {
+    if (!currentRoomWaitState) return;
+
+    const totalOccupied = currentRoomWaitState.players.length + (currentRoomWaitState.botCount ?? 0);
+    const canInvite = !currentRoomWaitState.isGameStarted && totalOccupied < 4;
+    const inviteURL = getRoomInviteURL(currentRoomWaitState.roomId);
+
+    showModal(t('invite.title'), `
+        <div class="create-room-form">
+            <label class="field-label" for="invite-room-id">${t('invite.roomId')}</label>
+            <input id="invite-room-id" class="modal-input" type="text" value="${escapeHTML(currentRoomWaitState.roomId)}" readonly />
+            <label class="field-label" for="invite-room-url">${t('invite.link')}</label>
+            <input id="invite-room-url" class="modal-input" type="text" value="${escapeHTML(inviteURL)}" readonly />
+            <p id="invite-copy-status" class="modal-helper-text">${canInvite ? t('invite.helper') : t('invite.unavailable')}</p>
+        </div>
+    `, `
+        <button class="modal-confirm-btn" id="copy-invite-link-btn" ${canInvite ? '' : 'disabled'}>${t('invite.copy')}</button>
+        <button class="modal-cancel-btn" id="invite-close-btn">${t('btn.close')}</button>
+    `);
+
+    document.getElementById('invite-close-btn')!.onclick = closeModal;
+    document.getElementById('copy-invite-link-btn')!.onclick = async () => {
+        const copyButton = document.getElementById('copy-invite-link-btn') as HTMLButtonElement;
+        const statusEl = document.getElementById('invite-copy-status');
+        const urlInput = document.getElementById('invite-room-url') as HTMLInputElement;
+
+        try {
+            await navigator.clipboard.writeText(inviteURL);
+            copyButton.textContent = t('invite.copied');
+            if (statusEl) statusEl.textContent = t('invite.copiedHelper');
+        } catch {
+            urlInput.focus();
+            urlInput.select();
+            if (statusEl) statusEl.textContent = t('invite.copyFallback');
+        }
+    };
+}
+
 function openCreateRoomModal() {
     showModal(t('cr.title'), `
         <div class="create-room-form">
@@ -4068,29 +4138,75 @@ function openCreateRoomModal() {
     };
 }
 
+function showJoinRoomModal(roomSummary: LobbyRoomSummary) {
+    if (roomSummary.isGameStarted) {
+        showJoinRoomError(t('invite.gameStarted'));
+        return;
+    }
+
+    if (roomSummary.playerCount >= roomSummary.maxClients) {
+        showJoinRoomError(t('invite.roomFull'));
+        return;
+    }
+
+    showModal(t('joinRoom.title'), `
+        <div class="create-room-form">
+            <p class="modal-helper-text">${t('joinRoom.roomId', escapeHTML(roomSummary.roomId))}</p>
+            <label class="field-label" for="join-room-player-name">${t('cr.playerName')}</label>
+            <input id="join-room-player-name" class="modal-input" type="text" value="${escapeHTML(getPreferredPlayerName())}" autocomplete="nickname" />
+            ${roomSummary.hasPassword ? `
+                <label class="field-label" for="join-room-password">${t('cr.password')}</label>
+                <input id="join-room-password" class="modal-input" type="password" autocomplete="off" />
+            ` : ''}
+        </div>
+    `, `
+        <button class="modal-confirm-btn" id="confirm-join-room-btn">${t('lobby.join')}</button>
+        <button class="modal-cancel-btn" id="cancel-join-room-btn">${t('btn.cancel')}</button>
+    `);
+
+    document.getElementById('cancel-join-room-btn')!.onclick = () => {
+        closeModal();
+        clearInviteRoomIdFromURL();
+    };
+    document.getElementById('confirm-join-room-btn')!.onclick = async () => {
+        const confirmButton = document.getElementById('confirm-join-room-btn') as HTMLButtonElement;
+        const playerName = (document.getElementById('join-room-player-name') as HTMLInputElement).value.trim() || getPreferredPlayerName();
+        const passwordInput = document.getElementById('join-room-password') as HTMLInputElement | null;
+        const password = passwordInput?.value.trim();
+        setPreferredPlayerName(playerName);
+        confirmButton.disabled = true;
+        confirmButton.textContent = t('joinRoom.joining');
+
+        try {
+            const room = await withTimeout(
+                colyseusClient.joinById<SyncedRoomState>(roomSummary.roomId, {
+                    name: playerName,
+                    password: password || undefined
+                }, GameRoomState),
+                15_000,
+                t('joinRoom.timeout', colyseusEndpoint)
+            );
+            clearInviteRoomIdFromURL();
+            closeModal();
+            bindGameRoom(room);
+        } catch (error) {
+            showJoinRoomError(getJoinRoomErrorMessage(error));
+        }
+    };
+}
+
+function showJoinRoomError(message: string) {
+    showModal(t('cr.joinFailed'), `<p>${escapeHTML(message)}</p>`, `<button class="modal-confirm-btn" id="join-room-error-ok-btn">${t('btn.confirm')}</button>`);
+    document.getElementById('join-room-error-ok-btn')!.onclick = () => {
+        closeModal();
+        clearInviteRoomIdFromURL();
+    };
+}
+
 async function joinLobbyRoom(roomId: string) {
     const roomSummary = lobbyRooms.find(candidate => candidate.roomId === roomId);
-    if (!roomSummary || roomSummary.playerCount >= roomSummary.maxClients) return;
-
-    const playerName = prompt(t('joinRoom.promptName'), getPreferredPlayerName())?.trim() || getPreferredPlayerName();
-    const password = roomSummary.hasPassword ? prompt(t('joinRoom.promptPwd')) : undefined;
-    if (roomSummary.hasPassword && password === null) return;
-    setPreferredPlayerName(playerName);
-
-    try {
-        const room = await withTimeout(
-            colyseusClient.joinById<SyncedRoomState>(roomId, {
-                name: playerName,
-                password: password || undefined
-            }, GameRoomState),
-            15_000,
-            `Join room timed out. Please confirm the Colyseus backend is reachable: ${colyseusEndpoint}`
-        );
-        bindGameRoom(room);
-    } catch (error) {
-        showModal(t('cr.joinFailed'), `<p>${escapeHTML(getConnectionErrorMessage(error))}</p>`, `<button class="modal-confirm-btn" id="join-room-error-ok-btn">${t('btn.confirm')}</button>`);
-        document.getElementById('join-room-error-ok-btn')!.onclick = closeModal;
-    }
+    if (!roomSummary) return;
+    showJoinRoomModal(roomSummary);
 }
 
 function bindGameRoom(room: Room<unknown, SyncedRoomState>, isReconnect = false) {
@@ -4293,6 +4409,51 @@ async function connectLobbyRoom() {
             </div>
         `;
     }
+}
+
+function waitForLobbyRoomSummary(roomId: string, timeoutMs = 5000): Promise<LobbyRoomSummary | null> {
+    const startedAt = Date.now();
+
+    return new Promise(resolve => {
+        const check = () => {
+            const roomSummary = lobbyRooms.find(candidate => candidate.roomId === roomId);
+            if (roomSummary) {
+                resolve(roomSummary);
+                return;
+            }
+
+            if (Date.now() - startedAt >= timeoutMs) {
+                resolve(null);
+                return;
+            }
+
+            window.setTimeout(check, 100);
+        };
+
+        check();
+    });
+}
+
+let hasHandledInviteLink = false;
+
+async function handleInviteLinkOnLoad() {
+    if (hasHandledInviteLink) return;
+
+    const inviteRoomId = getInviteRoomIdFromURL();
+    if (!inviteRoomId) return;
+
+    hasHandledInviteLink = true;
+    removeSplashScreen();
+    showScene('lobby-scene');
+    await connectLobbyRoom();
+
+    const roomSummary = await waitForLobbyRoomSummary(inviteRoomId);
+    if (!roomSummary) {
+        showJoinRoomError(t('invite.roomMissing'));
+        return;
+    }
+
+    showJoinRoomModal(roomSummary);
 }
 
 // Timer for the host-disconnect disband (20 s) on non-host clients.
@@ -4683,6 +4844,7 @@ document.getElementById('back-to-mode-from-lobby-btn')!.onclick = () => showScen
 document.getElementById('create-room-btn')!.onclick = openCreateRoomModal;
 document.getElementById('refresh-room-list-btn')!.onclick = () => void connectLobbyRoom();
 document.getElementById('leave-room-btn')!.onclick = leaveCurrentRoom;
+inviteRoomBtn.onclick = showInviteRoomModal;
 readyToggleBtn.onclick = toggleReadyOrStartGame;
 mobileStatsToggleBtn.onclick = event => {
     event.stopPropagation();
@@ -5496,6 +5658,7 @@ drawBtnDesktop?.addEventListener('click', () => drawCard(localPlayerId));
 applyStaticTranslations();
 initGame(1); // 預設進來時背景跑一個 (雖然會被 menu 蓋住)
 showScene('main-menu');
+void handleInviteLinkOnLoad();
 
 // 頁面重載後若有未使用的重連 token，自動提示玩家嘗試重連
 // 不預先刪除 token：若用戶又刷新頁面，仍可再次讀取

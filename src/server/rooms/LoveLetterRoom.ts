@@ -35,7 +35,8 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
         this.setState(state);
         await this.setMetadata({
             hasPassword: state.hasPassword,
-            isGameStarted: state.isGameStarted
+            isGameStarted: state.isGameStarted,
+            botCount: state.botCount
         });
 
         this.onMessage("toggle_ready", client => {
@@ -82,6 +83,7 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
             }
             this.state.botCount++;
             this.state.botDifficulties.push("hard");
+            void this.setMetadata({ botCount: this.state.botCount });
             console.log(`[LoveLetterRoom] Bot added to room ${this.roomId}. Bot count: ${this.state.botCount}`);
         });
 
@@ -98,6 +100,7 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
             }
             this.state.botCount--;
             this.state.botDifficulties.pop();
+            void this.setMetadata({ botCount: this.state.botCount });
             console.log(`[LoveLetterRoom] Bot removed from room ${this.roomId}. Bot count: ${this.state.botCount}`);
         });
 

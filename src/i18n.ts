@@ -80,6 +80,21 @@ const zh: TransMap = {
     'room.kickPlayer':     '踢出',
     'room.botStatus':      '🤖 電腦 AI',
     'room.kicked':         '你已被房主踢出房間。',
+    'room.invite':         '邀請朋友',
+
+    // Invite modal
+    'invite.title':        '邀請朋友加入房間',
+    'invite.roomId':       '房間 ID',
+    'invite.link':         '分享連結',
+    'invite.helper':       '複製後可貼到 LINE 或 Discord。',
+    'invite.copy':         '複製連結',
+    'invite.copied':       '已複製',
+    'invite.copiedHelper': '連結已複製，可以貼給朋友了。',
+    'invite.copyFallback': '無法自動複製，請手動選取連結。',
+    'invite.unavailable':  '房間已滿或遊戲已開始，目前無法邀請新玩家。',
+    'invite.roomFull':     '房間已滿，請房主移除電腦或另開房間。',
+    'invite.gameStarted':  '遊戲已開始，無法加入這個房間。',
+    'invite.roomMissing':  '找不到這個房間，可能已解散或連結已失效。',
 
     // Create-room modal
     'cr.title':        '創建房間',
@@ -312,6 +327,10 @@ const zh: TransMap = {
     // Join room prompts
     'joinRoom.promptName': '請輸入玩家名稱',
     'joinRoom.promptPwd':  '請輸入房間密碼',
+    'joinRoom.title':      '加入房間',
+    'joinRoom.roomId':     (roomId: string) => `房間 ID：${roomId}`,
+    'joinRoom.joining':    '加入中...',
+    'joinRoom.timeout':    (ep: string) => `加入房間逾時。請確認 Colyseus 後端可連線：${ep}`,
 
     // Confirm dialog
     'confirm.backHome': '確定要放棄目前戰局並返回主選單嗎？',
@@ -436,6 +455,21 @@ const en: TransMap = {
     'room.kickPlayer':     'Kick',
     'room.botStatus':      '🤖 Computer AI',
     'room.kicked':         'You have been kicked from the room by the host.',
+    'room.invite':         'Invite Friends',
+
+    // Invite modal
+    'invite.title':        'Invite Friends',
+    'invite.roomId':       'Room ID',
+    'invite.link':         'Share Link',
+    'invite.helper':       'Copy this link and paste it into LINE or Discord.',
+    'invite.copy':         'Copy Link',
+    'invite.copied':       'Copied',
+    'invite.copiedHelper': 'Invite link copied. Send it to your friends.',
+    'invite.copyFallback': 'Could not copy automatically. Select the link and copy it manually.',
+    'invite.unavailable':  'The room is full or the game has started. New players cannot join right now.',
+    'invite.roomFull':     'This room is full. Ask the host to remove a bot or create another room.',
+    'invite.gameStarted':  'This game has already started, so the room cannot be joined.',
+    'invite.roomMissing':  'Could not find this room. It may have closed or the link may be expired.',
 
     // Create-room modal
     'cr.title':        'Create Room',
@@ -667,6 +701,10 @@ const en: TransMap = {
     // Join room prompts
     'joinRoom.promptName': 'Enter your player name',
     'joinRoom.promptPwd':  'Enter room password',
+    'joinRoom.title':      'Join Room',
+    'joinRoom.roomId':     (roomId: string) => `Room ID: ${roomId}`,
+    'joinRoom.joining':    'Joining...',
+    'joinRoom.timeout':    (ep: string) => `Join room timed out. Make sure the Colyseus backend is reachable: ${ep}`,
 
     // Confirm dialog
     'confirm.backHome': 'Abandon the current game and return to the main menu?',
