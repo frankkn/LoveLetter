@@ -8,6 +8,7 @@ import { GameRoomState } from './server/schema/GameRoomState.js';
 import { mainMenuEl, modeSelectEl, botSettingsSelectEl, lobbySceneEl, roomWaitSceneEl, gameSceneEl, roomListContainerEl, currentRoomIdEl, roomPlayerCountEl, roomPlayerListEl, inviteRoomBtn, readyToggleBtn, cardStatsAreaEl, playedCardStatsEl, opponentsContainerEl, playerAreaEl, playerHandEl, playerDiscardEl, deckCountEl, drawBtn, drawBtnDesktop, showResultBtn, statsNextRoundBtn, showLogBtn, gameLogEl, turnIndicatorEl, modalOverlay, modalTitle, modalBody, modalFooter, mobileStatsToggleBtn } from './ui/elements.js';
 import { AUDIO_LIBRARY, adjustPendingMusicSelection, beginMusicSettingsEdit, cancelMusicSettingsEdit, confirmMusicSettingsEdit, getPendingAudioVolumePercent, getPendingSelection, getPendingTrack, getSelectedTrack, initializeAudioUnlock, pauseBGMForSettingsPreview, playBGM, playChampionTheme, playPreview, playSelectedMenuBGM, playSFX, queueMusicSettingsPreload, setPendingAudioVolumePercent, stopPreview, toggleMute, type MusicSlot } from './audio/music.js';
 import { clearOfflineSave, readOfflineSave, updateContinueButtonVisibility, writeOfflineSave } from './storage/offline-save.js';
+import { createEmojiController } from './ui/emoji.js';
 
 // 1. 定義型別
 // 3. 全域狀態
@@ -97,7 +98,6 @@ let pendingDifficulty: BotDifficulty = 'hard';
 let pendingChampionCoins = 4;
 let pendingKingExchange: PendingKingExchange | null = null;
 let activeKingExchangeModalKey: string | null = null;
-let emojiWheelCooldownUntil = 0;
 let isHandlingPendingForcedEffect = false;
 
 // ── 增量 log 同步狀態（host 端）─────────────────────────────────────────────
@@ -3791,7 +3791,7 @@ function bindGameRoom(room: Room<unknown, SyncedRoomState>, isReconnect = false)
     });
 
     room.onMessage<{ emoji: string; playerId: number }>('emoji_react', data => {
-        showFloatingEmoji(data.emoji, data.playerId);
+        emojiController.showFloatingEmoji(data.emoji, data.playerId);
     });
 
     // ── WebRTC 語音信令 ──────────────────────────────────────────────────────
@@ -4635,67 +4635,13 @@ setInterval(() => {
 
 // ── 表情輪盤 ────────────────────────────────────────────────────────────────
 
-const emojiWheelOverlayEl = document.getElementById('emoji-wheel-overlay') as HTMLElement;
-
-function openEmojiWheel() {
-    if (Date.now() < emojiWheelCooldownUntil) return;
-    emojiWheelOverlayEl.style.display = 'flex';
-}
-
-function closeEmojiWheel() {
-    emojiWheelOverlayEl.style.display = 'none';
-}
-
-function sendEmoji(emoji: string) {
-    closeEmojiWheel();
-    if (!activeGameRoom) return;
-    activeGameRoom.send('emoji_react', { emoji, playerId: localPlayerId });
-    // 3 秒冷卻
-    emojiWheelCooldownUntil = Date.now() + 3000;
-    const btn = document.getElementById('emoji-btn') as HTMLButtonElement | null;
-    if (btn) {
-        btn.disabled = true;
-        setTimeout(() => { btn.disabled = false; }, 3000);
-    }
-}
-
-function showFloatingEmoji(emoji: string, playerId: number) {
-    let targetEl: HTMLElement | null;
-    if (playerId === localPlayerId) {
-        targetEl = playerHandEl;
-    } else {
-        targetEl = document.querySelector<HTMLElement>(
-            `.opponent-area[data-player-id="${playerId}"] .hand-container`
-        );
-    }
-    if (!targetEl) return;
-
-    const rect = targetEl.getBoundingClientRect();
-    const div = document.createElement('div');
-    div.className = 'floating-emoji';
-    div.textContent = emoji;
-    div.style.left = `${rect.left + rect.width / 2 - 40}px`;
-    div.style.top  = `${rect.top  + rect.height / 2 - 56}px`;
-    document.body.appendChild(div);
-    setTimeout(() => div.remove(), 2000);
-}
-
-document.getElementById('emoji-btn')!.onclick = () => {
-    if (emojiWheelOverlayEl.style.display !== 'none') {
-        closeEmojiWheel();
-    } else {
-        openEmojiWheel();
-    }
-};
-
-document.getElementById('emoji-wheel-backdrop')!.onclick = closeEmojiWheel;
-
-document.getElementById('emoji-wheel-svg')!.addEventListener('click', e => {
-    const sector = (e.target as SVGElement).closest<SVGPathElement>('.emoji-sector');
-    if (sector?.dataset.emoji) sendEmoji(sector.dataset.emoji);
+const emojiController = createEmojiController({
+    getRoom: () => activeGameRoom,
+    getLocalPlayerId: () => localPlayerId,
+    getLocalPlayerHandEl: () => playerHandEl,
 });
+emojiController.bindEvents();
 
-// 麥克風按鈕綁定
 document.getElementById('mic-btn')!.onclick = handleMicClick;
 
 // 事件綁定
