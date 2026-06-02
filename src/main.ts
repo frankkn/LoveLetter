@@ -7,6 +7,7 @@ import type { BaronGuardClue, BotDifficulty, GameState, Player, PlayRollback, Pr
 import { GameRoomState } from './server/schema/GameRoomState.js';
 import { mainMenuEl, modeSelectEl, botSettingsSelectEl, lobbySceneEl, roomWaitSceneEl, gameSceneEl, roomListContainerEl, currentRoomIdEl, roomPlayerCountEl, roomPlayerListEl, inviteRoomBtn, readyToggleBtn, cardStatsAreaEl, playedCardStatsEl, opponentsContainerEl, playerAreaEl, playerHandEl, playerDiscardEl, deckCountEl, drawBtn, drawBtnDesktop, showResultBtn, statsNextRoundBtn, showLogBtn, gameLogEl, turnIndicatorEl, modalOverlay, modalTitle, modalBody, modalFooter, mobileStatsToggleBtn } from './ui/elements.js';
 import { AUDIO_LIBRARY, adjustPendingMusicSelection, beginMusicSettingsEdit, cancelMusicSettingsEdit, confirmMusicSettingsEdit, getPendingAudioVolumePercent, getPendingSelection, getPendingTrack, getSelectedTrack, initializeAudioUnlock, pauseBGMForSettingsPreview, playBGM, playChampionTheme, playPreview, playSelectedMenuBGM, playSFX, queueMusicSettingsPreload, setPendingAudioVolumePercent, stopPreview, toggleMute, type MusicSlot } from './audio/music.js';
+import { clearOfflineSave, readOfflineSave, updateContinueButtonVisibility, writeOfflineSave } from './storage/offline-save.js';
 
 // 1. 定義型別
 // 3. 全域狀態
@@ -136,51 +137,32 @@ let isBotTurnRunning = false;
 let isShowingNotificationModal = false;
 
 // ── 離線存檔系統 ─────────────────────────────────────────────────────────────
-const OFFLINE_SAVE_KEY = 'loveLetter_offlineSave';
-
-interface SaveData {
-    version: number;
-    savedAt: string;
-    state: Omit<GameState, 'winner'> & { winnerId: number | null };
-    recentBaronGuardClue: BaronGuardClue | null;
-    championThreshold: number;
-}
-
-function hasSave(): boolean {
-    return localStorage.getItem(OFFLINE_SAVE_KEY) !== null;
-}
-
 function saveGame() {
     if (isOnlineGameActive()) return;
     const { winner: _winner, ...stateWithoutWinner } = state;
-    const data: SaveData = {
+    writeOfflineSave({
         version: 1,
         savedAt: new Date().toISOString(),
         state: { ...stateWithoutWinner, winnerId: state.winner?.id ?? null },
         recentBaronGuardClue,
         championThreshold,
-    };
-    try { localStorage.setItem(OFFLINE_SAVE_KEY, JSON.stringify(data)); } catch { /* quota */ }
+    });
     updateContinueBtn();
 }
 
 function clearSave() {
-    localStorage.removeItem(OFFLINE_SAVE_KEY);
+    clearOfflineSave();
     updateContinueBtn();
 }
 
 function updateContinueBtn() {
-    const btn = document.getElementById('continue-game-btn') as HTMLButtonElement | null;
-    if (btn) btn.style.display = hasSave() ? '' : 'none';
+    updateContinueButtonVisibility();
 }
 
 function loadAndStartSave(): boolean {
-    const raw = localStorage.getItem(OFFLINE_SAVE_KEY);
-    if (!raw) return false;
+    const data = readOfflineSave();
+    if (!data) return false;
     try {
-        const data: SaveData = JSON.parse(raw);
-        if (data.version !== 1 || !Array.isArray(data.state?.players)) return false;
-
         state = {
             ...data.state,
             winner: data.state.winnerId !== null
