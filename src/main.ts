@@ -14,7 +14,7 @@ import { createChatController, type ChatMsg } from './ui/chat.js';
 import { initParticles } from './ui/particles.js';
 import { sleep, escapeHTML, withTimeout } from './utils.js';
 import { getCoinIcons, getPlayerTitleHTML } from './ui/player-badges.js';
-import { createStatsModalBodyHTML, createTargetSelectModalBodyHTML, createHandRevealBodyHTML, createDeckShowdownBodyHTML } from './ui/modal-templates.js';
+import { createStatsModalBodyHTML, createTargetSelectModalBodyHTML, createHandRevealBodyHTML, createDeckShowdownBodyHTML, createBaronDuelBodyHTML, createForcedEffectNoticeBodyHTML } from './ui/modal-templates.js';
 import { createCardUI, positionCardDescription } from './ui/card-render.js';
 import { getInviteRoomIdFromURL, clearInviteRoomIdFromURL, getRoomInviteURL } from './net/invite-url.js';
 import {
@@ -2206,20 +2206,6 @@ function areBaronDuelParticipantsConfirmed(duel: PendingBaronDuel | null) {
     );
 }
 
-function createBaronDuelBodyHTML(duel: PendingBaronDuel) {
-    const actor = state.players[duel.actorId];
-    const target = state.players[duel.targetId];
-
-    return createHandRevealBodyHTML(
-        t('baron.reveal', actor.name, target.name),
-        actor.name,
-        duel.actorCard,
-        target.name,
-        duel.targetCard,
-        localPlayerId
-    );
-}
-
 async function showBaronDuelModal(duel: PendingBaronDuel) {
     const duelKey = getBaronDuelKey(duel);
     if (!duelKey || activeBaronDuelModalKey === duelKey) return;
@@ -2227,7 +2213,7 @@ async function showBaronDuelModal(duel: PendingBaronDuel) {
     activeBaronDuelModalKey = duelKey;
     isResolvingTurnAction = true;
     try {
-        await waitForStatsModalConfirm(t('modal.baronDuel'), createBaronDuelBodyHTML(duel), t('btn.confirmDuel'));
+        await waitForStatsModalConfirm(t('modal.baronDuel'), createBaronDuelBodyHTML(state, duel, localPlayerId), t('btn.confirmDuel'));
         confirmLocalBaronDuel(duel);
     } finally {
         if (activeBaronDuelModalKey === duelKey) {
@@ -2356,20 +2342,6 @@ function hasLocalPendingForcedEffect(queue = pendingForcedEffectsQueue) {
     return queue.some(effect => effect.reactorId === localPlayerId);
 }
 
-function createForcedEffectNoticeBodyHTML(effect: PendingForcedEffect) {
-    const attacker = state.players[effect.sourcePlayerId] ?? state.players[state.currentTurnPlayerId];
-    const attackerName = attacker?.name ?? t('player.opponent');
-    const cardUI = createCardUI(effect.card, false, localPlayerId);
-    cardUI.style.margin = '0.5rem auto 0';
-
-    return `
-        <p>${t('forced.body1', attackerName)}</p>
-        <p>${t('forced.body2', getCardName(effect.card.type))}</p>
-        ${cardUI.outerHTML}
-        <p style="margin-top:0.5rem">${t('forced.body3')}</p>
-    `;
-}
-
 function isResolvingThisForcedEffect(effect: PendingForcedEffect | null) {
     return isSamePendingForcedEffect(resolvingForcedEffect, effect);
 }
@@ -2410,7 +2382,7 @@ async function handlePendingForcedEffect() {
     try {
         await waitForStatsModalConfirm(
             t('modal.forcedChain'),
-            createForcedEffectNoticeBodyHTML(effect),
+            createForcedEffectNoticeBodyHTML(state, effect, localPlayerId),
             t('btn.executeEffect')
         );
         await applyEffect(effect.reactorId, effect.card, false, undefined, true);
