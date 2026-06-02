@@ -10,6 +10,7 @@ import { AUDIO_LIBRARY, adjustPendingMusicSelection, beginMusicSettingsEdit, can
 import { clearOfflineSave, readOfflineSave, updateContinueButtonVisibility, writeOfflineSave } from './storage/offline-save.js';
 import { createEmojiController } from './ui/emoji.js';
 import { createVoiceController } from './ui/voice.js';
+import { createChatController, type ChatMsg } from './ui/chat.js';
 
 // 1. 定義型別
 // 3. 全域狀態
@@ -108,11 +109,6 @@ let isHandlingPendingForcedEffect = false;
 let lastSyncedLogLength = 0;
 let lastSyncedRoundIndex = -1;
 
-// ── 聊天室狀態 ──────────────────────────────────────────────────────────────
-interface ChatMsg { sessionId: string; name: string; text: string; timestamp: number; }
-let chatMessages: ChatMsg[] = [];
-let chatUnreadCount = 0;
-let isChatOpen = false;
 
 let hasShownEndGameModal = false;
 let showStatsNextRoundButton = false;
@@ -3758,7 +3754,7 @@ function bindGameRoom(room: Room<unknown, SyncedRoomState>, isReconnect = false)
     });
 
     room.onMessage<OnlineGameData>('init_game_data', data => {
-        clearChatMessages();   // 新一局開始，清空聊天記錄
+        chatController.clearMessages();   // 新一局開始，清空聊天記錄
         applyOnlineGameData(data);
     });
 
@@ -3767,7 +3763,7 @@ function bindGameRoom(room: Room<unknown, SyncedRoomState>, isReconnect = false)
     });
 
     room.onMessage<ChatMsg>('chat_message', msg => {
-        addChatMessage(msg);
+        chatController.addMessage(msg);
     });
 
     room.onMessage<{ emoji: string; playerId: number }>('emoji_react', data => {
@@ -4346,80 +4342,6 @@ document.getElementById('save-game-btn')!.onclick = () => {
 document.getElementById('mute-btn')!.onclick = toggleMute;
 document.getElementById('mute-btn-global')!.onclick = toggleMute;
 
-// ── 聊天室 ───────────────────────────────────────────────────────────────────
-
-const chatPanelEl = document.getElementById('chat-panel')!;
-const chatBackdropEl = document.getElementById('chat-backdrop')!;
-const chatMessagesEl = document.getElementById('chat-messages')!;
-const chatInputEl = document.getElementById('chat-input') as HTMLInputElement;
-const chatSendBtn = document.getElementById('chat-send-btn') as HTMLButtonElement;
-const chatUnreadBadgeEl = document.getElementById('chat-unread-badge')!;
-
-function setChatOpen(open: boolean) {
-    isChatOpen = open;
-    chatPanelEl.classList.toggle('open', open);
-    chatBackdropEl.classList.toggle('open', open);
-    chatPanelEl.setAttribute('aria-hidden', String(!open));
-    if (open) {
-        // 清除未讀計數
-        chatUnreadCount = 0;
-        chatUnreadBadgeEl.style.display = 'none';
-        chatUnreadBadgeEl.textContent = '';
-        // 捲到最新訊息，並聚焦輸入框
-        requestAnimationFrame(() => {
-            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
-            chatInputEl.focus();
-        });
-    }
-}
-
-function renderChatMessages() {
-    chatMessagesEl.innerHTML = '';
-    if (chatMessages.length === 0) {
-        const empty = document.createElement('div');
-        empty.className = 'chat-msg chat-msg-system';
-        empty.textContent = '還沒有訊息，說點什麼吧！';
-        chatMessagesEl.appendChild(empty);
-        return;
-    }
-    for (const msg of chatMessages) {
-        const div = document.createElement('div');
-        div.className = 'chat-msg';
-        const nameSpan = document.createElement('span');
-        nameSpan.className = 'chat-msg-name';
-        nameSpan.textContent = `${msg.name}：`;
-        div.appendChild(nameSpan);
-        div.appendChild(document.createTextNode(msg.text));
-        chatMessagesEl.appendChild(div);
-    }
-    chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
-}
-
-function addChatMessage(msg: ChatMsg) {
-    chatMessages.push(msg);
-    renderChatMessages();
-    if (!isChatOpen) {
-        chatUnreadCount++;
-        chatUnreadBadgeEl.textContent = String(chatUnreadCount);
-        chatUnreadBadgeEl.style.display = 'inline-flex';
-    }
-}
-
-function clearChatMessages() {
-    chatMessages = [];
-    chatUnreadCount = 0;
-    chatUnreadBadgeEl.style.display = 'none';
-    chatUnreadBadgeEl.textContent = '';
-    renderChatMessages();
-}
-
-function sendChatMessage() {
-    const text = chatInputEl.value.trim();
-    if (!text || !activeGameRoom) return;
-    activeGameRoom.send('chat_message', { text });
-    chatInputEl.value = '';
-}
-
 // ── 表情輪盤 ────────────────────────────────────────────────────────────────
 
 const emojiController = createEmojiController({
@@ -4438,17 +4360,14 @@ const voiceController = createVoiceController({
 });
 voiceController.bindEvents();
 
-// 事件綁定
-document.getElementById('chat-btn')!.onclick = () => setChatOpen(true);
-document.getElementById('chat-close-btn')!.onclick = () => setChatOpen(false);
-chatBackdropEl.onclick = () => setChatOpen(false);
-chatSendBtn.onclick = sendChatMessage;
-chatInputEl.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.isComposing) {
-        e.preventDefault();
-        sendChatMessage();
-    }
+// ── 聊天室 ───────────────────────────────────────────────────────────────────
+
+const chatController = createChatController({
+    getRoom: () => activeGameRoom,
 });
+chatController.bindEvents();
+
+// 事件綁定
 document.addEventListener('click', event => {
     const target = event.target as HTMLElement;
     if (gameSceneEl.classList.contains('mobile-stats-open') && !target.closest('.card-stats-area, .mobile-stats-toggle')) {
@@ -4994,3 +4913,4 @@ void handleInviteLinkOnLoad();
   }
   loop();
 })();
+
