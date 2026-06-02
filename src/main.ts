@@ -14,6 +14,20 @@ import { createChatController, type ChatMsg } from './ui/chat.js';
 import { initParticles } from './ui/particles.js';
 import { sleep, escapeHTML, withTimeout } from './utils.js';
 import { getInviteRoomIdFromURL, clearInviteRoomIdFromURL, getRoomInviteURL } from './net/invite-url.js';
+import {
+    createAIMemory,
+    createAIExcludedGuesses,
+    isUsefulBaronGuardClue,
+    rememberKnownCard,
+    rememberGuardMiss,
+    clearExcludedGuardGuessesForPlayer,
+    pruneInvalidKnownCardsForPlayer,
+    getKnownGuardTarget,
+    getExcludedGuardGuesses,
+    getBaronLegalTargets,
+    isKnownBaronLoss,
+    getSafeBaronTargets,
+} from './domain/ai-memory.js';
 
 // 1. 定義型別
 // 3. 全域狀態
@@ -755,36 +769,6 @@ function addLog(msg: string) {
     render();
 }
 
-function createAIMemory(players: Player[]): Record<number, Record<number, CardType>> {
-    return players
-        .filter(player => player.isBot)
-        .reduce<Record<number, Record<number, CardType>>>((memory, bot) => {
-            memory[bot.id] = {};
-            return memory;
-        }, {});
-}
-
-function createAIExcludedGuesses(players: Player[]): Record<number, Record<number, CardType[]>> {
-    return players
-        .filter(player => player.isBot)
-        .reduce<Record<number, Record<number, CardType[]>>>((exclusions, bot) => {
-            exclusions[bot.id] = {};
-            return exclusions;
-        }, {});
-}
-
-function rememberKnownCard(observerId: number, targetId: number, cardType: CardType) {
-    const observer = state.players[observerId];
-    if (!observer?.isBot) return;
-    if (observer.difficulty === 'easy') return; // Easy bots have no memory
-    state.aiMemory[observerId] ??= {};
-    state.aiMemory[observerId][targetId] = cardType;
-}
-
-function isUsefulBaronGuardClue(loserCardType: CardType) {
-    return loserCardType >= CardType.Handmaid && loserCardType <= CardType.Countess;
-}
-
 function rememberBaronGuardClue(winnerId: number, loserId: number, loserCardType: CardType, sourceCardId: string) {
     if (!isUsefulBaronGuardClue(loserCardType)) {
         recentBaronGuardClue = null;
@@ -826,20 +810,6 @@ function getBaronGuardClueTarget(botId: number, potentialTargets: Player[]): Pla
     return potentialTargets.find(target => target.id === clue.winnerId) ?? null;
 }
 
-function rememberGuardMiss(targetId: number, guessedType: CardType) {
-    if (guessedType === CardType.Guard) return;
-
-    state.players
-        .filter(player => player.isBot)
-        .forEach(bot => {
-            state.aiExcludedGuesses[bot.id] ??= {};
-            const excludedTypes = state.aiExcludedGuesses[bot.id][targetId] ?? [];
-            if (!excludedTypes.includes(guessedType)) {
-                state.aiExcludedGuesses[bot.id][targetId] = [...excludedTypes, guessedType];
-            }
-        });
-}
-
 function clearKnownCardForPlayer(playerId: number) {
     Object.values(state.aiMemory).forEach(memory => {
         delete memory[playerId];
@@ -848,84 +818,7 @@ function clearKnownCardForPlayer(playerId: number) {
         state.players[playerId].handKnownToOpponent = false;
     }
     clearBaronGuardClueForPlayer(playerId);
-    clearExcludedGuardGuessesForPlayer(playerId);
-}
-
-function clearExcludedGuardGuessesForPlayer(playerId: number) {
-    Object.values(state.aiExcludedGuesses).forEach(exclusions => {
-        delete exclusions[playerId];
-    });
-}
-
-function pruneInvalidKnownCardsForPlayer(playerId: number) {
-    const player = state.players[playerId];
-    Object.values(state.aiMemory).forEach(memory => {
-        const rememberedType = memory[playerId];
-        if (rememberedType && !player.hand.some(card => card.type === rememberedType)) {
-            delete memory[playerId];
-        }
-    });
-}
-
-function getKnownGuardTarget(botId: number, potentialTargets: Player[]): Player | null {
-    const memory = state.aiMemory[botId];
-    if (!memory) return null;
-
-    const potentialTargetIds = new Set(potentialTargets.map(target => target.id));
-    for (const [targetIdText, rememberedType] of Object.entries(memory)) {
-        const targetId = Number(targetIdText);
-        const target = state.players[targetId];
-        const targetStillHasRememberedCard = target?.hand.some(card => card.type === rememberedType);
-
-        if (!target?.isAlive || !targetStillHasRememberedCard) {
-            delete memory[targetId];
-            continue;
-        }
-
-        if (rememberedType !== CardType.Guard && potentialTargetIds.has(targetId)) {
-            return target;
-        }
-    }
-
-    return null;
-}
-
-function getRememberedCardType(observerId: number, targetId: number): CardType | null {
-    const rememberedType = state.aiMemory[observerId]?.[targetId];
-    const target = state.players[targetId];
-    if (!rememberedType || !target?.hand.some(card => card.type === rememberedType)) {
-        if (state.aiMemory[observerId]) delete state.aiMemory[observerId][targetId];
-        return null;
-    }
-
-    return rememberedType;
-}
-
-function getExcludedGuardGuesses(observerId: number, targetId: number): Set<CardType> {
-    const excludedTypes = state.aiExcludedGuesses[observerId]?.[targetId] ?? [];
-    return new Set(excludedTypes.filter(type => type !== CardType.Guard));
-}
-
-function getBaronLegalTargets(bot: Player): Player[] {
-    return state.players.filter(player => (
-        player.id !== bot.id &&
-        player.isAlive &&
-        !player.isProtected
-    ));
-}
-
-function getBaronRemainingCard(bot: Player, baron: Card): Card | null {
-    return bot.hand.find(card => card.id !== baron.id) ?? null;
-}
-
-function isKnownBaronLoss(bot: Player, baron: Card, target: Player): boolean {
-    const remainingCard = getBaronRemainingCard(bot, baron);
-    const rememberedType = getRememberedCardType(bot.id, target.id);
-    return Boolean(remainingCard && rememberedType && rememberedType > remainingCard.value);
-}
-
-function getSafeBaronTargets(bot: Player, baron: Card, targets: Player[]): Player[] {
-    return targets.filter(target => !isKnownBaronLoss(bot, baron, target));
+    clearExcludedGuardGuessesForPlayer(state, playerId);
 }
 
 function drawCard(playerId: number): boolean {
@@ -947,8 +840,8 @@ function drawCard(playerId: number): boolean {
     if (!player.isBot) selectedCardId = null;
     const card = state.deck.pop()!;
     player.hand.push(card);
-    clearExcludedGuardGuessesForPlayer(playerId);
-    pruneInvalidKnownCardsForPlayer(playerId);
+    clearExcludedGuardGuessesForPlayer(state, playerId);
+    pruneInvalidKnownCardsForPlayer(state, playerId);
     addLog(t('log.drew', player.name));
     render();
     if (!player.isBot) saveGame();
@@ -1003,7 +896,7 @@ async function executePlayCard(playerId: number, card: Card) {
     const rollback = player.isBot ? undefined : createPlayRollback(playerId);
     isResolvingTurnAction = true;
     player.hand = player.hand.filter(c => c.id !== card.id);
-    pruneInvalidKnownCardsForPlayer(playerId);
+    pruneInvalidKnownCardsForPlayer(state, playerId);
     player.discardPile.push(card);
     player.isProtected = false;
 
@@ -1215,7 +1108,7 @@ async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, r
             } else if (card.type === CardType.Baron) {
                 // Medium/Hard: avoid targets we know we'll lose to
                 if (player.difficulty !== 'easy') {
-                    const safeTargets = getSafeBaronTargets(player, card, botTargets);
+                    const safeTargets = getSafeBaronTargets(state, player, card, botTargets);
                     if (safeTargets.length > 0) {
                         botTargets = safeTargets;
                     }
@@ -1223,7 +1116,7 @@ async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, r
             }
 
             const knownGuardTarget = card.type === CardType.Guard && player.difficulty !== 'easy'
-                ? getKnownGuardTarget(playerId, botTargets)
+                ? getKnownGuardTarget(state, playerId, botTargets)
                 : null;
             const inferredGuardTarget = card.type === CardType.Guard && player.difficulty === 'hard'
                 ? getBaronGuardClueTarget(playerId, botTargets)
@@ -1309,7 +1202,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                             });
                             if (shouldEndTurn && !state.isGameOver) await endTurn(actorId);
                         } else {
-                            rememberGuardMiss(targetId, val as CardType);
+                            rememberGuardMiss(state, targetId, val as CardType);
                             if (playedGuard) {
                                 playedGuard.actionHints = [
                                     { text: t('hint.guardGuess', target.name, guessedName) },
@@ -1361,7 +1254,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                     });
                     if (shouldEndTurn && !state.isGameOver) await endTurn(actorId);
                 } else {
-                    rememberGuardMiss(targetId, guessNum as CardType);
+                    rememberGuardMiss(state, targetId, guessNum as CardType);
                     if (playedGuard) {
                         playedGuard.actionHints = [
                             { text: t('hint.guardGuess', target.name, guessedName) },
@@ -1384,7 +1277,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
 
         case CardType.Priest:
             if (actor.isBot && target.hand[0]) {
-                rememberKnownCard(actorId, targetId, target.hand[0].type);
+                rememberKnownCard(state, actorId, targetId, target.hand[0].type);
             }
             // Mark target's hand as known — enables scenario-4 self-Prince wash
             if (target.hand[0]) {
@@ -1548,8 +1441,8 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                     { text: t('hint.baronVs', target.name) },
                     { text: t('hint.baronTie'), variant: 'tie' }
                 ];
-                rememberKnownCard(actorId, targetId, targetCard.type);
-                rememberKnownCard(targetId, actorId, actorCard.type);
+                rememberKnownCard(state, actorId, targetId, targetCard.type);
+                rememberKnownCard(state, targetId, actorId, actorCard.type);
                 addLog(t('log.baronCompare', actor.name, target.name));
                 if (shouldEndTurn) await endTurn(actorId);
                 else {
@@ -1645,10 +1538,10 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
             clearKnownCardForPlayer(actorId);
             clearKnownCardForPlayer(targetId);
             if (actorTransferredCard) {
-                rememberKnownCard(actorId, targetId, actorTransferredCard.type);
+                rememberKnownCard(state, actorId, targetId, actorTransferredCard.type);
             }
             if (targetTransferredCard) {
-                rememberKnownCard(targetId, actorId, targetTransferredCard.type);
+                rememberKnownCard(state, targetId, actorId, targetTransferredCard.type);
             }
             // After King swap each player holds the other's old card, which that
             // opponent knows — mark both hands as exposed for self-Prince logic
@@ -1700,7 +1593,7 @@ function getAISmartGuess(botId: number, targetId: number): number {
     state.players[botId].hand.forEach(c => knownCounts[c.value]++);
 
     // Medium/Hard: avoid repeating failed guesses
-    const excludedGuesses = difficulty !== 'easy' ? getExcludedGuardGuesses(botId, targetId) : new Set<CardType>();
+    const excludedGuesses = difficulty !== 'easy' ? getExcludedGuardGuesses(state, botId, targetId) : new Set<CardType>();
 
     // Hard only: use baron clue to narrow the range
     if (difficulty === 'hard') {
@@ -2055,9 +1948,9 @@ function getAICardPlayWeight(bot: Player, card: Card): number {
         case CardType.Baron:
             weight = 8;
             if (remainingCard) {
-                const legalTargets = getBaronLegalTargets(bot);
+                const legalTargets = getBaronLegalTargets(state, bot);
                 // Medium/Hard: avoid known losing matchups
-                if (legalTargets.some(target => isKnownBaronLoss(bot, card, target))) {
+                if (legalTargets.some(target => isKnownBaronLoss(state, bot, card, target))) {
                     weight = 0;
                     break;
                 }
@@ -2098,7 +1991,7 @@ function chooseAICardToPlay(bot: Player): Card {
                 player.isAlive &&
                 !player.isProtected
             ));
-            if (getKnownGuardTarget(bot.id, guardTargets)) return guard;
+            if (getKnownGuardTarget(state, bot.id, guardTargets)) return guard;
         }
 
         const baron = bot.hand.find(card => card.type === CardType.Baron);
