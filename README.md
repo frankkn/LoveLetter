@@ -150,6 +150,26 @@ npm run test:e2e
 
 ## 版本資訊
 
+### v2.5.0 - 代碼架構重構
+
+**模組化與可維護性提升**
+
+- 大規模重構：`main.ts` 從 5202 行縮減至 4026 行（-23%），將遊戲邏輯、UI、網路、AI 按職責分離。
+- 新增 15 個內聚模組：
+  - **domain**：`ai-memory.ts`(AI 記憶系統)、`ai-strategy.ts`(AI 出牌/猜牌邏輯)、`online-types.ts`(線上同步型別)
+  - **ui**：`card-render.ts`(卡牌 DOM 生成)、`modal-templates.ts`(7 種 modal body builder)、`player-badges.ts`(玩家名牌)、`voice.ts`、`chat.ts`、`particles.ts`
+  - **net**：`online-serialization.ts`(線上同步序列化/深拷貝)、`online-reconcile.ts`(本地對帳)、`room-types.ts`(大廳房型別)、`invite-url.ts`(邀請連結工具)
+  - **其他**：`utils.ts`(純工具函式)
+- 架構改進：AI 邏輯與記憶系統、卡牌渲染、modal HTML 組裝均已從 main 分離，降低單一檔案複雜度。
+- 依賴線索清晰：各模組顯式傳入所需狀態(state / localPlayerId / isHost)，無隱藏全域狀態依賴。
+- 測試覆蓋：完整 19 個 E2E 測試通過(單機對戰、多人連線、斷線重連、聊天、邀請連結等)，驗證重構無行為迴歸。
+- 文檔補強：AI 記憶系統、線上同步細節已加入程式碼註釋，便於未來維護與擴展。
+
+**評估報告**
+
+- AI 強化空間已評估(需求加權猜測、國王/神父目標智能選擇、防禦性侍女等)，實作方案與優先度已記錄。
+- 架構級改動(state store / event bus)已評估，判定現況風險/收益比不划算；建議改為「補引擎單元測試」以強化未來改動的安全性。
+
 ### v2.4.0 - 多人房間邀請連結
 
 **房間邀請連結**
