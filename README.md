@@ -80,13 +80,42 @@
 │   ├── audio/
 │   └── icons/
 ├── src/
-│   ├── main.ts
+│   ├── main.ts              # 主入口：場景切換、回合流程、事件串接
 │   ├── style.css
-│   ├── assets/cards/
-│   └── server/
+│   ├── i18n.ts              # 多語言字串
+│   ├── utils.ts             # 純工具函式
+│   ├── assets/cards/        # 卡牌圖片
+│   ├── audio/
+│   │   └── music.ts         # BGM / SFX 控制
+│   ├── domain/              # 遊戲領域邏輯（純函式，無 DOM）
+│   │   ├── cards.ts         # 卡牌定義與牌組
+│   │   ├── game-state.ts    # 遊戲狀態型別
+│   │   ├── online-types.ts  # 線上同步型別
+│   │   ├── ai-memory.ts     # AI 記憶與線索系統
+│   │   └── ai-strategy.ts   # AI 出牌 / 猜牌策略
+│   ├── net/                 # 網路層
+│   │   ├── invite-url.ts    # 邀請連結工具
+│   │   ├── online-reconcile.ts   # 本地狀態對帳
+│   │   ├── online-serialization.ts # 同步序列化 / 深拷貝
+│   │   └── room-types.ts    # 大廳房間型別
+│   ├── storage/
+│   │   └── offline-save.ts  # 單機存檔（localStorage）
+│   ├── ui/                  # UI 元件與 DOM 輔助
+│   │   ├── card-render.ts   # 卡牌 DOM 生成
+│   │   ├── chat.ts          # 聊天室控制器
+│   │   ├── elements.ts      # 常用 DOM 元素參照
+│   │   ├── emoji.ts         # 表情輪盤控制器
+│   │   ├── modal-templates.ts # Modal body builder
+│   │   ├── particles.ts     # 粒子系統
+│   │   ├── player-badges.ts # 玩家名牌 / 硬幣
+│   │   └── voice.ts         # WebRTC 語音控制器
+│   └── server/              # Colyseus 後端（Node.js，獨立編譯）
 │       ├── index.ts
 │       ├── rooms/
+│       │   └── LoveLetterRoom.ts
 │       └── schema/
+│           ├── GameRoomState.ts
+│           └── PlayerState.ts
 ├── tests/
 └── vite.config.ts
 ```
