@@ -36,13 +36,47 @@ The project has two separate TypeScript compilation targets that **cannot mix im
 
 The frontend imports `src/server/schema/GameRoomState.ts` directly — those schema classes are the one intentional cross-boundary shared code (Colyseus schema decorators work in both runtimes).
 
+### Module Map (`src/`)
+
+```
+src/
+├── main.ts              # 主協調者：場景切換、回合流程、事件串接（~4000 行）
+├── style.css
+├── i18n.ts              # 多語言字串（繁中 / English）
+├── utils.ts             # 純工具函式（sleep 等）
+├── domain/              # 遊戲領域邏輯（純函式，無 DOM）
+│   ├── cards.ts         # CardType enum、CARD_DEFINITIONS、createDeck、shuffle
+│   ├── game-state.ts    # GameState / Player / PlayRollback 型別
+│   ├── online-types.ts  # 線上同步型別（OnlineGameData 等）
+│   ├── ai-memory.ts     # AI 記憶：aiMemory、aiExcludedGuesses、Baron 線索
+│   └── ai-strategy.ts   # AI 策略：chooseAICardToPlay、getAICardPlayWeight、getAISmartGuess
+├── net/                 # 網路層
+│   ├── invite-url.ts    # 邀請連結工具（?room= 解析/生成）
+│   ├── online-reconcile.ts   # preserveHostBotHands、restoreLocalPrivateHints、mergeOnlineLogs
+│   ├── online-serialization.ts # cloneCardForOnlineSync、hiddenBotCard 等深拷貝工具
+│   └── room-types.ts    # 大廳/房間相關型別
+├── storage/
+│   └── offline-save.ts  # 單機存檔（localStorage）：readOfflineSave、writeOfflineSave
+├── audio/
+│   └── music.ts         # BGM / SFX / 試聽；AUDIO_LIBRARY 定義五個音樂插槽
+└── ui/                  # UI 元件與 DOM 輔助
+    ├── card-render.ts   # 卡牌 DOM 生成（createCardUI）
+    ├── chat.ts          # 聊天室控制器
+    ├── elements.ts      # 常用 DOM 元素參照
+    ├── emoji.ts         # 表情輪盤控制器
+    ├── modal-templates.ts # Modal body builder（7 種）
+    ├── particles.ts     # 粒子系統
+    ├── player-badges.ts # 玩家名牌 / 硬幣顯示
+    └── voice.ts         # WebRTC 語音控制器
+```
+
 ### Frontend (`src/main.ts`)
 
-The entire frontend is a **single ~3700-line TypeScript file** with no UI framework. It mounts on `#app` in `index.html` and manages all scene transitions and game logic imperatively.
+`main.ts` 是協調者：掌管場景切換、回合流程，並把 domain/net/ui/audio 的函式串接起來。
 
 **Scene flow (one `<div>` is shown at a time):**
 ```
-#main-menu → #mode-select → #bot-count-select → #game-scene   (local / offline)
+#main-menu → #mode-select → #bot-settings-select → #game-scene   (local / offline)
                           → #lobby-scene → #room-wait-scene → #game-scene  (online)
 ```
 
@@ -65,12 +99,12 @@ The entire frontend is a **single ~3700-line TypeScript file** with no UI framew
 
 ### AI Logic
 
-AI bots share the same `applyEffect` / `resolveTargetEffect` path as the human player — `player.isBot` flags control which branches run (modal vs. direct).
+AI bots share the same `applyEffect` / `resolveTargetEffect` path as the human player — `player.isBot` flags control which branches run (modal vs. direct). All AI functions live in `src/domain/ai-strategy.ts` and `src/domain/ai-memory.ts`, and receive `state` as an explicit parameter.
 
 - `state.aiMemory[botId][targetId]` — remembers a target's card type (updated by Priest, King exchange, Baron tie)
 - `state.aiExcludedGuesses[botId][targetId]` — remembers failed Guard guesses to avoid re-guessing
-- `recentBaronGuardClue` — when a Baron duel ends, the winner's inferred card range is stored; AI uses this to weight Guard guesses higher and target that player
-- `chooseAICardToPlay()` uses weighted random selection; `getAICardPlayWeight()` contains the strategy rules
+- `recentBaronGuardClue` — module-level variable in `ai-memory.ts` (accessed via `getRecentBaronGuardClue` / `setRecentBaronGuardClue`); when a Baron duel ends, the winner's inferred card range is stored; hard AI uses this to weight Guard guesses and target that player
+- `chooseAICardToPlay(state, bot)` uses weighted random selection; `getAICardPlayWeight(state, bot, card)` contains the strategy rules
 
 ### Multiplayer (Colyseus)
 
@@ -82,30 +116,31 @@ AI bots share the same `applyEffect` / `resolveTargetEffect` path as the human p
 
 **Bots in online rooms:** The host can add AI bots (電腦 A/B/C) to fill empty slots. `GameRoomState.botCount` (Colyseus schema field) tracks how many bots are in the room. `createInitialOnlineGameData()` appends bot `Player` entries when the game starts. Bot turns run only on the host client — `queueBotTurn()` checks `selfPlayer?.isHost` and returns early on non-host clients.
 
-**Private information:** Cards have `privateActionHints` / `privateHintOwnerId` fields that are stripped before sync (`cloneCardForOnlineSync`). After receiving an online state update, `restoreLocalPrivateHints()` re-attaches hints that belong to the local player.
+**Private information:** Cards have `privateActionHints` / `privateHintOwnerId` fields that are stripped before sync (`cloneCardForOnlineSync` in `net/online-serialization.ts`). After receiving an online state update, `restoreLocalPrivateHints()` re-attaches hints that belong to the local player.
 
-**Reconnection:** After game start, `LoveLetterRoom.onLeave` calls `allowReconnection(client, 20)`. On reconnect the client sends `"request_game_data"` and the server replays `latestGameState`.
+**Reconnection:** After game start, `LoveLetterRoom.onLeave` calls `allowReconnection(client, 60)`. On reconnect the client sends `"request_game_data"` and the server replays `latestGameState`.
 
 **Colyseus endpoint:** Resolved from `VITE_COLYSEUS_ENDPOINT` env var at build time; falls back to `ws(s)://<hostname>:2567` at runtime.
 
 ### Audio System
 
-Five MP3 files live in `public/audio/`. Two `Audio` objects are shared globally: `bgmAudio` (looping BGM) and `sfxAudio` (one-shot SFX).
+Audio logic lives in `src/audio/music.ts`. Five music slots (`menu / game / winner / loser / champion`) each have multiple tracks under `public/audio/{slot}/`. Three `Audio` objects are shared: `bgmAudio` (looping BGM), `sfxAudio` (one-shot SFX), `previewAudio` (settings preview).
 
-- `playBGM(filename)` — switches BGM track; no-ops if the same file is already committed (`currentBGMFile === filename`). While `audioUnlocked` is false, stores the filename in `pendingBGMFile` for deferred play.
-- `playSFX(filename)` — pauses BGM, plays SFX, resumes BGM via `onended`. Uses `bgmPausedForSFX` flag to avoid double-resume.
-- `playChampionTheme()` — plays the victory track on `sfxAudio` without resuming BGM.
-- `unlockAudio()` — called on the first user gesture (registered with `capture: true, once: true` on `touchstart`, `click`, and `keydown`). Capture phase ensures it fires before any button handler.
-- BGM switches: `showScene('game-scene')` → `A Game of Hearts.mp3`; all other scenes → `Royal Intrigue.mp3`.
-- SFX triggers: elimination → `Farewell, Chevalier.mp3`; end-game modal → `The Victor's Token.mp3`; champion modal → `Love Conquers All.mp3`.
+- `playBGM(url)` — switches BGM track; no-ops if already playing. While `audioUnlocked` is false, stores in `pendingBGMFile` for deferred play.
+- `playSFX(url)` — pauses BGM, plays SFX, resumes BGM via `onended`. Uses `bgmPausedForSFX` flag to avoid double-resume.
+- `playChampionTheme()` — plays the champion-slot track on `sfxAudio` without resuming BGM.
+- `unlockAudio()` — called on the first user gesture (registered with `capture: true, once: true` on `touchstart`, `click`, and `keydown`).
+- Track selection is stored in `localStorage` and managed via `getSelectedTrack(slot)` / `adjustPendingMusicSelection()`.
 
-**Mute button:** Two instances exist — `#mute-btn` (inside the game sidebar's `.back-home-row`, `position: absolute`) and `#mute-btn-global` (fixed top-right, hidden via `body.game-scene-active #mute-btn-global { display: none }`). `applyMuteState()` syncs both. Mute preference persists to `localStorage` under key `loveLetter_muted`.
+**Mute button:** Two instances exist — `#mute-btn` (inside game sidebar) and `#mute-btn-global` (fixed top-right, hidden via CSS in game scene). `applyMuteState()` syncs both. Mute preference persists to `localStorage` under key `loveLetter_muted`.
 
 ### Deployment
 
-GitHub Actions (`.github/workflows/deploy.yml`) runs on push to `main`:
+GitHub Actions (`.github/workflows/deploy.yml`) runs on **`v*` tag push** (and `workflow_dispatch`):
 1. `npm run build` with `VITE_COLYSEUS_ENDPOINT` injected from a GitHub Actions variable
 2. Uploads `dist/` to GitHub Pages
+
+Pushing to `main` alone does **not** trigger a deploy. To publish a new version: commit → `git tag vX.Y.Z` → `git push origin vX.Y.Z`.
 
 The Colyseus backend is deployed separately (Render). The `vite.config.ts` sets `base: '/love-letter/'` for GitHub Pages path prefix.
 
