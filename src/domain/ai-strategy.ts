@@ -5,13 +5,101 @@ import {
     getActiveBaronGuardClue,
     getBaronGuardClueTarget,
     getBaronLegalTargets,
-    isKnownBaronLoss,
+    getSafeBaronTargets,
+    getRememberedCardType,
     getKnownGuardTarget,
 } from './ai-memory.js';
 
 // 電腦玩家的出牌/猜牌策略。難度分 easy / medium / hard：
 // easy 近乎隨機（僅避開公主），medium/hard 會運用 ai-memory 的記憶與線索。
 // 所有函式以參數傳入 GameState，不依賴模組外全域變數。
+
+/** Weighted random pick over {value, weight} entries. Caller guarantees a non-empty list. */
+function pickWeightedValue(entries: { value: number; weight: number }[]): number {
+    const totalWeight = entries.reduce((sum, entry) => sum + entry.weight, 0);
+    let roll = Math.random() * totalWeight;
+    for (const entry of entries) {
+        roll -= entry.weight;
+        if (roll <= 0) return entry.value;
+    }
+    return entries[entries.length - 1].value;
+}
+
+/** Hard: when no specific target is found, weight candidates by coin count to pressure leaders. */
+export function chooseMetaAwareTarget(candidates: Player[]): Player | null {
+    if (candidates.length === 0) return null;
+    const maxCoins = Math.max(...candidates.map(p => p.coins));
+    if (maxCoins === 0) return null; // no leader yet — let the caller fall through to random
+    let roll = Math.random() * candidates.reduce((sum, p) => sum + p.coins + 1, 0);
+    for (const p of candidates) {
+        roll -= p.coins + 1;
+        if (roll <= 0) return p;
+    }
+    return candidates[candidates.length - 1];
+}
+
+// Estimate a Baron "safety" score for attacking targetId with a card of botCardValue,
+// using the remaining-card distribution. Win = 1, tie = 0.5 (safe, no elimination),
+// loss = 0. Returns the certain value when the target's card is known.
+export function estimateBaronWinProbability(state: GameState, botId: number, targetId: number, botCardValue: number): number {
+    const known = getRememberedCardType(state, botId, targetId);
+    if (known !== null) {
+        if (known < botCardValue) return 1;
+        if (known === botCardValue) return 0.5; // tie is safe but eliminates no one
+        return 0;
+    }
+
+    // Cards accounted for: all discards + bot's own hand
+    const accountedCounts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 };
+    state.players.forEach(p => p.discardPile.forEach(c => accountedCounts[c.value]++));
+    state.players[botId].hand.forEach(c => accountedCounts[c.value]++);
+
+    let unknownTotal = 0;
+    let unknownBelow = 0;
+    let unknownEqual = 0;
+    for (let i = 1; i <= 8; i++) {
+        const remaining = CARD_DEFINITIONS[i as CardType].count - accountedCounts[i];
+        if (remaining > 0) {
+            unknownTotal += remaining;
+            if (i < botCardValue) unknownBelow += remaining;
+            else if (i === botCardValue) unknownEqual += remaining;
+        }
+    }
+    return unknownTotal > 0 ? (unknownBelow + 0.5 * unknownEqual) / unknownTotal : 0;
+}
+
+/** Hard: pick the safe Baron target we're most likely to beat. */
+export function getBestBaronTarget(state: GameState, botId: number, candidates: Player[]): Player | null {
+    const remaining = state.players[botId].hand[0]; // remaining card after Baron moved to discard
+    if (!remaining || candidates.length === 0) return null;
+    let best = candidates[0];
+    let bestProb = -1;
+    for (const candidate of candidates) {
+        const prob = estimateBaronWinProbability(state, botId, candidate.id, remaining.value);
+        if (prob > bestProb) {
+            bestProb = prob;
+            best = candidate;
+        }
+    }
+    return best;
+}
+
+/** True if at least one Guard is unaccounted for (could be in a hand or burned). */
+export function guardsStillInPlay(state: GameState): boolean {
+    let seen = 0;
+    state.players.forEach(p => p.discardPile.forEach(c => {
+        if (c.type === CardType.Guard) seen++;
+    }));
+    return seen < CARD_DEFINITIONS[CardType.Guard].count;
+}
+
+/** Medium/Hard: an opponent we remember is holding the Princess — Prince forces an instant KO. */
+export function getKnownPrincessTarget(state: GameState, botId: number, candidates: Player[]): Player | null {
+    return candidates.find(candidate => (
+        candidate.id !== botId &&
+        getRememberedCardType(state, botId, candidate.id) === CardType.Princess
+    )) ?? null;
+}
 
 /** 衛兵猜測：依記憶、剩餘牌張數與男爵線索挑一個牌型值（2~8） */
 export function getAISmartGuess(state: GameState, botId: number, targetId: number): number {
@@ -44,26 +132,30 @@ export function getAISmartGuess(state: GameState, botId: number, targetId: numbe
     if (difficulty === 'hard') {
         const baronClue = getActiveBaronGuardClue(state, botId, targetId);
         if (baronClue) {
-            const inferredGuesses: number[] = [];
+            const inferredGuesses: { value: number; weight: number }[] = [];
             for (let i = Math.max(CardType.Priest, baronClue.loserCardType + 1); i <= CardType.Princess; i++) {
-                if (!excludedGuesses.has(i as CardType) && knownCounts[i] < CARD_DEFINITIONS[i as CardType].count) {
-                    inferredGuesses.push(i);
+                const remaining = CARD_DEFINITIONS[i as CardType].count - knownCounts[i];
+                if (!excludedGuesses.has(i as CardType) && remaining > 0) {
+                    // Weight by remaining copies, consistent with the general guess below
+                    inferredGuesses.push({ value: i, weight: remaining });
                 }
             }
             if (inferredGuesses.length > 0) {
-                return inferredGuesses[Math.floor(Math.random() * inferredGuesses.length)];
+                return pickWeightedValue(inferredGuesses);
             }
         }
     }
 
-    const possibleGuesses: number[] = [];
+    const possibleGuesses: { value: number; weight: number }[] = [];
     for (let i = 2; i <= 8; i++) {
-        if (!excludedGuesses.has(i as CardType) && knownCounts[i] < CARD_DEFINITIONS[i as CardType].count) {
-            possibleGuesses.push(i);
+        const remaining = CARD_DEFINITIONS[i as CardType].count - knownCounts[i];
+        if (!excludedGuesses.has(i as CardType) && remaining > 0) {
+            // Medium/Hard: weight by remaining copies so rarer cards are guessed less often
+            possibleGuesses.push({ value: i, weight: difficulty !== 'easy' ? remaining : 1 });
         }
     }
     if (possibleGuesses.length > 0) {
-        return possibleGuesses[Math.floor(Math.random() * possibleGuesses.length)];
+        return pickWeightedValue(possibleGuesses);
     }
 
     const fallbackGuesses: number[] = [];
@@ -105,21 +197,45 @@ export function getAICardPlayWeight(state: GameState, bot: Player, card: Card): 
             weight = 8;
             if (remainingCard) {
                 const legalTargets = getBaronLegalTargets(state, bot);
-                // Medium/Hard: avoid known losing matchups
-                if (legalTargets.some(target => isKnownBaronLoss(state, bot, card, target))) {
+                // Medium/Hard: discard known-loss matchups; we can still target someone else
+                const safeTargets = getSafeBaronTargets(state, bot, card, legalTargets);
+                if (safeTargets.length === 0) {
+                    // Every legal opponent beats us (or there are none) — don't play Baron
                     weight = 0;
                     break;
                 }
-                if (remainingCard.value <= CardType.Guard) weight = 0.1;
-                else if (remainingCard.value <= CardType.Priest) weight = 2;
-                else if (remainingCard.value >= CardType.Prince) weight = 15;
+                if (difficulty === 'hard') {
+                    // Hard: weight by our best matchup, since we'll target the safest opponent
+                    const bestWinProb = Math.max(
+                        ...safeTargets.map(t => estimateBaronWinProbability(state, bot.id, t.id, remainingCard.value))
+                    );
+                    weight = Math.max(0.1, bestWinProb * 20);
+                } else {
+                    // Medium: simple card-value thresholds
+                    if (remainingCard.value <= CardType.Guard) weight = 0.1;
+                    else if (remainingCard.value <= CardType.Priest) weight = 2;
+                    else if (remainingCard.value >= CardType.Prince) weight = 15;
+                }
             }
             break;
         case CardType.Handmaid:
             weight = 9;
+            if (difficulty === 'hard' && remainingCard) {
+                // Boost when holding a high-value card (attractive target) or hand is exposed
+                if (remainingCard.value >= CardType.Princess) weight = 24;
+                else if (remainingCard.value >= CardType.Countess) weight = 18;
+                else if (remainingCard.value >= CardType.King) weight = 16;
+                else if (bot.handKnownToOpponent) weight = 16;
+            }
             break;
         case CardType.Prince:
             weight = 10;
+            // Medium/Hard (easy already returned): forcing a remembered Princess holder
+            // to discard is a guaranteed KO
+            {
+                const princeTargets = state.players.filter(p => p.id !== bot.id && p.isAlive && !p.isProtected);
+                if (getKnownPrincessTarget(state, bot.id, princeTargets)) weight = 40;
+            }
             break;
         case CardType.King:
             weight = 7;

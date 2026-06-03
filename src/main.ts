@@ -26,13 +26,21 @@ import {
     pruneInvalidKnownCardsForPlayer,
     getKnownGuardTarget,
     getSafeBaronTargets,
+    getRememberedCardType,
     rememberBaronGuardClue,
     getBaronGuardClueTarget,
     clearKnownCardForPlayer,
     getRecentBaronGuardClue,
     setRecentBaronGuardClue,
 } from './domain/ai-memory.js';
-import { getAISmartGuess, chooseAICardToPlay } from './domain/ai-strategy.js';
+import {
+    getAISmartGuess,
+    chooseAICardToPlay,
+    getBestBaronTarget,
+    getKnownPrincessTarget,
+    guardsStillInPlay,
+    chooseMetaAwareTarget,
+} from './domain/ai-strategy.js';
 import type {
     OnlineGameData,
     OnlineGameStateData,
@@ -883,6 +891,31 @@ async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, r
                         botTargets = safeTargets;
                     }
                 }
+            } else if (card.type === CardType.Priest && player.difficulty !== 'easy') {
+                // Medium/Hard: prefer unknown targets to maximise information gain
+                const unknownTargets = botTargets.filter(t => getRememberedCardType(state, playerId, t.id) === null);
+                if (unknownTargets.length > 0) botTargets = unknownTargets;
+            } else if (card.type === CardType.King && player.difficulty === 'hard') {
+                // Hard: use memory to steal a card that's strictly better than ours
+                const botCard = player.hand[0]; // remaining card after King moved to discard
+                if (botCard) {
+                    const upgradeTargets = botTargets.filter(t => {
+                        const known = getRememberedCardType(state, playerId, t.id);
+                        return known !== null && known > botCard.value;
+                    });
+                    // Stealing exposes our new hand to that opponent (they handed us the card),
+                    // so they could Guard us next turn — only chase the upgrade once no Guard remains.
+                    if (upgradeTargets.length > 0 && !guardsStillInPlay(state)) {
+                        botTargets = upgradeTargets;
+                    } else {
+                        // Avoid giving away our card to someone with a weaker known card
+                        const noDowngradeTargets = botTargets.filter(t => {
+                            const known = getRememberedCardType(state, playerId, t.id);
+                            return known === null || known >= botCard.value;
+                        });
+                        if (noDowngradeTargets.length > 0) botTargets = noDowngradeTargets;
+                    }
+                }
             }
 
             const knownGuardTarget = card.type === CardType.Guard && player.difficulty !== 'easy'
@@ -891,7 +924,20 @@ async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, r
             const inferredGuardTarget = card.type === CardType.Guard && player.difficulty === 'hard'
                 ? getBaronGuardClueTarget(state, playerId, botTargets)
                 : null;
-            const target = knownGuardTarget ?? inferredGuardTarget ?? botTargets[Math.floor(Math.random() * botTargets.length)];
+            // Hard: pick the safe Baron matchup we're most likely to win (not the coin leader)
+            const baronBestTarget = card.type === CardType.Baron && player.difficulty === 'hard'
+                ? getBestBaronTarget(state, playerId, botTargets)
+                : null;
+            // Medium/Hard: Prince a remembered Princess holder for a guaranteed elimination
+            const princeKillTarget = card.type === CardType.Prince && player.difficulty !== 'easy'
+                ? getKnownPrincessTarget(state, playerId, botTargets)
+                : null;
+            // Hard: when no specific target found, prefer opponents who are closer to winning.
+            // Baron is excluded — it already picks by win probability above.
+            const metaTarget = card.type !== CardType.Baron && !knownGuardTarget && !inferredGuardTarget && !princeKillTarget && player.difficulty === 'hard'
+                ? chooseMetaAwareTarget(botTargets)
+                : null;
+            const target = knownGuardTarget ?? inferredGuardTarget ?? baronBestTarget ?? princeKillTarget ?? metaTarget ?? botTargets[Math.floor(Math.random() * botTargets.length)];
             await sleep(1000); // 模擬選標準備
             await resolveTargetEffect(playerId, target.id, card, shouldEndTurn);
         } else if (canControlInteractiveEffect) {
