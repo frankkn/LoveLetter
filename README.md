@@ -1,5 +1,8 @@
 # Love Letter 情書網頁版
 
+![version](https://img.shields.io/github/v/tag/frankkn/love-letter?label=version&color=pink)
+![platform](https://img.shields.io/badge/platform-Web-blue)
+
 ## 立即遊玩
 
 點這裡就可以玩：<https://frankkn.github.io/love-letter/>
