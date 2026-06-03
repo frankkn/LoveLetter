@@ -3819,7 +3819,7 @@ function initGame(botCount: number, difficulties: BotDifficulty[] = []) {
             id: i + 1,
             name: botNames[i],
             isBot: true,
-            difficulty: difficulties[i] ?? 'medium',
+            difficulty: difficulties[i] ?? 'hard',
             coins: 0,
             hand: [deck.pop()!],
             isProtected: false,
@@ -4018,7 +4018,7 @@ function startNextRound() {
     activeKingExchangeModalKey = null;
     isHandlingPendingForcedEffect = false;
     hasShownEndGameModal = false;
-    const firstPlayerId = state.winner.id;
+    const intendedFirstPlayerId = state.winner.id;
     let deck = createDeck();
     deck = shuffle(deck);
     const burnedCard = deck.pop() || null;
@@ -4032,6 +4032,14 @@ function startNextRound() {
         player.discardPile = [];
         player.isHandRevealed = false;
     });
+
+    // The previous winner normally goes first, but they may have forfeited during the
+    // next-round wait (excluded from the readiness gate). Hand the turn to the next
+    // survivor so it never lands on a dead/handless player and stalls the game.
+    const firstPlayerId = state.players[intendedFirstPlayerId]?.isAlive
+        ? intendedFirstPlayerId
+        : findNextAlivePlayerId(intendedFirstPlayerId);
+    if (firstPlayerId === null) return; // no survivors — nothing to start
 
     state.deck = deck;
     state.burnedCard = burnedCard;

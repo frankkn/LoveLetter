@@ -318,7 +318,7 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
                     timedOutPlayer.isConnected = false;
                     timedOutPlayer.isReady = false;
                     console.log(
-                        `[LoveLetterRoom] ${timedOutPlayer.name} did not reconnect to room ${this.roomId} within 20 seconds. ` +
+                        `[LoveLetterRoom] ${timedOutPlayer.name} did not reconnect to room ${this.roomId} within 60 seconds. ` +
                         `Player slot remains reserved.`
                     );
                 }
