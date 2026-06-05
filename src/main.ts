@@ -252,7 +252,7 @@ function resetLocalClientState() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-function resetClientState() {
+async function resetClientState() {
     const leavingGameRoom = activeGameRoom;
     const leavingLobbyRoom = lobbyRoom;
 
@@ -2554,14 +2554,22 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
 }
 
 function applyOnlineGameData(data: OnlineGameData) {
+    // On normal game start `data` is plain OnlineGameData (no extra fields).
+    // On reconnect the server replays `latestGameState`, which is OnlineGameStateData —
+    // a strict superset. Preserve any state fields that are already present so the
+    // reconnecting player sees the correct game-over/pending-effect/forfeited state
+    // rather than always starting from a blank in-progress snapshot.
+    const maybeState = data as Partial<OnlineGameStateData>;
     applyOnlineGameState({
         ...data,
-        isGameOver: false,
-        winner: null,
-        pendingForcedEffectsQueue: [],
-        pendingBaronDuel: null,
-        pendingKingExchange: null,
-        nextRoundReadyPlayerIds: []
+        isGameOver: maybeState.isGameOver ?? false,
+        winner: maybeState.winner ?? null,
+        pendingForcedEffectsQueue: maybeState.pendingForcedEffectsQueue ?? [],
+        pendingBaronDuel: maybeState.pendingBaronDuel ?? null,
+        pendingKingExchange: maybeState.pendingKingExchange ?? null,
+        nextRoundReadyPlayerIds: maybeState.nextRoundReadyPlayerIds ?? [],
+        restartReadyPlayerIds: maybeState.restartReadyPlayerIds ?? [],
+        forfeitedPlayerIds: maybeState.forfeitedPlayerIds,
     }, true /* isInitialLoad */);
 }
 
@@ -3236,23 +3244,23 @@ function showReconnectModal(token: string) {
         void attemptReconnect(token);
     });
 
-    document.getElementById('forfeit-leave-btn')?.addEventListener('click', () => {
+    document.getElementById('forfeit-leave-btn')?.addEventListener('click', async () => {
         clearReconnectCountdown();
         sessionStorage.removeItem('ll_reconnect_token');
         closeModal();
-        resetClientState();
+        await resetClientState();
         showScene('main-menu');
     });
 
     clearReconnectCountdown();
-    reconnectCountdownTimer = window.setInterval(() => {
+    reconnectCountdownTimer = window.setInterval(async () => {
         secondsLeft--;
         updateBody();
         if (secondsLeft <= 0) {
             clearReconnectCountdown();
             sessionStorage.removeItem('ll_reconnect_token');
             closeModal();
-            resetClientState();
+            await resetClientState();
             showScene('main-menu');
         }
     }, 1000);
