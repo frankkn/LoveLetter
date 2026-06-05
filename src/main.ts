@@ -4086,3 +4086,15 @@ void handleInviteLinkOnLoad();
 
 initParticles();
 
+// ── Playwright test hook (dev builds only) ────────────────────────────────────
+// Exposes window.__testEndGame(winnerId) so E2E tests can force a round to
+// end without needing to play through actual card logic.
+// import.meta.env.DEV is statically replaced with `false` by Vite in production
+// builds, so this entire block is tree-shaken away and never ships to users.
+if (import.meta.env.DEV) {
+    (window as Record<string, unknown>).__testEndGame = (winnerId: number) => {
+        if (!state || state.isGameOver) return;
+        const winner = state.players[winnerId];
+        if (winner) endGame(winner, 'test');
+    };
+}

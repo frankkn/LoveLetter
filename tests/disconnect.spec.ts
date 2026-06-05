@@ -268,6 +268,40 @@ test.describe('Disconnect / reconnect / forfeit', () => {
         }
     });
 
+    test('non-host sees game-over modal when reconnecting after round ends', async ({ browser }) => {
+        test.setTimeout(50_000);
+
+        const [host, guest] = await startTwoPlayerGame(browser);
+        try {
+            // Disconnect guest while the game is still in progress
+            await forceDisconnect(guest.page);
+            await expect(guest.page.locator('#reconnect-btn')).toBeVisible({ timeout: 8_000 });
+
+            // While guest is disconnected, force the round to end on the host
+            // (player index 0 is always the host in a 2-player online game).
+            // __testEndGame is a dev-only hook that calls endGame() + syncOnlineGameState()
+            // so the server's latestGameState is updated to isGameOver: true.
+            await host.page.evaluate(() => {
+                (window as Record<string, unknown>).__testEndGame?.(0);
+            });
+
+            // Host should see the end-game (round result) modal
+            await expect(host.page.locator('#modal-title')).toContainText(/本局結果|Round Result/, { timeout: 5_000 });
+
+            // Guest reconnects → client sends request_game_data →
+            // server replies with latestGameState (isGameOver: true) as init_game_data →
+            // applyOnlineGameData must preserve isGameOver instead of forcing it to false
+            await guest.page.locator('#reconnect-btn').click();
+
+            // Guest should see the round-result modal, not a live game or blank scene
+            await expect(guest.page.locator('#modal-title')).toContainText(/本局結果|Round Result/, { timeout: 20_000 });
+
+        } finally {
+            await host.close();
+            await guest.close();
+        }
+    });
+
     test('clicking "Give up & Leave" in the reconnect modal returns to main menu', async ({ browser }) => {
         test.setTimeout(30_000);
 
