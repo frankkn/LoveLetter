@@ -303,6 +303,17 @@ test('cancelling target selection does not leak the played card to the opponent'
             return;
         }
 
+        // Countess rule: holding the Countess (伯爵夫人) alongside the King (國王) or Prince (王子)
+        // forces playing the Countess — a non-target card — so the play pops the "提示" warning
+        // instead of the target-selection modal. That hand (always exactly Countess + King/Prince)
+        // can't exercise the cancel flow, so skip it too.
+        const hasCountess = cardNames.includes('伯爵夫人');
+        const hasPrinceOrKing = cardNames.includes('國王') || cardNames.includes('王子');
+        if (hasCountess && hasPrinceOrKing) {
+            console.log(`[test] Alice's hand: ${cardNames.join(', ')} — Countess rule forces a non-target play; skipping verification.`);
+            return;
+        }
+
         // Bob's view of Alice before the play: 2 hidden cards in hand, empty discard pile.
         const aliceDiscardOnGuest = guestPage.locator('.opponent-area', { hasText: 'Alice' }).locator('.discard-container');
         const aliceHandOnGuest = guestPage.locator('.opponent-area', { hasText: 'Alice' }).locator('.hand-container');

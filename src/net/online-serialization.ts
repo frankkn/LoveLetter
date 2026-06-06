@@ -1,4 +1,4 @@
-import { CardType, CARD_DEFINITIONS, type Card } from '../domain/cards.js';
+import { CARD_DEFINITIONS, type Card } from '../domain/cards.js';
 import type { Player } from '../domain/game-state.js';
 import type { PendingForcedEffect, PendingBaronDuel, PendingKingExchange } from '../domain/online-types.js';
 
@@ -14,14 +14,6 @@ export function cloneCardForOnlineSync(card: Card): Card {
         ...publicCard,
         ...(actionHints ? { actionHints: actionHints.map(hint => ({ ...hint })) } : {})
     };
-}
-
-// Produce a face-down placeholder for a bot's hand card.
-// Non-host clients never need the actual card type during play — bots are
-// always rendered as "?" until the round ends. Sending real types would leak
-// bot hands to anyone with browser dev-tools open.
-export function hiddenBotCard(card: Card): Card {
-    return { id: card.id, type: 0 as CardType, name: '', value: 0, description: '' };
 }
 
 export function cloneOnlinePlayer(player: Player): Player {

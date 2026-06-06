@@ -53,7 +53,7 @@ src/
 ├── net/                 # 網路層
 │   ├── invite-url.ts    # 邀請連結工具（?room= 解析/生成）
 │   ├── online-reconcile.ts   # preserveHostBotHands、restoreLocalPrivateHints、mergeOnlineLogs
-│   ├── online-serialization.ts # cloneCardForOnlineSync、hiddenBotCard 等深拷貝工具
+│   ├── online-serialization.ts # cloneCardForOnlineSync、cloneOnlinePlayer 等深拷貝工具
 │   └── room-types.ts    # 大廳/房間相關型別
 ├── storage/
 │   └── offline-save.ts  # 單機存檔（localStorage）：readOfflineSave、writeOfflineSave

@@ -51,7 +51,6 @@ import type {
 } from './domain/online-types.js';
 import {
     cloneCardForOnlineSync,
-    hiddenBotCard,
     cloneOnlinePlayer,
     clonePendingForcedEffectsQueue,
     clonePendingBaronDuel,
@@ -1958,14 +1957,13 @@ function createOnlineGameStateData(): OnlineGameStateData {
     return {
         deck: [...state.deck],
         burnedCard: state.burnedCard,
-        // Mask bot hand types during active play. Non-host clients render bots
-        // as "?" and never need the real card type. At game-over the host sends
-        // revealed hands, so the mask is lifted when isGameOver is true.
-        players: state.players.map(player =>
-            player.isBot && !state.isGameOver
-                ? { ...cloneOnlinePlayer(player), hand: player.hand.map(hiddenBotCard) }
-                : cloneOnlinePlayer(player)
-        ),
+        // Bot hands are synced in full (like human hands). The UI renders every
+        // non-local hand as "?" during play (see render(): shouldRevealHand), so
+        // the real types are never shown until game-over/Baron reveal. Sending the
+        // real cards is required so a NON-HOST actor can correctly resolve a
+        // targeted effect (Guard/Priest/Baron/King/Prince) against a bot — the
+        // non-host has no other source for the bot's actual card.
+        players: state.players.map(player => cloneOnlinePlayer(player)),
         currentTurnPlayerId: state.currentTurnPlayerId,
         isGameOver: state.isGameOver,
         winner: state.winner ? cloneOnlinePlayer(state.winner) : null,
@@ -4092,7 +4090,7 @@ initParticles();
 // import.meta.env.DEV is statically replaced with `false` by Vite in production
 // builds, so this entire block is tree-shaken away and never ships to users.
 if (import.meta.env.DEV) {
-    (window as Record<string, unknown>).__testEndGame = (winnerId: number) => {
+    (window as unknown as Record<string, unknown>).__testEndGame = (winnerId: number) => {
         if (!state || state.isGameOver) return;
         const winner = state.players[winnerId];
         if (winner) endGame(winner, 'test');
