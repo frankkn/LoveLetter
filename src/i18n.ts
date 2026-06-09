@@ -235,7 +235,7 @@ const zh: TransMap = {
     'log.priestSaw':         (actor: string, target: string) => `${actor} 看了一下 ${target} 的手牌。`,
     'log.baronCompare':      (actor: string, target: string) => `${actor} 與 ${target} 秘密比大小！`,
     'log.baronNoHand':       '無法比點數，因為其中一方沒有手牌。',
-    'log.baronTie':          (a: string, ac: string, av: string, b: string, bc: string, bv: string) =>
+    'log.baronFinalReveal':  (a: string, ac: string, av: string, b: string, bc: string, bv: string) =>
                                  `最後兩名對決者攤牌：${a} 亮出 ${ac}(${av})，${b} 亮出 ${bc}(${bv})。`,
     'log.baronTargetLoses':  (actor: string, target: string, tc: string, tv: string) =>
                                  `${actor} 與 ${target} 比點數，${target} 點數較小，攤牌 ${tc}(${tv}) 出局！`,
@@ -609,7 +609,7 @@ const en: TransMap = {
     'log.priestSaw':         (actor: string, target: string) => `${actor} peeked at ${target}'s hand.`,
     'log.baronCompare':      (actor: string, target: string) => `${actor} and ${target} compare hands!`,
     'log.baronNoHand':       'Cannot compare — one player has no card.',
-    'log.baronTie':          (a: string, ac: string, av: string, b: string, bc: string, bv: string) =>
+    'log.baronFinalReveal':  (a: string, ac: string, av: string, b: string, bc: string, bv: string) =>
                                  `Showdown: ${a} reveals ${ac}(${av}), ${b} reveals ${bc}(${bv}).`,
     'log.baronTargetLoses':  (actor: string, target: string, tc: string, tv: string) =>
                                  `${actor} vs ${target}: ${target} has the lower card ${tc}(${tv}) — eliminated!`,

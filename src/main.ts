@@ -185,7 +185,7 @@ let savedReconnectionToken: string | null = null;
 // Set of player indices (0-based) who voluntarily forfeited or were timed out mid-league.
 // Persists across rounds until a full league restart.
 let forfeitedOnlinePlayerIds: Set<number> = new Set();
-// Host-side per-player timers: after 20 s of disconnection, the host eliminates that player.
+// Host-side per-player timers: after 60 s of disconnection, the host eliminates that player.
 // Key = player index (0-based in state.players / currentRoomWaitState.players).
 let disconnectionTimers: Map<number, number> = new Map();
 // Handle for the interval that counts down the reconnect modal.
@@ -1222,7 +1222,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 if (aliveBeforeCompare === 2) {
                     actor.isHandRevealed = true;
                     target.isHandRevealed = true;
-                    addLog(t('log.baronTie', actor.name, getCardName(actorCard.type), String(aVal), target.name, getCardName(targetCard.type), String(tVal)));
+                    addLog(t('log.baronFinalReveal', actor.name, getCardName(actorCard.type), String(aVal), target.name, getCardName(targetCard.type), String(tVal)));
                 } else {
                     target.isHandRevealed = true;
                     addLog(t('log.baronTargetLoses', actor.name, target.name, getCardName(targetCard.type), String(tVal)));
@@ -1241,7 +1241,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 if (aliveBeforeCompare === 2) {
                     actor.isHandRevealed = true;
                     target.isHandRevealed = true;
-                    addLog(t('log.baronTie', actor.name, getCardName(actorCard.type), String(aVal), target.name, getCardName(targetCard.type), String(tVal)));
+                    addLog(t('log.baronFinalReveal', actor.name, getCardName(actorCard.type), String(aVal), target.name, getCardName(targetCard.type), String(tVal)));
                 } else {
                     actor.isHandRevealed = true;
                     addLog(t('log.baronActorLoses', actor.name, target.name, getCardName(actorCard.type), String(aVal)));
@@ -1494,11 +1494,16 @@ async function checkEndConditions() {
 
     if (state.deck.length === 0) {
         const survivors = state.players.filter(p => p.isAlive);
-        if (survivors.every(p => p.hand.length === 1)) {
+        // A surviving player can hold 0 cards if a Prince forced them to discard while the
+        // deck AND the burned card were both already exhausted (a two-Prince end-game chain).
+        // Treat <=1 as "no more turns possible" and rank an empty hand lowest (value -1) so
+        // the showdown still fires instead of soft-locking the round.
+        if (survivors.every(p => p.hand.length <= 1)) {
             addLog(t('log.deckEmpty'));
+            const handValue = (p: Player) => p.hand[0]?.value ?? -1;
             survivors.sort((a, b) => {
-                if (b.hand[0].value !== a.hand[0].value) {
-                    return b.hand[0].value - a.hand[0].value;
+                if (handValue(b) !== handValue(a)) {
+                    return handValue(b) - handValue(a);
                 }
                 const aSum = a.discardPile.reduce((s, c) => s + c.value, 0);
                 const bSum = b.discardPile.reduce((s, c) => s + c.value, 0);
@@ -1512,7 +1517,7 @@ async function checkEndConditions() {
                 createDeckShowdownBodyHTML(survivors, winner, localPlayerId),
                 t('game.viewResult')
             );
-            endGame(winner, t('reason.highestCard', String(winner.hand[0].value)));
+            endGame(winner, t('reason.highestCard', String(handValue(winner))));
         }
     }
 }
@@ -3166,7 +3171,7 @@ async function handleInviteLinkOnLoad() {
     showJoinRoomModal(roomSummary);
 }
 
-// Timer for the host-disconnect disband (20 s) on non-host clients.
+// Timer for the host-disconnect disband (60 s) on non-host clients.
 // Also shared as a general "pending abort" sentinel; cleared on reconnect.
 let pendingAbortTimer: number | null = null;
 
@@ -3395,7 +3400,7 @@ function maybeHandlePlayerDisconnections(
                     }, 60_000);
                 }
             } else {
-                // Non-host went offline → host starts a 20 s elimination timer.
+                // Non-host went offline → host starts a 60 s elimination timer.
                 if (isHost && !forfeitedOnlinePlayerIds.has(index) && !disconnectionTimers.has(index)) {
                     scheduleDisconnectedPlayerElimination(index, player.name);
                 }
