@@ -3389,14 +3389,16 @@ body.game-scene-active #mute-btn-global {
     z-index: 10000;
   }
 
-  /* 選取卡牌時，把整個 player-area 在 .main-battle-area grid 這層拉到對手之上，
-     讓往上彈出的卡牌說明（escape 出 player-area 的 overflow）不被後繪製的
-     #opponents-container 蓋住。#player-hand 的 z-index 會形成 stacking context，
-     把卡牌 wrapper 的 z-index 困在內部，故須在 grid item（player-area）這層提升。 */
-  #game-scene[data-opponent-count="1"] #player-area:has(.card-selected),
-  #game-scene[data-opponent-count="2"] #player-area:has(.card-selected),
-  #game-scene[data-opponent-count="3"] #player-area:has(.card-selected) {
-    z-index: 10;
+  /* 選取卡牌時，把 #player-hand 拉高，讓往上彈出的卡牌說明同時蓋過兩樣東西：
+     (1) player-area 自己的 active-turn 黃色外框 .active-turn::before（z-index:30），
+         否則黃線會橫穿說明文字；
+     (2) 後繪製、視覺在上方的對手區 #opponents-container（手牌很小時說明會探進對手區）。
+     平時 #player-hand 只有 z-index:2，說明被困在其 stacking context 內贏不過上述兩者；
+     直接提升整個 #player-hand（連同內部的說明）到 40（>30）即可解決。 */
+  #game-scene[data-opponent-count="1"] #player-area:has(.card-selected) #player-hand,
+  #game-scene[data-opponent-count="2"] #player-area:has(.card-selected) #player-hand,
+  #game-scene[data-opponent-count="3"] #player-area:has(.card-selected) #player-hand {
+    z-index: 40;
   }
 
   #opponents-container[data-opponent-count="1"] .opponent-area .hand-container .card-desc,
