@@ -3389,6 +3389,16 @@ body.game-scene-active #mute-btn-global {
     z-index: 10000;
   }
 
+  /* 選取卡牌時，把整個 player-area 在 .main-battle-area grid 這層拉到對手之上，
+     讓往上彈出的卡牌說明（escape 出 player-area 的 overflow）不被後繪製的
+     #opponents-container 蓋住。#player-hand 的 z-index 會形成 stacking context，
+     把卡牌 wrapper 的 z-index 困在內部，故須在 grid item（player-area）這層提升。 */
+  #game-scene[data-opponent-count="1"] #player-area:has(.card-selected),
+  #game-scene[data-opponent-count="2"] #player-area:has(.card-selected),
+  #game-scene[data-opponent-count="3"] #player-area:has(.card-selected) {
+    z-index: 10;
+  }
+
   #opponents-container[data-opponent-count="1"] .opponent-area .hand-container .card-desc,
   #opponents-container[data-opponent-count="2"] .opponent-area .hand-container .card-desc,
   #opponents-container[data-opponent-count="3"] .opponent-area .hand-container .card-desc,
