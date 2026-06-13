@@ -2481,6 +2481,14 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
         setRecentBaronGuardClue(null);
         pendingKingExchange = incomingPendingKingExchange;
         nextRoundReadyPlayerIds = [...(data.nextRoundReadyPlayerIds ?? [])];
+        // Symmetric with nextRoundReadyPlayerIds: a non-game-over sync means a new
+        // round/league has started, so the restart-confirmation list must be reset
+        // (not left stale). Without this, restartReadyPlayerIds keeps the "everyone
+        // confirmed" list from the previous league forever on non-host clients; that
+        // stale list then propagates back to the host on the next round-end sync and
+        // triggers an unwanted startNewLeague() — wiping coins and skipping the
+        // round-result / elimination modals.
+        restartReadyPlayerIds = [...(data.restartReadyPlayerIds ?? [])];
         hasShownEndGameModal = false;
         showStatsNextRoundButton = false;
         if (data.forfeitedPlayerIds) {
