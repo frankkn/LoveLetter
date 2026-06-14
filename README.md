@@ -13,14 +13,14 @@
 
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/mobile-menu1.png" width="220" alt="主選單" /><br/>主選單</td>
-    <td align="center"><img src="docs/screenshots/mobile-menu2.png" width="220" alt="選擇遊戲模式" /><br/>選擇遊戲模式</td>
-    <td align="center"><img src="docs/screenshots/mobile-menu3.png" width="220" alt="遊戲設定" /><br/>遊戲設定</td>
+    <td align="center"><img src="docs/screenshots/mobile-menu1.png" width="280" alt="主選單" /><br/>主選單</td>
+    <td align="center"><img src="docs/screenshots/mobile-menu2.png" width="280" alt="選擇遊戲模式" /><br/>選擇遊戲模式</td>
+    <td align="center"><img src="docs/screenshots/mobile-menu3.png" width="280" alt="遊戲設定" /><br/>遊戲設定</td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/mobile-music-config.png" width="220" alt="音樂設置" /><br/>音樂設置</td>
-    <td align="center"><img src="docs/screenshots/mobile-multi-players-lobby.png" width="220" alt="多人連線大廳" /><br/>多人連線大廳</td>
-    <td align="center"><img src="docs/screenshots/mobile-game-scene.png" width="220" alt="遊戲對戰畫面" /><br/>遊戲對戰畫面</td>
+    <td align="center"><img src="docs/screenshots/mobile-music-config.png" width="280" alt="音樂設置" /><br/>音樂設置</td>
+    <td align="center"><img src="docs/screenshots/mobile-multi-players-lobby.png" width="280" alt="多人連線大廳" /><br/>多人連線大廳</td>
+    <td align="center"><img src="docs/screenshots/mobile-game-scene.png" width="280" alt="遊戲對戰畫面" /><br/>遊戲對戰畫面</td>
   </tr>
 </table>
 
