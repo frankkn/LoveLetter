@@ -9,6 +9,21 @@
 
 這是一款使用 TypeScript、Vite 與原生 DOM 製作的《情書 Love Letter》網頁遊戲，支援單機 AI 對戰、多人連線大廳（含房間內新增 AI 電腦）、多語言介面、背景音樂與音效、即時文字聊天、WebRTC 語音通話、手機版介面。
 
+## 遊戲畫面
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/mobile-menu1.png" width="220" alt="主選單" /><br/>主選單</td>
+    <td align="center"><img src="docs/screenshots/mobile-menu2.png" width="220" alt="選擇遊戲模式" /><br/>選擇遊戲模式</td>
+    <td align="center"><img src="docs/screenshots/mobile-menu3.png" width="220" alt="遊戲設定" /><br/>遊戲設定</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/mobile-music-config.png" width="220" alt="音樂設置" /><br/>音樂設置</td>
+    <td align="center"><img src="docs/screenshots/mobile-multi-players-lobby.png" width="220" alt="多人連線大廳" /><br/>多人連線大廳</td>
+    <td align="center"><img src="docs/screenshots/mobile-game-scene.png" width="220" alt="遊戲對戰畫面" /><br/>遊戲對戰畫面</td>
+  </tr>
+</table>
+
 ## 遊戲目標
 
 每一局中，玩家透過出牌效果淘汰對手，或在牌堆抽完時以手牌點數最高者獲勝。率先取得目標枚數硬幣（預設 4 枚，可在遊戲開始前自由設定）的玩家成為聯賽總冠軍。
