@@ -6,7 +6,7 @@ import type { Card, CardActionHint } from './domain/cards.js';
 import type { BotDifficulty, GameState, Player, PlayRollback, PrinceDiscardResult } from './domain/game-state.js';
 import { GameRoomState } from './server/schema/GameRoomState.js';
 import { mainMenuEl, modeSelectEl, botSettingsSelectEl, lobbySceneEl, roomWaitSceneEl, gameSceneEl, roomListContainerEl, currentRoomIdEl, roomPlayerCountEl, roomPlayerListEl, inviteRoomBtn, readyToggleBtn, cardStatsAreaEl, playedCardStatsEl, opponentsContainerEl, playerAreaEl, playerHandEl, playerDiscardEl, deckCountEl, drawBtn, drawBtnDesktop, showResultBtn, statsNextRoundBtn, showLogBtn, gameLogEl, turnIndicatorEl, modalOverlay, modalTitle, modalBody, modalFooter, mobileStatsToggleBtn } from './ui/elements.js';
-import { AUDIO_LIBRARY, adjustPendingMusicSelection, beginMusicSettingsEdit, cancelMusicSettingsEdit, confirmMusicSettingsEdit, getPendingAudioVolumePercent, getPendingSelection, getPendingTrack, getSelectedTrack, initializeAudioUnlock, pauseBGMForSettingsPreview, playBGM, playChampionTheme, playPreview, playSelectedMenuBGM, playSFX, queueMusicSettingsPreload, setPendingAudioVolumePercent, stopPreview, toggleMute, type MusicSlot } from './audio/music.js';
+import { AUDIO_LIBRARY, adjustPendingMusicSelection, beginMusicSettingsEdit, cancelMusicSettingsEdit, confirmMusicSettingsEdit, getAudioDebugState, getPendingAudioVolumePercent, getPendingSelection, getPendingTrack, getSelectedTrack, initializeAudioUnlock, pauseBGMForSettingsPreview, playBGM, playChampionTheme, playPreview, playSelectedMenuBGM, playSFX, queueMusicSettingsPreload, setPendingAudioVolumePercent, stopPreview, toggleMute, type MusicSlot } from './audio/music.js';
 import { clearOfflineSave, readOfflineSave, updateContinueButtonVisibility, writeOfflineSave } from './storage/offline-save.js';
 import { createEmojiController } from './ui/emoji.js';
 import { createVoiceController } from './ui/voice.js';
@@ -4108,4 +4108,7 @@ if (import.meta.env.DEV) {
         const winner = state.players[winnerId];
         if (winner) endGame(winner, 'test');
     };
+    // Exposes the internal audio state so the music-interruption E2E test can
+    // assert that the win/lose jingle stops when the next round starts.
+    (window as unknown as Record<string, unknown>).__testAudioState = () => getAudioDebugState();
 }

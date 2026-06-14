@@ -255,7 +255,13 @@ export function initializeAudioUnlock(removeSplashScreen: () => void) {
 
 export function playBGM(filenameOrUrl: string) {
     if (!audioUnlocked) { pendingBGMFile = filenameOrUrl; return; }
-    if (currentBGMFile === filenameOrUrl) return;
+    if (currentBGMFile === filenameOrUrl) {
+        // Same track already active. If a one-shot SFX (e.g. the win/lose jingle
+        // played at round end) paused this BGM, interrupt the jingle and resume
+        // the BGM immediately instead of waiting for it to finish on its own.
+        if (bgmPausedForSFX) stopSFX();
+        return;
+    }
     preloadAudio(filenameOrUrl);
     bgmAudio.loop = true;
     currentBGMFile = filenameOrUrl;
@@ -285,6 +291,19 @@ export function playSFX(filenameOrUrl: string) {
     sfxAudio.currentTime = 0;
     sfxAudio.onended = resumeBGM;
     sfxAudio.play().catch(resumeBGM);
+}
+
+// Forcibly interrupt a one-shot SFX (e.g. the win/lose jingle) before it ends
+// naturally, and resume the BGM it paused. Used when starting the next round so
+// the game BGM takes over immediately instead of waiting out the jingle.
+export function stopSFX() {
+    sfxAudio.onended = null;
+    sfxAudio.pause();
+    sfxAudio.currentTime = 0;
+    if (bgmPausedForSFX && currentBGMFile) {
+        bgmAudio.play().catch(() => {});
+    }
+    bgmPausedForSFX = false;
 }
 
 export function playChampionTheme() {
@@ -332,6 +351,18 @@ export function playSelectedMenuBGM() {
     currentBGMFile = '';
     const menuTrack = getSelectedTrack('menu');
     if (menuTrack.url) playBGM(menuTrack.url);
+}
+
+// Test-only snapshot of internal audio state. Lets E2E tests assert that the
+// win/lose jingle is interrupted (not left playing) when the next round starts.
+// Not referenced by production code paths.
+export function getAudioDebugState() {
+    return {
+        sfxPaused: sfxAudio.paused,
+        bgmPaused: bgmAudio.paused,
+        bgmPausedForSFX,
+        currentBGMFile,
+    };
 }
 
 loadMusicSettings();
