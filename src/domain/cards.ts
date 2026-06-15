@@ -59,15 +59,22 @@ export const CARD_IMAGES: Record<CardType, string> = {
     [CardType.Princess]: princessImage
 };
 
+// Module-level counter so card ids stay unique across every deck created in a
+// session. Resetting per deck (the old behaviour) made id `card-3` refer to a
+// different physical card each round, which let stale per-card state — notably a
+// Priest's private "you saw X" hint reconciled by id in online play — get
+// reattached to an unrelated card in a later round. Global uniqueness removes
+// that whole class of cross-round id collisions.
+let globalCardIdCounter = 0;
+
 export function createDeck(): Card[] {
     const deck: Card[] = [];
-    let idCounter = 0;
     for (const typeStr in CARD_DEFINITIONS) {
         const type = Number(typeStr) as CardType;
         const def = CARD_DEFINITIONS[type];
         for (let i = 0; i < def.count; i++) {
             deck.push({
-                id: `card-${idCounter++}`,
+                id: `card-${globalCardIdCounter++}`,
                 type,
                 name: def.name,
                 value: type,

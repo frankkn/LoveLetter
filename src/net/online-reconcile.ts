@@ -38,8 +38,29 @@ export function preserveHostBotHands(state: GameState, players: Player[], isHost
     });
 }
 
-/** 私密提示不隨 sync 廣播，回灌後用本地舊狀態把屬於自己的私密提示重新貼回 */
-export function restoreLocalPrivateHints(state: GameState, localPlayerId: number, players: Player[]): Player[] {
+/**
+ * 私密提示不隨 sync 廣播，回灌後用本地舊狀態把屬於自己的私密提示重新貼回。
+ *
+ * 還原是用 card.id 配對的，而 id 在同一回合內唯一、不同回合間可能重複（即使現在
+ * 已改為全域唯一，仍保留這層防護）。一旦跨回合（incomingRoundIndex 與本地 state
+ * 的 roundIndex 不同），就完全不還原 —— 新回合的牌不應該繼承上一回合的私密提示。
+ */
+export function restoreLocalPrivateHints(
+    state: GameState,
+    localPlayerId: number,
+    players: Player[],
+    incomingRoundIndex?: number
+): Player[] {
+    // Round transition: never carry a previous round's private hints onto new
+    // cards. Defends against id-collision reattachment across rounds.
+    if (
+        typeof incomingRoundIndex === 'number' &&
+        typeof state?.roundIndex === 'number' &&
+        incomingRoundIndex !== state.roundIndex
+    ) {
+        return players;
+    }
+
     const previousLocalPlayer = state.players[localPlayerId];
     const incomingLocalPlayer = players[localPlayerId];
     if (!previousLocalPlayer || !incomingLocalPlayer) return players;

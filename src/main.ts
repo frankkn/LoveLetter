@@ -2341,7 +2341,7 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
                 data.forfeitedPlayerIds.forEach(id => forfeitedOnlinePlayerIds.add(id));
             }
 
-            const players = restoreLocalPrivateHints(state, localPlayerId, data.players.map(cloneOnlinePlayer));
+            const players = restoreLocalPrivateHints(state, localPlayerId, data.players.map(cloneOnlinePlayer), data.roundIndex);
 
             state = {
                 deck: [...data.deck],
@@ -2462,7 +2462,7 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
         selectedCardId = null;
         isResolvingTurnAction = false;
 
-        const players = preserveHostBotHands(state, restoreLocalPrivateHints(state, localPlayerId, data.players.map(cloneOnlinePlayer)), isLocalRoomHost());
+        const players = preserveHostBotHands(state, restoreLocalPrivateHints(state, localPlayerId, data.players.map(cloneOnlinePlayer), data.roundIndex), isLocalRoomHost());
 
         state = {
             deck: [...data.deck],
