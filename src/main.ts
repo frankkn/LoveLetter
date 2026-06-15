@@ -575,6 +575,13 @@ function restorePlayRollback(rollback?: PlayRollback) {
     isResolvingTurnAction = false;
     closeModal();
     render();
+    // Re-broadcast the rolled-back state. Cancelling at the Guard guess stage
+    // happens AFTER the play was already synced (executePlayCard defers the sync
+    // until a target is picked — see requiresTargetBeforeReveal), so without this
+    // opponents would keep showing the cancelled Guard in the discard pile and a
+    // stale hand count. The target-selection cancel happens before that sync, so
+    // this is idempotent there. No-op in offline games.
+    syncOnlineGameState();
 }
 
 function cancelButtonHTML(): string {
@@ -1523,15 +1530,28 @@ async function checkEndConditions() {
         if (survivors.every(p => p.hand.length <= 1)) {
             addLog(t('log.deckEmpty'));
             const handValue = (p: Player) => p.hand[0]?.value ?? -1;
+            const discardSum = (p: Player) => p.discardPile.reduce((s, c) => s + c.value, 0);
             survivors.sort((a, b) => {
                 if (handValue(b) !== handValue(a)) {
                     return handValue(b) - handValue(a);
                 }
-                const aSum = a.discardPile.reduce((s, c) => s + c.value, 0);
-                const bSum = b.discardPile.reduce((s, c) => s + c.value, 0);
-                return bSum - aSum;
+                return discardSum(b) - discardSum(a);
             });
             const winner = survivors[0];
+            // Per Love Letter rules, players tied on BOTH hand value and total
+            // discarded value all win the round. endGame() awards the primary
+            // winner's coin below; award the remaining tied players here so a true
+            // tie doesn't silently deny them a coin. These increments live in
+            // state.players, so endGame()'s sync carries them to every client.
+            const coWinners = survivors.filter(p =>
+                p.id !== winner.id &&
+                handValue(p) === handValue(winner) &&
+                discardSum(p) === discardSum(winner)
+            );
+            coWinners.forEach(p => { p.coins += 1; });
+            if (coWinners.length > 0) {
+                addLog(t('log.tieWin', [winner, ...coWinners].map(p => p.name).join('、')));
+            }
             // Show all survivors' hands before jumping to the result modal.
             render();
             await waitForStatsModalConfirm(

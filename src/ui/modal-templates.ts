@@ -92,8 +92,14 @@ export function createHandRevealBodyHTML(
 
 /** 牌堆耗盡時的比牌結算 modal body */
 export function createDeckShowdownBodyHTML(sorted: Player[], winner: Player, localPlayerId: number): string {
+    // Highlight every player tied for the top (same hand value AND discard total),
+    // so a shared-win tie is shown clearly instead of crowning one arbitrarily.
+    const handValue = (p: Player) => p.hand[0]?.value ?? -1;
+    const discardSum = (p: Player) => p.discardPile.reduce((s, c) => s + c.value, 0);
+    const isWinningPlayer = (p: Player) =>
+        handValue(p) === handValue(winner) && discardSum(p) === discardSum(winner);
     const columns = sorted.map(p => {
-        const isWinner = p.id === winner.id;
+        const isWinner = isWinningPlayer(p);
         const cardEl = p.hand[0] ? createCardUI(p.hand[0], false, localPlayerId).outerHTML : '';
         return `
             <div style="display:flex;flex-direction:column;align-items:center;gap:0.35rem;
