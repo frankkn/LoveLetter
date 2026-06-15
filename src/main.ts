@@ -4050,6 +4050,10 @@ function startNextRound() {
         player.isAlive = !isForfeited;
         player.discardPile = [];
         player.isHandRevealed = false;
+        // Freshly dealt hand — nobody has seen it yet. Without this reset a
+        // Priest/King "hand known" flag from the previous round would persist
+        // and mislead the AI (needless self-Prince wash, inflated Handmaid weight).
+        player.handKnownToOpponent = false;
     });
 
     // The previous winner normally goes first, but they may have forfeited during the
@@ -4111,4 +4115,16 @@ if (import.meta.env.DEV) {
     // Exposes the internal audio state so the music-interruption E2E test can
     // assert that the win/lose jingle stops when the next round starts.
     (window as unknown as Record<string, unknown>).__testAudioState = () => getAudioDebugState();
+    // Hooks for the round-reset regression test (handKnownToOpponent must clear
+    // on a new round). Read/set the per-player flag and force a next round.
+    (window as unknown as Record<string, unknown>).__testHandKnownFlags = () =>
+        (state?.players ?? []).map(player => player.handKnownToOpponent === true);
+    (window as unknown as Record<string, unknown>).__testSetAllHandKnown = (value: boolean) => {
+        state?.players.forEach(player => { player.handKnownToOpponent = value; });
+    };
+    (window as unknown as Record<string, unknown>).__testStartNextRound = () => {
+        if (!state) return;
+        state.winner = state.players[0];
+        startNextRound();
+    };
 }
