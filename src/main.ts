@@ -12,7 +12,7 @@ import { createEmojiController } from './ui/emoji.js';
 import { createVoiceController } from './ui/voice.js';
 import { createChatController, type ChatMsg } from './ui/chat.js';
 import { initParticles } from './ui/particles.js';
-import { sleep, escapeHTML, withTimeout } from './utils.js';
+import { sleep, escapeHTML, sanitizePlayerName, withTimeout } from './utils.js';
 import { getCoinIcons, getPlayerTitleHTML } from './ui/player-badges.js';
 import { createStatsModalBodyHTML, createTargetSelectModalBodyHTML, createHandRevealBodyHTML, createDeckShowdownBodyHTML, createBaronDuelBodyHTML, createForcedEffectNoticeBodyHTML } from './ui/modal-templates.js';
 import { createCardUI, positionCardDescription } from './ui/card-render.js';
@@ -1920,7 +1920,7 @@ function normalizeRoomWaitState(roomState: RoomWaitViewState | SyncedRoomState):
 function createOnlinePlayers(roomPlayers: RoomWaitPlayerView[]): Player[] {
     return roomPlayers.map((roomPlayer, index) => ({
         id: index,
-        name: roomPlayer.name,
+        name: sanitizePlayerName(roomPlayer.name),
         isBot: false,
         coins: 0,
         hand: [],

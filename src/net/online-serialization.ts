@@ -1,6 +1,7 @@
 import { CARD_DEFINITIONS, type Card } from '../domain/cards.js';
 import type { Player } from '../domain/game-state.js';
 import type { PendingForcedEffect, PendingBaronDuel, PendingKingExchange } from '../domain/online-types.js';
+import { sanitizePlayerName } from '../utils.js';
 
 // 線上同步用的純序列化 / 深拷貝工具：把本地物件轉成可安全廣播的形狀
 // （剝除私密提示、隱藏機器人手牌），以及待處理效果的深拷貝。皆為純函式。
@@ -19,6 +20,11 @@ export function cloneCardForOnlineSync(card: Card): Card {
 export function cloneOnlinePlayer(player: Player): Player {
     return {
         ...player,
+        // Names arrive from the network and are attacker-controllable (a forged
+        // sync_game_state can carry any name — see the trusted-peer sync model).
+        // Strip tag-forming characters here, at the network boundary, so every
+        // downstream render (modals, badges) is safe regardless of the sink.
+        name: sanitizePlayerName(player.name),
         hand: player.hand.map(cloneCardForOnlineSync),
         discardPile: player.discardPile.map(cloneCardForOnlineSync)
         // isBot is intentionally preserved so all clients can identify bot players for

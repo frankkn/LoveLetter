@@ -1,5 +1,6 @@
 import { CARD_IMAGES, type Card } from '../domain/cards.js';
 import { t, getCardName, getCardDesc } from '../i18n.js';
+import { escapeHTML } from '../utils.js';
 
 // 單張卡牌的 DOM 呈現（手牌 / 棄牌 / modal 內翻牌）。
 // 私密提示是否顯示取決於觀看者，故 localPlayerId 以參數傳入而非依賴全域。
@@ -44,11 +45,20 @@ export function createCardUI(card: Card, isPlayable: boolean, localPlayerId: num
     if (actionHints.length > 0) {
         const hintsDiv = document.createElement('div');
         hintsDiv.className = 'card-action-hints';
-        hintsDiv.innerHTML = actionHints.map(hint => `
-            <div class="card-action-hint ${hint.variant ? `card-action-hint-${hint.variant}` : ''}">
-                ${hint.text}
+        // hint.text and hint.variant can originate from a synced (and therefore
+        // attacker-controllable) card, so escape the text and whitelist the
+        // variant before injecting as HTML — otherwise a forged hint is stored XSS.
+        const allowedVariants = ['default', 'danger', 'tie'];
+        hintsDiv.innerHTML = actionHints.map(hint => {
+            const variantClass = hint.variant && allowedVariants.includes(hint.variant)
+                ? ` card-action-hint-${hint.variant}`
+                : '';
+            return `
+            <div class="card-action-hint${variantClass}">
+                ${escapeHTML(hint.text)}
             </div>
-        `).join('');
+        `;
+        }).join('');
         wrapper.appendChild(hintsDiv);
     }
 

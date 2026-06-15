@@ -56,7 +56,7 @@ export function createTargetSelectModalBodyHTML(state: GameState, card: Card, ta
     const hintKey = hintKeyByType[card.type];
     const hint = hintKey ? t(hintKey) : t('target.hint.default', getCardName(card.type));
     const buttonsHTML = targets.map(target => (
-        `<button class="target-btn" data-id="${target.id}">${target.name}</button>`
+        `<button class="target-btn" data-id="${target.id}">${escapeHTML(target.name)}</button>`
     )).join('');
 
     return `
@@ -79,11 +79,11 @@ export function createHandRevealBodyHTML(
         <p>${message}</p>
         <div class="duel-card-row">
             <div class="duel-card-column">
-                <strong>${actorName}</strong>
+                <strong>${escapeHTML(actorName)}</strong>
                 ${createCardUI(actorCard, false, localPlayerId).outerHTML}
             </div>
             <div class="duel-card-column">
-                <strong>${targetName}</strong>
+                <strong>${escapeHTML(targetName)}</strong>
                 ${createCardUI(targetCard, false, localPlayerId).outerHTML}
             </div>
         </div>

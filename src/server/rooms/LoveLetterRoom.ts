@@ -266,7 +266,7 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
 
         const player = new PlayerState();
         player.id = client.sessionId;
-        player.name = options.name?.trim() || `Player ${this.state.players.size + 1}`;
+        player.name = this.sanitizePlayerName(options.name) || `Player ${this.state.players.size + 1}`;
         player.isHost = this.state.players.size === 0;
         player.isReady = false;
         player.isConnected = true;
@@ -342,6 +342,20 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
                 `Consented/code: ${String(consented)}. Remaining players: ${this.state.players.size}`
             );
         }
+    }
+
+    /**
+     * Strip tag-forming characters from a player-supplied nickname and cap its
+     * length. The name is broadcast to every client and rendered in their DOM,
+     * so removing `<`/`>` at this trust boundary prevents stored XSS. Removal
+     * (not entity-encoding) keeps the name displaying identically whether a
+     * client renders it via innerHTML or textContent.
+     */
+    private sanitizePlayerName(raw?: string): string {
+        return (raw ?? '')
+            .replace(/[<>]/g, '')
+            .trim()
+            .slice(0, 24);
     }
 
     private getPlayerOrThrow(sessionId: string): PlayerState {
