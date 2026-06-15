@@ -1,5 +1,6 @@
 import type { Card } from '../domain/cards.js';
 import type { GameState, Player } from '../domain/game-state.js';
+import type { PendingBaronDuel, PendingForcedEffect, PendingKingExchange } from '../domain/online-types.js';
 import { cloneCardForOnlineSync, isHiddenOnlineCard } from './online-serialization.js';
 
 // 收到線上同步資料後，與本地既有狀態「對帳」的工具：
@@ -83,6 +84,68 @@ export function restoreLocalPrivateHints(
     incomingLocalPlayer.hand = incomingLocalPlayer.hand.map(restoreCard);
     incomingLocalPlayer.discardPile = incomingLocalPlayer.discardPile.map(restoreCard);
     return players;
+}
+
+// ── Releasing interactions blocked on a departed player ──────────────────────
+// A Baron duel / King exchange waits for BOTH participants to confirm, and a
+// Prince-forced effect waits for its reactor to resolve it. If that player
+// disconnects/forfeits mid-interaction the confirmation/resolution never
+// arrives and the actor's turn soft-locks. These host-side helpers release the
+// block so the round can proceed. Pure functions — caller assigns the result
+// back to the module pending state and re-broadcasts.
+
+/**
+ * Baron duel after a participant departs:
+ * - actor departed → void the duel (its resolution runs only on the actor's
+ *   now-gone client, so it can never complete) → return null.
+ * - target departed → auto-confirm them so the still-connected actor's wait
+ *   resolves and the snapshot-based comparison runs normally (eliminate is
+ *   idempotent, so the departing loser being eliminated twice is harmless).
+ */
+export function releaseBaronDuelForDepartedPlayer(
+    duel: PendingBaronDuel | null,
+    departedId: number
+): PendingBaronDuel | null {
+    if (!duel) return duel;
+    if (duel.actorId === departedId) return null;
+    if (duel.targetId === departedId && !duel.confirmedPlayerIds.includes(departedId)) {
+        return { ...duel, confirmedPlayerIds: [...duel.confirmedPlayerIds, departedId] };
+    }
+    return duel;
+}
+
+/** King exchange after a participant departs — same rule as the Baron duel. */
+export function releaseKingExchangeForDepartedPlayer(
+    exchange: PendingKingExchange | null,
+    departedId: number
+): PendingKingExchange | null {
+    if (!exchange) return exchange;
+    if (exchange.actorId === departedId) return null;
+    if (exchange.targetId === departedId && !exchange.confirmedPlayerIds.includes(departedId)) {
+        return { ...exchange, confirmedPlayerIds: [...exchange.confirmedPlayerIds, departedId] };
+    }
+    return exchange;
+}
+
+/**
+ * Drop forced-effect entries whose reactor departed (they can never resolve
+ * them). Returns the filtered queue plus, when the queue fully drains, the
+ * removed entry whose resolution would have ended the parked turn — the caller
+ * uses it to resume the turn (endTurn). Other reactors' entries are preserved.
+ */
+export function dropForcedEffectsForDepartedReactor(
+    queue: PendingForcedEffect[],
+    departedId: number
+): { queue: PendingForcedEffect[]; turnResumer: PendingForcedEffect | null } {
+    const removed = queue.filter(effect => effect.reactorId === departedId);
+    if (removed.length === 0) {
+        return { queue, turnResumer: null };
+    }
+    const remaining = queue.filter(effect => effect.reactorId !== departedId);
+    // Only resume the turn if nothing else is left to resolve; use the last
+    // removed entry (deepest in a Prince chain) for the return-turn target.
+    const turnResumer = remaining.length === 0 ? removed[removed.length - 1] : null;
+    return { queue: remaining, turnResumer };
 }
 
 // Merge an incoming log payload (which may be a tail-only delta) against the

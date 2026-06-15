@@ -56,7 +56,14 @@ import {
     clonePendingBaronDuel,
     clonePendingKingExchange,
 } from './net/online-serialization.js';
-import { preserveHostBotHands, restoreLocalPrivateHints, mergeOnlineLogs } from './net/online-reconcile.js';
+import {
+    preserveHostBotHands,
+    restoreLocalPrivateHints,
+    mergeOnlineLogs,
+    releaseBaronDuelForDepartedPlayer,
+    releaseKingExchangeForDepartedPlayer,
+    dropForcedEffectsForDepartedReactor
+} from './net/online-reconcile.js';
 import type {
     LobbyRoomSummary,
     LobbyRoomMetadata,
@@ -1210,6 +1217,15 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 );
             }
 
+            // A participant departed mid-duel and was eliminated before this
+            // resolution ran (their confirmation was auto-filled to unblock the
+            // actor). The duel is void — don't penalise the survivor on a
+            // comparison the opponent abandoned.
+            if (!actor.isAlive || !target.isAlive) {
+                await finishEffectTurn(actorId, shouldEndTurn);
+                break;
+            }
+
             const aVal = actorCard.value;
             const tVal = targetCard.value;
             const aliveBeforeCompare = state.players.filter(p => p.isAlive).length;
@@ -1347,36 +1363,42 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                     t('btn.confirm')
                 );
             }
-            const actorTransferredCard = actor.hand[0];
-            const targetTransferredCard = target.hand[0];
-            const temp = actor.hand;
-            actor.hand = target.hand;
-            target.hand = temp;
-            clearKnownCardForPlayer(state, actorId);
-            clearKnownCardForPlayer(state, targetId);
-            if (actorTransferredCard) {
-                rememberKnownCard(state, actorId, targetId, actorTransferredCard.type);
-            }
-            if (targetTransferredCard) {
-                rememberKnownCard(state, targetId, actorId, targetTransferredCard.type);
-            }
-            // After King swap each player holds the other's old card, which that
-            // opponent knows — mark both hands as exposed for self-Prince logic
-            actor.handKnownToOpponent = true;
-            target.handKnownToOpponent = true;
-            if (!actor.isBot || !target.isBot) {
-                await waitForStatsModalConfirm(
-                    t('modal.kingSwap'),
-                    createHandRevealBodyHTML(
-                        t('king.swapDone', actor.name, target.name),
-                        actor.name,
-                        actor.hand[0],
-                        target.name,
-                        target.hand[0],
-                        localPlayerId
-                    ),
-                    t('btn.iUnderstand')
-                );
+            // Guard the swap: if a participant departed mid-exchange and was
+            // already eliminated (no hand), swapping would hand the actor an
+            // empty hand. In that case the King effect is voided — we just end
+            // the turn so the round isn't soft-locked.
+            if (actor.isAlive && target.isAlive && actor.hand[0] && target.hand[0]) {
+                const actorTransferredCard = actor.hand[0];
+                const targetTransferredCard = target.hand[0];
+                const temp = actor.hand;
+                actor.hand = target.hand;
+                target.hand = temp;
+                clearKnownCardForPlayer(state, actorId);
+                clearKnownCardForPlayer(state, targetId);
+                if (actorTransferredCard) {
+                    rememberKnownCard(state, actorId, targetId, actorTransferredCard.type);
+                }
+                if (targetTransferredCard) {
+                    rememberKnownCard(state, targetId, actorId, targetTransferredCard.type);
+                }
+                // After King swap each player holds the other's old card, which that
+                // opponent knows — mark both hands as exposed for self-Prince logic
+                actor.handKnownToOpponent = true;
+                target.handKnownToOpponent = true;
+                if (!actor.isBot || !target.isBot) {
+                    await waitForStatsModalConfirm(
+                        t('modal.kingSwap'),
+                        createHandRevealBodyHTML(
+                            t('king.swapDone', actor.name, target.name),
+                            actor.name,
+                            actor.hand[0],
+                            target.name,
+                            target.hand[0],
+                            localPlayerId
+                        ),
+                        t('btn.iUnderstand')
+                    );
+                }
             }
             if (shouldEndTurn) await endTurn(actorId);
             else {
@@ -3453,12 +3475,31 @@ function eliminateDisconnectedPlayer(playerIndex: number, reason: string) {
     if (forfeitedOnlinePlayerIds.has(playerIndex)) return;
 
     forfeitedOnlinePlayerIds.add(playerIndex);
+
+    // Release any interaction that is waiting on this player's confirmation /
+    // forced-effect resolution before they vanish, or the actor's turn would
+    // soft-lock waiting for input that never comes. Done before eliminate() so
+    // its broadcast already carries the unblocked pending state.
+    pendingBaronDuel = releaseBaronDuelForDepartedPlayer(pendingBaronDuel, playerIndex);
+    pendingKingExchange = releaseKingExchangeForDepartedPlayer(pendingKingExchange, playerIndex);
+    const { queue: drainedQueue, turnResumer } = dropForcedEffectsForDepartedReactor(
+        pendingForcedEffectsQueue,
+        playerIndex
+    );
+    pendingForcedEffectsQueue = drainedQueue;
+
     const gamePlayer = state?.players[playerIndex];
     if (gamePlayer?.isAlive) {
         eliminate(playerIndex, reason);
     } else {
         // Already dead — just broadcast the updated forfeited set.
         syncOnlineGameState();
+    }
+
+    // A Prince chain parked on the departed reactor left the turn hanging; now
+    // that its blocking effect is gone, resume the turn the resolution owed.
+    if (turnResumer && state && !state.isGameOver && turnResumer.shouldEndTurnAfterResolution) {
+        void endTurn(turnResumer.returnTurnPlayerId);
     }
 }
 
