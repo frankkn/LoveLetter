@@ -181,6 +181,19 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
                 throw new LobbyException("Cannot sync game state before the game starts.");
             }
 
+            // Lightweight anti-forgery guard. The game logic still runs on clients
+            // (trusted-peer model), so this only rejects physically-impossible
+            // transitions — never authoritative validation. Dropping a forged sync
+            // here stops the most blatant griefing (fabricated cards, instant
+            // champion) without the soft-lock risk of a host-only restriction.
+            if (!this.isPlausibleStateUpdate(this.latestGameState, data)) {
+                console.warn(
+                    `[LoveLetterRoom] Rejected implausible sync_game_state from ${client.sessionId} ` +
+                    `in room ${this.roomId}.`
+                );
+                return; // do not store or broadcast a forged/corrupt state
+            }
+
             this.latestGameState = data;
             // Exclude the sender: the host owns authoritative state and does not
             // need its own echo. Broadcasting back to the host would needlessly
@@ -356,6 +369,70 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
             .replace(/[<>]/g, '')
             .trim()
             .slice(0, 24);
+    }
+
+    /**
+     * Reject only state transitions that are impossible in a legitimate game, so
+     * this must have ZERO false positives — a wrongly dropped sync would soft-lock
+     * the round. Anything unparseable (or any unexpected error) fails OPEN (allows
+     * the sync), trading completeness for safety. This is a coarse griefing filter,
+     * NOT a substitute for server-authoritative logic.
+     */
+    private isPlausibleStateUpdate(prev: unknown, next: unknown): boolean {
+        try {
+            if (!next || typeof next !== "object") return true; // unknown shape → allow
+
+            // 1) Card conservation: a 16-card deck can never expand to more than 16
+            //    cards across deck + burned + every hand + every discard. A higher
+            //    count means cards were fabricated.
+            const totalCards = this.countCards(next);
+            if (totalCards !== null && totalCards > 16) return false;
+
+            // 2) Coin monotonicity: at most one round resolves per sync (each round
+            //    end immediately syncs over a reliable WebSocket), so a player can
+            //    gain at most one coin between two server-observed states. A jump of
+            //    +2 or more is a forged win. Decreases are allowed — a new league
+            //    legitimately resets every coin to 0.
+            const prevCoins = this.coinsById(prev);
+            const nextCoins = this.coinsById(next);
+            if (prevCoins && nextCoins) {
+                for (const [id, coins] of nextCoins) {
+                    const before = prevCoins.get(id);
+                    if (before !== undefined && coins > before + 1) return false;
+                }
+            }
+
+            return true;
+        } catch {
+            return true; // never let a guard bug break a legitimate game
+        }
+    }
+
+    /** Count every physical card in a synced state, or null if the shape is unexpected. */
+    private countCards(state: unknown): number | null {
+        const s = state as { deck?: unknown; burnedCard?: unknown; players?: unknown };
+        if (!Array.isArray(s.deck) || !Array.isArray(s.players)) return null;
+        let total = s.deck.length + (s.burnedCard ? 1 : 0);
+        for (const player of s.players) {
+            const p = player as { hand?: unknown; discardPile?: unknown };
+            if (!Array.isArray(p.hand) || !Array.isArray(p.discardPile)) return null;
+            total += p.hand.length + p.discardPile.length;
+        }
+        return total;
+    }
+
+    /** Map of player id → coin count from a synced state, or null if unparseable. */
+    private coinsById(state: unknown): Map<number, number> | null {
+        const players = (state as { players?: unknown })?.players;
+        if (!Array.isArray(players)) return null;
+        const map = new Map<number, number>();
+        for (const player of players) {
+            const p = player as { id?: unknown; coins?: unknown };
+            if (typeof p.id === "number" && typeof p.coins === "number") {
+                map.set(p.id, p.coins);
+            }
+        }
+        return map;
     }
 
     private getPlayerOrThrow(sessionId: string): PlayerState {
