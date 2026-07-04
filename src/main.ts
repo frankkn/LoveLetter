@@ -860,7 +860,12 @@ async function applyEffect(playerId: number, card: Card, shouldEndTurn = true, r
     }
 
     if ([1, 2, 3, 5, 6].includes(card.value)) {
-        let allPotentialTargets = state.players.filter(p => p.isAlive && !p.isProtected);
+        // Defensive: exclude alive players holding no card. Normally unreachable
+        // (an empty hand only occurs when deck AND burned card are exhausted, and
+        // checkEndConditions ends the round first), but a Guard/Priest resolution
+        // against an empty hand would crash on target.hand[0], and Prince/Baron/
+        // King against one is a meaningless no-op anyway.
+        let allPotentialTargets = state.players.filter(p => p.isAlive && !p.isProtected && p.hand.length > 0);
         if (card.type !== CardType.Prince) {
             allPotentialTargets = allPotentialTargets.filter(p => p.id !== playerId);
         }
