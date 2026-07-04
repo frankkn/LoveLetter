@@ -148,6 +148,13 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
             }
 
             this.state.players.delete(data.targetSessionId);
+
+            // Force-close the connection server-side. Relying on the client to
+            // leave voluntarily let a malicious client ignore the message and
+            // keep receiving every room broadcast (state, chat) after the kick.
+            // The state entry is already deleted, so this client's onLeave
+            // returns early and no reconnection window is granted.
+            targetClient?.leave();
             console.log(`[LoveLetterRoom] ${targetPlayer.name} was kicked from room ${this.roomId} by the host.`);
         });
 
