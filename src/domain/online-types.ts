@@ -39,12 +39,21 @@ export interface PendingKingExchange {
 
 // Notification sent via online state sync to inform a non-host player about an effect
 // that targeted them (e.g. Guard elimination, Priest peek).
+//
+// SECURITY: the payload arrives over the trusted-peer sync channel, so every field
+// is attacker-controllable. The body therefore travels as PLAIN TEXT (bodyText) and
+// the receiver builds its own markup around it with escapeHTML -- never render any
+// field from this object as raw HTML. bodyHTML remains only so old clients in a
+// mixed-version room still see something; new receivers escape it before display.
 export interface OnlineNotification {
     nonce: string;
     senderPlayerId: number;
     targetPlayerId: number;
     title: string;
-    bodyHTML: string;
+    /** Plain-text body. The receiver wraps and escapes it locally. */
+    bodyText?: string;
+    /** Legacy field for old clients. Treated as untrusted text by new receivers. */
+    bodyHTML?: string;
     remainingBroadcasts: number;
 }
 

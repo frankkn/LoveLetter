@@ -1039,7 +1039,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                             addLog(t('log.guardHit'));
                             eliminate(targetId, t('reason.guardHit'), {
                                 title: t('modal.guardEliminated'),
-                                bodyHTML: `<p style="text-align:center;margin:0.5rem 0">${t('guard.eliminated', actor.name, guessedName)}</p>`
+                                bodyText: t('guard.eliminated', actor.name, guessedName)
                             });
                             if (shouldEndTurn && !state.isGameOver) await endTurn(actorId);
                         } else {
@@ -1053,7 +1053,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                             addLog(t('log.guardMiss'));
                             if (!target.isBot) {
                                 addOnlineNotification(targetId, t('modal.guardMiss'),
-                                    `<p style="text-align:center;margin:0.5rem 0">${t('notify.guardMiss', actor.name, guessedName)}</p>`);
+                                    t('notify.guardMiss', actor.name, guessedName));
                             }
                             if (shouldEndTurn) await endTurn(actorId);
                             else {
@@ -1091,7 +1091,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                     }
                     eliminate(targetId, t('reason.guardHit'), {
                         title: t('modal.guardEliminated'),
-                        bodyHTML: `<p style="text-align:center;margin:0.5rem 0">${t('guard.eliminated', actor.name, guessedName)}</p>`
+                        bodyText: t('guard.eliminated', actor.name, guessedName)
                     });
                     if (shouldEndTurn && !state.isGameOver) await endTurn(actorId);
                 } else {
@@ -1105,7 +1105,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                     addLog(t('log.guardMiss'));
                     if (!target.isBot) {
                         addOnlineNotification(targetId, t('modal.guardMiss'),
-                            `<p style="text-align:center;margin:0.5rem 0">${t('notify.guardMiss', actor.name, guessedName)}</p>`);
+                            t('notify.guardMiss', actor.name, guessedName));
                     }
                     if (shouldEndTurn) await endTurn(actorId);
                     else {
@@ -1147,7 +1147,7 @@ async function resolveTargetEffect(actorId: number, targetId: number, card: Card
                 addOnlineNotification(
                     targetId,
                     t('modal.priestPeek'),
-                    `<p style="text-align:center;margin:0.5rem 0">${t('notify.priestPeek', actor.name, getCardName(target.hand[0].type))}</p>`
+                    t('notify.priestPeek', actor.name, getCardName(target.hand[0].type))
                 );
             }
             syncOnlineGameState();
@@ -1442,7 +1442,7 @@ async function discardAndDraw(targetId: number, returnTurnPlayerId: number, shou
         const actorName = state.players[returnTurnPlayerId]?.name ?? t('player.opponent');
         eliminate(targetId, t('reason.princessDiscarded'), {
             title: t('modal.youWereEliminated'),
-            bodyHTML: `<p style="text-align:center;margin:0.5rem 0">${t('notify.princeForcedPrincess', actorName)}</p>`
+            bodyText: t('notify.princeForcedPrincess', actorName)
         });
         return { discarded, hasPendingForcedEffect: false };
     }
@@ -1494,7 +1494,7 @@ async function discardAndDraw(targetId: number, returnTurnPlayerId: number, shou
 function eliminate(
     playerId: number,
     reason: string,
-    notificationOverride?: { title: string; bodyHTML: string }
+    notificationOverride?: { title: string; bodyText: string }
 ) {
     const player = state.players[playerId];
     if (!player || !player.isAlive) return;
@@ -1520,9 +1520,9 @@ function eliminate(
         // the acting client from showing their own notification on the echo.
         if (!player.isBot) {
             const title   = notificationOverride?.title   ?? t('modal.youWereEliminated');
-            const bodyHTML = notificationOverride?.bodyHTML
-                ?? `<p style="text-align:center;margin:0.5rem 0">${t('notify.eliminated', reason)}</p>`;
-            addOnlineNotification(playerId, title, bodyHTML);
+            const bodyText = notificationOverride?.bodyText
+                ?? t('notify.eliminated', reason);
+            addOnlineNotification(playerId, title, bodyText);
         }
         handoffTurnIfCurrentPlayerWasEliminated(playerId);
     }
@@ -2059,14 +2059,19 @@ function createOnlineGameStateData(): OnlineGameStateData {
 
 // Queue a modal notification to be shown on the machine where targetPlayerId == localPlayerId.
 // Included in the next `remainingBroadcasts` syncs so brief packet loss doesn't suppress it.
-function addOnlineNotification(targetPlayerId: number, title: string, bodyHTML: string) {
+// `bodyText` is PLAIN TEXT: the receiver builds its own markup with escaping (the sync
+// channel is attacker-controllable, so no HTML may travel through notifications).
+function addOnlineNotification(targetPlayerId: number, title: string, bodyText: string) {
     if (!isOnlineGameActive()) return;
     pendingOnlineNotifications.push({
         nonce: `n${Date.now()}-${Math.floor(Math.random() * 1e9)}`,
         senderPlayerId: localPlayerId,
         targetPlayerId,
         title,
-        bodyHTML,
+        bodyText,
+        // Legacy field for pre-bodyText clients in a mixed-version room: send the
+        // same content already escaped so even their raw-HTML sink stays inert.
+        bodyHTML: `<p style="text-align:center;margin:0.5rem 0">${escapeHTML(bodyText)}</p>`,
         remainingBroadcasts: 4
     });
 }
@@ -2620,9 +2625,15 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
                 // Double-check: don't interrupt a modal that appeared between the state update and rAF.
                 if (modalOverlay.style.display !== 'flex') {
                     isShowingNotificationModal = true;
+                    // SECURITY: every notification field arrives over the forgeable
+                    // sync channel. Build the markup locally and escape the text --
+                    // never feed notif.bodyHTML (legacy field) to innerHTML raw.
+                    const safeBody = typeof notif.bodyText === 'string'
+                        ? `<p style="text-align:center;margin:0.5rem 0">${escapeHTML(notif.bodyText)}</p>`
+                        : `<p style="text-align:center;margin:0.5rem 0">${escapeHTML(notif.bodyHTML ?? '')}</p>`;
                     showModal(
                         notif.title,
-                        notif.bodyHTML,
+                        safeBody,
                         `<button class="modal-confirm-btn" id="notif-ok-btn">${t('btn.ok')}</button>`
                     );
                     document.getElementById('notif-ok-btn')?.addEventListener('click', () => {
