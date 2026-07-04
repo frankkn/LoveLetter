@@ -276,7 +276,15 @@ export function playBGM(filenameOrUrl: string) {
     bgmPausedForSFX = false;
     bgmAudio.src = filenameOrUrl.includes('/') ? filenameOrUrl : getAudioSrc(filenameOrUrl);
     bgmAudio.currentTime = 0;
-    bgmAudio.play().catch(() => {
+    bgmAudio.play().catch((error: unknown) => {
+        // pause() during a still-pending play() rejects with AbortError. That
+        // happens legitimately when an SFX pauses the BGM (playSFX) before the
+        // track finished loading — e.g. the win jingle firing right after a
+        // scene switch. The track is still the active BGM and resumeBGM /
+        // stopSFX will restart it, so treating it as "audio locked" here wiped
+        // currentBGMFile and broke the same-track fast path (the jingle then
+        // played to its natural end instead of being interrupted).
+        if (bgmPausedForSFX || (error instanceof DOMException && error.name === 'AbortError')) return;
         audioUnlocked = false;
         pendingBGMFile = filenameOrUrl;
         currentBGMFile = '';
