@@ -1683,7 +1683,7 @@ function showEndGameModal() {
     showModal(t('modal.gameResult'), `
         <div style="text-align: center; margin-bottom: 1rem;">
             <h3 style="margin: 0; color:#ff4d4d; font-size: 1.65rem;">${t('endgame.wins', state.winner.name)}</h3>
-            <p style="margin: 0.35rem 0 0;">${endGameReason}</p>
+            <p style="margin: 0.35rem 0 0;">${escapeHTML(endGameReason)}</p>
         </div>
         ${createRankingHTML()}
     `, `${primaryButton}<button class="modal-confirm-btn" id="ranking-return-btn" style="margin-left: 0.65rem; background: #64748b;">${t('btn.back')}</button>`);
@@ -2045,7 +2045,10 @@ function createOnlineGameStateData(): OnlineGameStateData {
         nextRoundReadyPlayerIds: [...nextRoundReadyPlayerIds],
         restartReadyPlayerIds: [...restartReadyPlayerIds],
         pendingNotifications: notificationsToSend,
-        forfeitedPlayerIds: Array.from(forfeitedOnlinePlayerIds)
+        forfeitedPlayerIds: Array.from(forfeitedOnlinePlayerIds),
+        // Only the client that resolved the final effect ran endGame() and has
+        // the human-readable reason — carry it so everyone's result modal shows it.
+        endGameReason: endGameReason || undefined
     };
 }
 
@@ -2395,6 +2398,12 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
             }
 
             const players = restoreLocalPrivateHints(state, localPlayerId, data.players.map(cloneOnlinePlayer), data.roundIndex);
+
+            // Adopt the sender's end reason when we don't have one locally
+            // (only the client that resolved the final effect ran endGame()).
+            if (data.endGameReason && !endGameReason) {
+                endGameReason = data.endGameReason;
+            }
 
             state = {
                 deck: [...data.deck],

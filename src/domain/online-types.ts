@@ -59,6 +59,9 @@ export interface OnlineGameStateData extends OnlineGameData {
     restartReadyPlayerIds?: number[];
     pendingNotifications?: OnlineNotification[];
     forfeitedPlayerIds?: number[];
+    // 回合結束原因（顯示在結算 modal）。只有做出最後一擊的 client 會在本地
+    // 產生這個字串，其他玩家需靠同步取得，否則結算畫面的原因欄是空的。
+    endGameReason?: string;
     // 增量 log 同步：當 logsBaseIndex 為正數時，`logs` 只是完整陣列從該索引起的尾段，
     // 接收端需與本地既有 logs 合併。缺省 / 0 代表 `logs` 即完整快照。
     logsBaseIndex?: number;
