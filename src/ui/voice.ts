@@ -43,7 +43,7 @@ export function createVoiceController(options: VoiceControllerOptions): VoiceCon
     let voiceActive = false;        // 是否在語音頻道
     let voiceMicMuted = false;      // 是否麥克風靜音
     /** sessionId → { analyser, data buffer } 用於說話偵測 */
-    const voiceAnalysers = new Map<string, { analyser: AnalyserNode; data: Uint8Array<ArrayBuffer> }>();
+    const voiceAnalysers = new Map<string, { source: MediaStreamAudioSourceNode; analyser: AnalyserNode; data: Uint8Array<ArrayBuffer> }>();
     let voiceAudioContext: AudioContext | null = null;
     /** sessionId → 是否正在說話 */
     const voiceSpeakingStates = new Map<string, boolean>();
@@ -90,12 +90,16 @@ export function createVoiceController(options: VoiceControllerOptions): VoiceCon
 
         // 說話偵測：Web Audio API
         if (!voiceAudioContext) voiceAudioContext = new AudioContext();
+        // Tear down this peer's previous chain first: ontrack can fire again for
+        // the same peer (renegotiation), and undisconnected sources accumulate
+        // on the shared AudioContext.
+        voiceAnalysers.get(peerId)?.source.disconnect();
         const source = voiceAudioContext.createMediaStreamSource(stream);
         const analyser = voiceAudioContext.createAnalyser();
         analyser.fftSize = 512;
         source.connect(analyser);
         const data = new Uint8Array(analyser.frequencyBinCount) as Uint8Array<ArrayBuffer>;
-        voiceAnalysers.set(peerId, { analyser, data });
+        voiceAnalysers.set(peerId, { source, analyser, data });
     }
 
     /** 建立與指定 peer 的 RTCPeerConnection */
@@ -138,6 +142,7 @@ export function createVoiceController(options: VoiceControllerOptions): VoiceCon
     function closePeerConnection(peerId: string) {
         peerConnections.get(peerId)?.close();
         peerConnections.delete(peerId);
+        voiceAnalysers.get(peerId)?.source.disconnect();
         voiceAnalysers.delete(peerId);
         voiceSpeakingStates.delete(peerId);
         document.getElementById(`voice-audio-${peerId}`)?.remove();
@@ -153,6 +158,12 @@ export function createVoiceController(options: VoiceControllerOptions): VoiceCon
         voiceMicMuted = false;
         voiceAnalysers.clear();
         voiceSpeakingStates.clear();
+        // Release the shared AudioContext -- leaving it open leaks an OS audio
+        // handle (and its graph) on every join/leave cycle.
+        if (voiceAudioContext) {
+            void voiceAudioContext.close().catch(() => {});
+            voiceAudioContext = null;
+        }
         updateMicButtonState();
     }
 
