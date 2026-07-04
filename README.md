@@ -205,6 +205,31 @@ npm run test:e2e
 
 ## 版本資訊
 
+### v2.11.0 - 代碼審查第二輪：通知 XSS、重連冠軍門檻、AI 記憶回滾與伺服器節流
+
+本版源自第二輪完整代碼審查，共 6 個獨立修正。
+
+**安全性 / 防作弊**
+
+- 修補線上通知彈窗的儲存型 XSS：通知（衛兵淘汰／猜錯、神父窺看、王子逼棄公主等）原以 `bodyHTML` 原樣 HTML 隨 `sync_game_state` 廣播，接收端未轉義即以 `innerHTML` 渲染——任何房間成員可偽造同步 payload 在其他玩家瀏覽器執行任意腳本（名稱、戰報、卡牌提示皆已於先前版本防護，獨漏此通道）。現改為傳純文字 `bodyText`，由接收端本地組裝並轉義；保留 `bodyHTML` 欄位（送出時預先轉義）供混版本房間的舊 client 顯示，新 client 收到舊欄位也一律轉義後才渲染。
+- 伺服器端訊息頻率限制：`chat_message`／`emoji_react`／`sync_game_state` 原無伺服器端頻率上限（表情冷卻只在 client 端），改裝 client 可高頻轟炸整房（且 `maxPayload` 已放寬至 1MB）。新增每連線滑動視窗節流（sync 120／10s、聊天 10／10s、表情 8／10s），上限遠高於正常尖峰（效果連鎖約 10-20 次同步），超出者靜默丟棄，不會誤傷正常對局。
+
+**多人連線**
+
+- 修正頁面重整後重連的 client **冠軍硬幣門檻跑掉**的問題：`initOnlineGame` 的重連分支直接 return，未重新讀取房間設定的 `championCoins`，重載後模組層預設值 4 生效——房間若設 6 枚，該 client 會在 4 枚時就跳出冠軍畫面（規則說明、排行榜文案同樣錯誤）。重連分支現與正常加入路徑一致還原門檻。
+
+**AI / 規則**
+
+- 修正「點牌再取消」洗掉電腦記憶的漏洞：`executePlayCard` 在出牌當下（仍可取消的選目標／猜牌階段之前）就清除 `aiMemory` 中關於出牌者的情報與衛兵猜錯紀錄，而取消回滾只還原手牌／棄牌／戰報。玩家可反覆點牌取消，讓中等／困難 bot 忘記神父窺看與猜錯情報。`PlayRollback` 現納入兩份記憶的深拷貝快照，取消時一併還原。
+
+**維護 / 測試**
+
+- 修補 WebRTC 語音資源洩漏：`setupRemoteAudio` 於每次 `ontrack` 建立新的 `MediaStreamSource`＋`AnalyserNode` 卻不斷開舊鏈路，共用的 `AudioContext` 也從不關閉，長對局反覆加入／離開語音會累積作業系統音訊資源。現逐 peer 追蹤 source 節點、換軌與清理時 `disconnect`，離開語音時 `close()` AudioContext。
+- 更正 `server/index.ts` 過期註解：重連視窗為 60 秒（`allowReconnection(client, 60)`），非註解所寫的 20 秒。
+- 全部 36 個 E2E 測試通過；前端／後端／測試伺服器 tsc 型別檢查與 production build 通過。
+
+**部署提醒**：本版含後端變更（訊息頻率限制），需重新部署 Colyseus 伺服器方能完整生效。
+
 ### v2.10.0 - 全面代碼審查修復：重連狀態毀損、AI 失憶、XSS 與音訊穩定性
 
 本版源自一次完整代碼審查（domain／main／net／server／ui／audio），共 13 個獨立修正。
