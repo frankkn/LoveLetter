@@ -14,7 +14,7 @@ import { createChatController, type ChatMsg } from './ui/chat.js';
 import { initParticles } from './ui/particles.js';
 import { sleep, escapeHTML, sanitizePlayerName, withTimeout } from './utils.js';
 import { getCoinIcons, getPlayerTitleHTML } from './ui/player-badges.js';
-import { createStatsModalBodyHTML, createTargetSelectModalBodyHTML, createHandRevealBodyHTML, createDeckShowdownBodyHTML, createBaronDuelBodyHTML, createForcedEffectNoticeBodyHTML } from './ui/modal-templates.js';
+import { createStatsModalBodyHTML, createTargetSelectModalBodyHTML, createHandRevealBodyHTML, createDeckShowdownBodyHTML, createBaronDuelBodyHTML, createForcedEffectNoticeBodyHTML, getPlayedCardCounts } from './ui/modal-templates.js';
 import { createCardUI, positionCardDescription } from './ui/card-render.js';
 import { getInviteRoomIdFromURL, clearInviteRoomIdFromURL, getRoomInviteURL } from './net/invite-url.js';
 import {
@@ -316,10 +316,7 @@ function showLanguageModal(): void {
 let endGameReason = '';
 
 function renderPlayedCardStats() {
-    const counts = new Map<CardType, number>();
-    state.players
-        .flatMap(player => player.discardPile)
-        .forEach(card => counts.set(card.type, (counts.get(card.type) || 0) + 1));
+    const counts = getPlayedCardCounts(state);
 
     playedCardStatsEl.innerHTML = '';
     for (let type = CardType.Guard; type <= CardType.Princess; type++) {

@@ -8,12 +8,18 @@ import type { PendingBaronDuel, PendingForcedEffect } from '../domain/online-typ
 // Modal 內共用的 HTML body 片段（出牌統計面板、統計版型、選擇目標版型）。
 // 讀取遊戲狀態的部分以參數傳入 state，不依賴模組外的全域變數。
 
-/** 已打出牌張的統計面板（依牌型列出 已出/總數） */
-export function createPlayedCardStatsHTML(state: GameState): string {
+/** 統計所有玩家棄牌堆中各牌型已打出的張數（側欄與 modal 統計面板共用） */
+export function getPlayedCardCounts(state: GameState): Map<CardType, number> {
     const counts = new Map<CardType, number>();
     state.players
         .flatMap(player => player.discardPile)
         .forEach(card => counts.set(card.type, (counts.get(card.type) || 0) + 1));
+    return counts;
+}
+
+/** 已打出牌張的統計面板（依牌型列出 已出/總數） */
+export function createPlayedCardStatsHTML(state: GameState): string {
+    const counts = getPlayedCardCounts(state);
 
     const rows = Array.from({ length: CardType.Princess }, (_, index) => {
         const type = (index + 1) as CardType;
