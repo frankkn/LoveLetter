@@ -82,6 +82,12 @@ let isResolvingTurnAction = false;
 let queuedBotTurnId: number | null = null;
 let localPlayerId = 0;
 let onlineGameInitialized = false;
+// Room id of the online game state most recently APPLIED in this page lifetime.
+// Host-reconnect safety: after a page reload the in-memory `state` is the startup
+// dummy local game (initGame(1)), so "host re-broadcasts its authoritative state"
+// would overwrite the whole room with garbage. Only re-broadcast when this id
+// matches the room we are reconnecting to; otherwise request the server snapshot.
+let lastAppliedOnlineRoomId: string | null = null;
 
 // Dev mode: ?dev=1 lowers the champion threshold to 1 win for quick testing
 const DEV_MODE = new URLSearchParams(window.location.search).get('dev') === '1';
@@ -244,6 +250,7 @@ function resetLocalClientState() {
     queuedBotTurnId = null;
     localPlayerId = 0;
     onlineGameInitialized = false;
+    lastAppliedOnlineRoomId = null;
     isApplyingOnlineState = false;
     endGameReason = '';
     savedReconnectionToken = null;
@@ -2399,6 +2406,7 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
             };
 
             onlineGameInitialized = true;
+            lastAppliedOnlineRoomId = activeGameRoom?.roomId ?? null;
             if (shouldShowEndGameModal) {
                 closeModal();
             }
@@ -2538,6 +2546,7 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
         }
 
         onlineGameInitialized = true;
+        lastAppliedOnlineRoomId = activeGameRoom?.roomId ?? null;
         if (!isLocalBaronDuelParticipant(pendingBaronDuel) && !isLocalKingExchangeParticipant(pendingKingExchange) && !isShowingNotificationModal) {
             closeModal();
         }
@@ -2638,13 +2647,22 @@ function initOnlineGame(roomState: RoomWaitViewState) {
     if (isReconnecting) {
         isReconnecting = false;
         onlineGameInitialized = true;
-        if (selfPlayer?.isHost) {
+        // The host may only re-broadcast when its in-memory state is genuinely
+        // this room's game (socket drop WITHOUT a page reload). After a reload,
+        // lastAppliedOnlineRoomId is null and `state` is the startup dummy local
+        // game — broadcasting it would corrupt the room for everyone, so the
+        // host must request the server's latest snapshot instead, like a guest.
+        const hostHasLiveStateForThisRoom = Boolean(
+            selfPlayer?.isHost &&
+            lastAppliedOnlineRoomId === (activeGameRoom?.roomId ?? roomState.roomId)
+        );
+        if (hostHasLiveStateForThisRoom) {
             // Host still has the authoritative state — re-broadcast it.
             showScene('game-scene');
             render();
             syncOnlineGameState();
         } else {
-            // Non-host: request the latest snapshot from the server.
+            // Non-host, or a reloaded host: request the latest snapshot from the server.
             activeGameRoom?.send('request_game_data');
         }
         return;
