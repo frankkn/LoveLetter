@@ -3930,6 +3930,7 @@ function initGame(botCount: number, difficulties: BotDifficulty[] = []) {
     isHandlingPendingForcedEffect = false;
     hasShownEndGameModal = false;
     nextRoundReadyPlayerIds = [];
+    restartReadyPlayerIds = [];
     queuedBotTurnId = null;
     selectedCardId = null;
     isResolvingTurnAction = false;
