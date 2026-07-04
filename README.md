@@ -205,6 +205,42 @@ npm run test:e2e
 
 ## 版本資訊
 
+### v2.10.0 - 全面代碼審查修復：重連狀態毀損、AI 失憶、XSS 與音訊穩定性
+
+本版源自一次完整代碼審查（domain／main／net／server／ui／audio），共 13 個獨立修正。
+
+**多人連線（高優先）**
+
+- 修正房主 **F5 重整頁面後重連會毀掉整場遊戲**的嚴重問題：重連路徑原本讓房主「重播本地權威狀態」，但頁面重載後記憶體裡的 `state` 是啟動時的單機假局（玩家＋電腦 A），這包假狀態會廣播給所有人並覆寫伺服器的 `latestGameState`。修正方式：新增 `lastAppliedOnlineRoomId` 追蹤本頁面生命週期內實際套用過的線上房間，房主只有在確認記憶體狀態屬於目前房間（斷線但未重整）才重播；重載後的房主改送 `request_game_data` 向伺服器拿最新快照，與訪客一致。
+- 修正**線上 bot 失憶**：`applyOnlineGameState` 每次套用同步都把 `aiMemory`／`aiExcludedGuesses`／男爵線索整包重置。bot 只在房主端運行，因此任何非房主玩家行動後的同步一到房主端，中等／困難 bot 學到的情報（神父窺看、國王交換、衛兵猜錯紀錄）就全部消失。現改為：已初始化遊戲、同一回合內，房主端保留 AI 記憶；換局與新遊戲照舊重置。
+- `endGameReason` 併入同步 payload：原本只有做出最後一擊的 client 會產生結束原因字串，其他玩家的結算彈窗原因欄是空的。
+
+**安全性 / 防作弊**
+
+- 修補戰報彈窗的儲存型 XSS：`state.logs` 由其他 client 原樣同步而來（可被偽造同步注入），戰報 modal 卻未轉義即以 `innerHTML` 渲染（側欄戰報用 `textContent`、卡牌提示 v2.9.3 已轉義，獨漏此處）。現以 `escapeHTML` 轉義。
+- 踢人改為伺服器端強制斷線（`targetClient.leave()`）：原本只從房間狀態移除並通知，惡意 client 可無視通知繼續接收房間所有廣播（狀態、聊天）。
+- `emoji_react` 防冒充：`playerId` 改由伺服器依發送者 session 推導（players map 插入順序索引，與前端建立遊戲玩家順序一致），不再信任 payload，任何 client 都無法再以他人座位發送表情。
+
+**音樂 / 音效**
+
+- 修正一次 `play()` 被拒後**音訊永久卡死**的問題：音訊解鎖監聽原以 `once: true` 註冊，`playBGM` 失敗時會把 `audioUnlocked` 重設為 false 等待下一個手勢重試，但監聽器已被消耗、永遠不會再觸發，音訊就此死到頁面重載。監聽器改為常駐（解鎖後自動 no-op）。
+- 修正音效打斷載入中 BGM 導致的狀態毀損：BGM 的 `play()` promise 尚未完成時被 `playSFX` 暫停會拋 `AbortError`，原 catch 把所有拒絕一律當成 autoplay 封鎖並清空 `currentBGMFile`，破壞「同曲目早退＋`stopSFX`」快速路徑——按「前往下一局」時勝敗音樂不會被中斷（v2.8.5 修過的行為在慢載入下復發）。現對「自己暫停造成的中斷」不再重置解鎖狀態。
+
+**AI / 規則**
+
+- 衛兵猜錯紀錄改在「出牌」時清除而非「抽牌」時：抽第二張牌不會改變原持牌，猜錯情報此時仍有效；提早清除讓 bot 平白丟掉一步情報。
+- 目標篩選排除空手牌玩家（防禦性）：正常流程不可達（牌庫與底牌雙耗盡時 `checkEndConditions` 會先結算），但若不變式被打破，衛兵／神父結算會在 `target.hand[0]` 崩潰。
+
+**維護 / 測試**
+
+- `initGame` 補重置 `restartReadyPlayerIds`（與其他每局重置清單一致）。
+- 出牌統計計數邏輯抽成 `getPlayedCardCounts()`，側欄與 modal 共用。
+- 修正 `preserveHostBotHands` 過時註解（自 v2.8.0 bot 手牌已全量同步，該函式為防禦性 no-op），並於 CLAUDE.md 明文記載信任對等端模型的可見性取捨。
+- Playwright Chromium 加 `--autoplay-policy=no-user-gesture-required`，根絕音訊測試在高負載平行執行下的偶發失敗。
+- 全部 36 個 E2E 測試通過；前端／後端／測試伺服器 tsc 型別檢查通過。
+
+**部署提醒**：本版含後端變更（踢人斷線、emoji 防冒充），需重新部署 Colyseus 伺服器方能完整生效。
+
 ### v2.9.4 - 伺服器端 sync_game_state 防偽驗證（部分緩解）
 
 **安全性 / 防作弊**
