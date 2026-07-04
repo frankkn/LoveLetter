@@ -8,8 +8,11 @@ import { cloneCardForOnlineSync, isHiddenOnlineCard } from './online-serializati
 // 依賴的本地狀態（state / localPlayerId / isHost）皆以參數顯式傳入。
 
 /**
- * Host 端專用：sync 廣播會把機器人手牌遮成 "?"，回灌時用本地保有的真實手牌補回，
- * 確保 host 仍掌握完整機器人手牌以驅動 bot 回合。
+ * Host 端防禦層：目前的同步模型會把機器人手牌「全量」廣播（見
+ * createOnlineGameStateData 的說明——非 host 行動者需要真實牌面才能對 bot
+ * 結算效果），所以正常流程不會出現被遮蔽的牌，此函式通常是 no-op。
+ * 保留它是為了：舊版本 client 混在同一房（仍送出遮蔽手牌）或偽造 payload
+ * 夾帶不合法牌型時，host 不會因此丟失驅動 bot 回合所需的真實手牌。
  */
 export function preserveHostBotHands(state: GameState, players: Player[], isHost: boolean): Player[] {
     if (!isHost || !state?.players?.length || state.isGameOver) {

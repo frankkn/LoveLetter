@@ -118,6 +118,8 @@ AI bots share the same `applyEffect` / `resolveTargetEffect` path as the human p
 
 **Private information:** Cards have `privateActionHints` / `privateHintOwnerId` fields that are stripped before sync (`cloneCardForOnlineSync` in `net/online-serialization.ts`). After receiving an online state update, `restoreLocalPrivateHints()` re-attaches hints that belong to the local player.
 
+**Trusted-peer visibility caveat:** the sync payload intentionally carries full information — bot hands, other players' hands, and `pendingBaronDuel` card faces are all broadcast to every client (a non-host actor needs real card data to resolve targeted effects). The UI hides them (`render()` shows "?" for non-local hands), but anyone inspecting devtools/network traffic can read them. This is an accepted trade-off of the host-authoritative trusted-peer model; `preserveHostBotHands()` in `net/online-reconcile.ts` is a defensive no-op under this model (it only matters if a legacy/forged payload arrives with masked bot cards).
+
 **Reconnection:** After game start, `LoveLetterRoom.onLeave` calls `allowReconnection(client, 60)`. On reconnect the client sends `"request_game_data"` and the server replays `latestGameState`.
 
 **Colyseus endpoint:** Resolved from `VITE_COLYSEUS_ENDPOINT` env var at build time; falls back to `ws(s)://<hostname>:2567` at runtime.
