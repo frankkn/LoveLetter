@@ -2514,6 +2514,21 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
 
         const players = preserveHostBotHands(state, restoreLocalPrivateHints(state, localPlayerId, data.players.map(cloneOnlinePlayer), data.roundIndex), isLocalRoomHost());
 
+        // Host-only: bots run exclusively on this client and their memory
+        // (aiMemory / aiExcludedGuesses / recent Baron clue) lives OUTSIDE the
+        // sync payload. Blanket-resetting it here made medium/hard bots
+        // amnesiac every time a NON-host player acted (their sync lands on the
+        // host and used to wipe everything). Preserve it while we stay in the
+        // same round of an already-initialized game; round transitions and
+        // fresh games still start from a clean slate (startNextRound /
+        // createInitialOnlineGameData rebuild memory on the host anyway).
+        const shouldPreserveHostAIMemory = Boolean(
+            onlineGameInitialized &&
+            isLocalRoomHost() &&
+            state &&
+            state.roundIndex === (data.roundIndex ?? 0)
+        );
+
         state = {
             deck: [...data.deck],
             burnedCard: data.burnedCard,
@@ -2522,13 +2537,15 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
             isGameOver: data.isGameOver,
             winner: data.winner ? players.find(player => player.id === data.winner?.id) ?? cloneOnlinePlayer(data.winner) : null,
             logs: mergeOnlineLogs(state?.logs ?? [], data.logs, data.logsBaseIndex),
-            aiMemory: {},
-            aiExcludedGuesses: {},
+            aiMemory: shouldPreserveHostAIMemory ? state.aiMemory : {},
+            aiExcludedGuesses: shouldPreserveHostAIMemory ? state.aiExcludedGuesses : {},
             roundIndex: data.roundIndex ?? 0
         };
         pendingForcedEffectsQueue = incomingPendingForcedEffectsQueue;
         pendingBaronDuel = incomingPendingBaronDuel;
-        setRecentBaronGuardClue(null);
+        if (!shouldPreserveHostAIMemory) {
+            setRecentBaronGuardClue(null);
+        }
         pendingKingExchange = incomingPendingKingExchange;
         nextRoundReadyPlayerIds = [...(data.nextRoundReadyPlayerIds ?? [])];
         // Symmetric with nextRoundReadyPlayerIds: a non-game-over sync means a new
