@@ -2693,6 +2693,11 @@ function initOnlineGame(roomState: RoomWaitViewState) {
     if (isReconnecting) {
         isReconnecting = false;
         onlineGameInitialized = true;
+        // Restore the room's configured champion threshold. After a page reload
+        // this module-level value is back at its default (4), so without this a
+        // reloaded-and-reconnected client would disagree with the room setting
+        // (1-10) and show the champion modal at the wrong coin count.
+        championThreshold = DEV_MODE ? 1 : (roomState.championCoins ?? 4);
         // The host may only re-broadcast when its in-memory state is genuinely
         // this room's game (socket drop WITHOUT a page reload). After a reload,
         // lastAppliedOnlineRoomId is null and `state` is the startup dummy local
