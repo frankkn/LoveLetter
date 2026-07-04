@@ -18,7 +18,7 @@ const gameServer = new Server({
     // terminates a client after only ~6s of unresponsiveness. Mobile browsers
     // throttle/suspend WebSockets when backgrounded and flaky networks blip for
     // a few seconds, so 6s causes spurious disconnects. 3s × 4 = ~12s tolerance
-    // — still well within the 20s reconnection window for genuinely dead clients.
+    // — still well within the 60s reconnection window for genuinely dead clients.
     transport: new WebSocketTransport({
         maxPayload: 1024 * 1024, // 1MB (default is 4KB)
         pingInterval: 3000,      // ping every 3s (default)
