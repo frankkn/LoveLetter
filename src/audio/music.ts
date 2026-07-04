@@ -246,10 +246,18 @@ function unlockAudio(removeSplashScreen: () => void) {
 }
 
 export function initializeAudioUnlock(removeSplashScreen: () => void) {
-    const unlock = () => unlockAudio(removeSplashScreen);
-    document.addEventListener('touchstart', unlock, { capture: true, once: true });
-    document.addEventListener('click',      unlock, { capture: true, once: true });
-    document.addEventListener('keydown',    unlock, { capture: true, once: true });
+    // NOT once:true — when a play() is rejected (transient autoplay/decode
+    // failure, e.g. under heavy load), playBGM's catch resets audioUnlocked to
+    // false so the next user gesture can retry via pendingBGMFile. With once
+    // listeners that gesture never re-arms: the consumed listeners left audio
+    // permanently dead until a page reload. unlockAudio itself no-ops while
+    // audioUnlocked is true, so the persistent listeners cost nothing.
+    const unlock = () => {
+        if (!audioUnlocked) unlockAudio(removeSplashScreen);
+    };
+    document.addEventListener('touchstart', unlock, { capture: true });
+    document.addEventListener('click',      unlock, { capture: true });
+    document.addEventListener('keydown',    unlock, { capture: true });
     applyMuteState();
 }
 
