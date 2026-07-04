@@ -37,6 +37,12 @@ export interface PlayRollback {
     discardPile: Card[];
     isProtected: boolean;
     logLength: number;
+    // AI memory snapshots: executePlayCard prunes aiMemory / clears
+    // aiExcludedGuesses for the actor BEFORE the play can still be cancelled
+    // (target/guess selection), so a rollback must restore them or "click a
+    // card, then cancel" permanently wipes the bots' knowledge of the actor.
+    aiMemory: Record<number, Record<number, CardType>>;
+    aiExcludedGuesses: Record<number, Record<number, CardType[]>>;
 }
 
 export interface PrinceDiscardResult {

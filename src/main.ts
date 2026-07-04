@@ -557,6 +557,26 @@ function closeModal() {
     modalOverlay.style.display = 'none';
 }
 
+function cloneAIMemoryRecord(memory: Record<number, Record<number, CardType>>): Record<number, Record<number, CardType>> {
+    const copy: Record<number, Record<number, CardType>> = {};
+    for (const [observerId, entries] of Object.entries(memory)) {
+        copy[Number(observerId)] = { ...entries };
+    }
+    return copy;
+}
+
+function cloneAIExclusionsRecord(exclusions: Record<number, Record<number, CardType[]>>): Record<number, Record<number, CardType[]>> {
+    const copy: Record<number, Record<number, CardType[]>> = {};
+    for (const [observerId, entries] of Object.entries(exclusions)) {
+        const inner: Record<number, CardType[]> = {};
+        for (const [targetId, types] of Object.entries(entries)) {
+            inner[Number(targetId)] = [...types];
+        }
+        copy[Number(observerId)] = inner;
+    }
+    return copy;
+}
+
 function createPlayRollback(playerId: number): PlayRollback {
     const player = state.players[playerId];
     return {
@@ -564,7 +584,9 @@ function createPlayRollback(playerId: number): PlayRollback {
         hand: [...player.hand],
         discardPile: [...player.discardPile],
         isProtected: player.isProtected,
-        logLength: state.logs.length
+        logLength: state.logs.length,
+        aiMemory: cloneAIMemoryRecord(state.aiMemory),
+        aiExcludedGuesses: cloneAIExclusionsRecord(state.aiExcludedGuesses)
     };
 }
 
@@ -575,6 +597,10 @@ function restorePlayRollback(rollback?: PlayRollback) {
     player.discardPile = [...rollback.discardPile];
     player.isProtected = rollback.isProtected;
     state.logs = state.logs.slice(0, rollback.logLength);
+    // Restore the AI memory wiped by executePlayCard's eager prune/clear
+    // (clone again so repeated cancels never alias the snapshot).
+    state.aiMemory = cloneAIMemoryRecord(rollback.aiMemory);
+    state.aiExcludedGuesses = cloneAIExclusionsRecord(rollback.aiExcludedGuesses);
     selectedCardId = null;
     isResolvingTurnAction = false;
     closeModal();
