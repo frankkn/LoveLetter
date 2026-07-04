@@ -29,7 +29,17 @@ export default defineConfig({
     projects: [
         {
             name: 'chromium',
-            use: { ...devices['Desktop Chrome'] }
+            use: {
+                ...devices['Desktop Chrome'],
+                // The audio regression tests (music-next-round.spec.ts) assert on
+                // real Audio.play() state. Headless Chromium's autoplay policy
+                // occasionally rejects play() under parallel load even after a
+                // click gesture, which resets the app's audio state and flakes
+                // the first BGM assertion. Allow autoplay unconditionally.
+                launchOptions: {
+                    args: ['--autoplay-policy=no-user-gesture-required']
+                }
+            }
         }
     ]
 });
