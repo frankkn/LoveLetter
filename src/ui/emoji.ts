@@ -33,7 +33,8 @@ export function createEmojiController(options: EmojiControllerOptions): EmojiCon
         closeEmojiWheel();
         const room = options.getRoom();
         if (!room) return;
-        room.send('emoji_react', { emoji, playerId: options.getLocalPlayerId() });
+        // playerId 由伺服器依發送者 session 推導，payload 不再攜帶（防冒充）。
+        room.send('emoji_react', { emoji });
         cooldownUntil = Date.now() + 3000;
         buttonEl.disabled = true;
         setTimeout(() => { buttonEl.disabled = false; }, 3000);

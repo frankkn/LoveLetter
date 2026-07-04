@@ -241,13 +241,17 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
             }
         });
 
-        // 表情反應：廣播給房間所有人（包含發送者）
-        this.onMessage("emoji_react", (_client, data: { emoji: string; playerId: number }) => {
+        // 表情反應：廣播給房間所有人（包含發送者）。
+        // playerId 一律由伺服器依發送者的 session 推導（玩家在 players map 中的
+        // 插入順序索引，與前端建立遊戲玩家的順序一致），不信任 payload ——
+        // 否則任何 client 都能冒用別人的座位發表情。
+        this.onMessage("emoji_react", (client, data: { emoji: string }) => {
             if (!this.state.isGameStarted) return;
             const validEmojis = ['😊', '😡', '😢', '🤔', '❌', '💯'];
             if (!validEmojis.includes(data?.emoji)) return;
-            if (typeof data?.playerId !== 'number') return;
-            this.broadcast("emoji_react", { emoji: data.emoji, playerId: data.playerId });
+            const senderIndex = Array.from(this.state.players.keys()).indexOf(client.sessionId);
+            if (senderIndex < 0) return;
+            this.broadcast("emoji_react", { emoji: data.emoji, playerId: senderIndex });
         });
 
         // 文字聊天：廣播給房間所有人（包含發送者，保持一致性）
