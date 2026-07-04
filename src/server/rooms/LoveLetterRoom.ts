@@ -23,6 +23,8 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
     private latestGameState: unknown | null = null;
     /** 目前在語音頻道內的 sessionId 集合 */
     private voiceSessionIds = new Set<string>();
+    /** Per-session message-rate tracking: sessionId → message type → recent timestamps. */
+    private messageTimestamps = new Map<string, Map<string, number[]>>();
 
     async onCreate(options: CreateRoomOptions = {}) {
         this.maxClients = 4;
@@ -188,6 +190,13 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
                 throw new LobbyException("Cannot sync game state before the game starts.");
             }
 
+            // Anti-flood only: the ceiling is far above any legitimate burst
+            // (effect chains peak at ~10-20 syncs over a few seconds), so a
+            // dropped sync always means a misbehaving client, never a soft-lock.
+            if (!this.allowMessage(client.sessionId, "sync", 120, 10_000)) {
+                return;
+            }
+
             // Lightweight anti-forgery guard. The game logic still runs on clients
             // (trusted-peer model), so this only rejects physically-impossible
             // transitions — never authoritative validation. Dropping a forged sync
@@ -247,6 +256,8 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
         // 否則任何 client 都能冒用別人的座位發表情。
         this.onMessage("emoji_react", (client, data: { emoji: string }) => {
             if (!this.state.isGameStarted) return;
+            // The client enforces a 3 s cooldown; this only stops modified clients.
+            if (!this.allowMessage(client.sessionId, "emoji", 8, 10_000)) return;
             const validEmojis = ['😊', '😡', '😢', '🤔', '❌', '💯'];
             if (!validEmojis.includes(data?.emoji)) return;
             const senderIndex = Array.from(this.state.players.keys()).indexOf(client.sessionId);
@@ -256,6 +267,7 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
 
         // 文字聊天：廣播給房間所有人（包含發送者，保持一致性）
         this.onMessage("chat_message", (client, data: { text: string }) => {
+            if (!this.allowMessage(client.sessionId, "chat", 10, 10_000)) return;
             const player = this.state.players.get(client.sessionId);
             const name = player?.name ?? '???';
             const text = typeof data?.text === 'string' ? data.text.trim().slice(0, 200) : '';
@@ -301,6 +313,10 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
     }
 
     async onLeave(client: Client, consented?: boolean | number) {
+        // Rate-limit bookkeeping is per-connection; drop it on leave. A player who
+        // reconnects starts with a fresh window, which is fine.
+        this.messageTimestamps.delete(client.sessionId);
+
         // WebRTC 不支援重連，斷線時立即清除語音狀態並通知其他人
         if (this.voiceSessionIds.has(client.sessionId)) {
             this.voiceSessionIds.delete(client.sessionId);
@@ -444,6 +460,29 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
             }
         }
         return map;
+    }
+
+    /**
+     * Sliding-window rate limiter for client messages. Returns true when the
+     * message is within limits; false means "silently drop it". Limits are set
+     * well above what a legitimate client produces, so a drop only ever
+     * punishes flooding (never breaks a real game).
+     */
+    private allowMessage(sessionId: string, type: string, limit: number, windowMs: number): boolean {
+        const now = Date.now();
+        let byType = this.messageTimestamps.get(sessionId);
+        if (!byType) {
+            byType = new Map();
+            this.messageTimestamps.set(sessionId, byType);
+        }
+        const timestamps = (byType.get(type) ?? []).filter(ts => now - ts < windowMs);
+        if (timestamps.length >= limit) {
+            byType.set(type, timestamps);
+            return false;
+        }
+        timestamps.push(now);
+        byType.set(type, timestamps);
+        return true;
     }
 
     private getPlayerOrThrow(sessionId: string): PlayerState {
