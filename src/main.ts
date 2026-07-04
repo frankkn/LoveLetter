@@ -1714,8 +1714,12 @@ function showEndGameModal() {
 
 // 8. AI 回合優化
 function showBattleLogModal() {
+    // state.logs is synced verbatim from other clients (see mergeOnlineLogs), so
+    // it is attacker-controllable — escape it before injecting as HTML. The
+    // sidebar log (gameLogEl) already uses textContent; this modal is the only
+    // sink that renders logs via innerHTML.
     const logsHTML = state.logs.length
-        ? state.logs.map(log => `<div class="log-entry">${log}</div>`).join('')
+        ? state.logs.map(log => `<div class="log-entry">${escapeHTML(log)}</div>`).join('')
         : `<p class="modal-helper-text">${t('battleLog.noLog')}</p>`;
 
     showModal(t('modal.battleLog'), `
