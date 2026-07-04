@@ -638,7 +638,6 @@ function drawCard(playerId: number): boolean {
     if (!player.isBot) selectedCardId = null;
     const card = state.deck.pop()!;
     player.hand.push(card);
-    clearExcludedGuardGuessesForPlayer(state, playerId);
     pruneInvalidKnownCardsForPlayer(state, playerId);
     addLog(t('log.drew', player.name));
     render();
@@ -694,6 +693,10 @@ async function executePlayCard(playerId: number, card: Card) {
     const rollback = player.isBot ? undefined : createPlayRollback(playerId);
     isResolvingTurnAction = true;
     player.hand = player.hand.filter(c => c.id !== card.id);
+    // Failed Guard guesses against this player stay valid while they still hold
+    // the same card. Drawing a second card doesn't invalidate them — playing one
+    // does (the remaining card may be either) — so clear here, not in drawCard.
+    clearExcludedGuardGuessesForPlayer(state, playerId);
     pruneInvalidKnownCardsForPlayer(state, playerId);
     player.discardPile.push(card);
     player.isProtected = false;
