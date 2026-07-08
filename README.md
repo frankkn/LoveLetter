@@ -1,102 +1,108 @@
-# Love Letter 情書網頁版
+<div align="right">
+
+**English** | [繁體中文](README.zh-TW.md)
+
+</div>
+
+# Love Letter — Web Edition
 
 ![version](https://img.shields.io/github/v/tag/frankkn/love-letter?label=version&color=pink)
 ![platform](https://img.shields.io/badge/platform-Web-blue)
 
-## 立即遊玩
+## Play Now
 
-點這裡就可以玩：<https://frankkn.github.io/love-letter/>
+Play it right here: <https://frankkn.github.io/love-letter/>
 
-這是一款使用 TypeScript、Vite 與原生 DOM 製作的《情書 Love Letter》網頁遊戲，支援單機 AI 對戰、多人連線大廳（含房間內新增 AI 電腦）、多語言介面、背景音樂與音效、即時文字聊天、WebRTC 語音通話、手機版介面。
+This is a web version of the card game *Love Letter*, built with TypeScript, Vite, and vanilla DOM. It features single-player battles against AI, an online multiplayer lobby (with in-room AI bots), a multilingual interface, background music and sound effects, real-time text chat, WebRTC voice chat, and a mobile-friendly UI.
 
-## 遊戲畫面
+## Screenshots
 
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/mobile-menu1.png" width="280" alt="主選單" /><br/>主選單</td>
-    <td align="center"><img src="docs/screenshots/mobile-menu2.png" width="280" alt="選擇遊戲模式" /><br/>選擇遊戲模式</td>
-    <td align="center"><img src="docs/screenshots/mobile-menu3.png" width="280" alt="遊戲設定" /><br/>遊戲設定</td>
+    <td align="center"><img src="docs/screenshots/mobile-menu1.png" width="280" alt="Main menu" /><br/>Main menu</td>
+    <td align="center"><img src="docs/screenshots/mobile-menu2.png" width="280" alt="Game mode selection" /><br/>Game mode selection</td>
+    <td align="center"><img src="docs/screenshots/mobile-menu3.png" width="280" alt="Game settings" /><br/>Game settings</td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/mobile-music-config.png" width="280" alt="音樂設置" /><br/>音樂設置</td>
-    <td align="center"><img src="docs/screenshots/mobile-multi-players-lobby.png" width="280" alt="多人連線大廳" /><br/>多人連線大廳</td>
-    <td align="center"><img src="docs/screenshots/mobile-game-scene.png" width="280" alt="遊戲對戰畫面" /><br/>遊戲對戰畫面</td>
+    <td align="center"><img src="docs/screenshots/mobile-music-config.png" width="280" alt="Music settings" /><br/>Music settings</td>
+    <td align="center"><img src="docs/screenshots/mobile-multi-players-lobby.png" width="280" alt="Multiplayer lobby" /><br/>Multiplayer lobby</td>
+    <td align="center"><img src="docs/screenshots/mobile-game-scene.png" width="280" alt="In-game battle scene" /><br/>In-game battle scene</td>
   </tr>
 </table>
 
-## 遊戲目標
+## Objective
 
-每一局中，玩家透過出牌效果淘汰對手，或在牌堆抽完時以手牌點數最高者獲勝。率先取得目標枚數硬幣（預設 4 枚，可在遊戲開始前自由設定）的玩家成為聯賽總冠軍。
+In each round, players eliminate their opponents through card effects, or win by holding the highest-value hand when the deck runs out. The first player to collect the target number of coins (4 by default, freely configurable before the game starts) becomes the league champion.
 
-## 目前功能
+## Features
 
-- 多語言
-  - 遊戲設置 → 語言設置，支援繁體中文與 English。
-  - 語言設定存於 localStorage，重開頁面後維持上次選擇。
-  - 所有介面文字、卡牌名稱、遊戲日誌、彈窗內容均隨語言切換更新。
+- Multilingual
+  - Game Settings → Language Settings, with support for Traditional Chinese and English.
+  - The language preference is stored in localStorage and persists across page reloads.
+  - All UI text, card names, game logs, and modal content update instantly when switching languages.
 
-- 遊戲設置
-  - 音樂設置：五個場景各自選曲（主選單／遊戲中／當局勝利／當局失敗／總冠軍），支援試聽，選擇存於 localStorage。
-  - 音樂自動偵測：將 MP3 丟入 `public/audio/{slot}/` 子資料夾即可出現在選單中。
+- Game settings
+  - Music settings: pick a track for each of five scenes (main menu / in-game / round victory / round defeat / championship), with preview playback; selections are stored in localStorage.
+  - Automatic music discovery: drop MP3 files into the `public/audio/{slot}/` subfolders and they appear in the menu.
 
-- 單機模式
-  - 支援 2 到 4 人局。
-  - 玩家可與 1 到 3 名電腦 AI 對戰，統一設定簡單／中等／困難難度。
-  - 遊戲開始前可設定總冠軍硬幣數（1–10，預設 4）。
-  - 完整實作 8 種情書卡牌效果：衛兵、神父、男爵、侍女、王子、國王、伯爵夫人、公主。
-  - 存檔系統：玩家抽牌後自動存檔，主選單顯示「繼續遊戲」按鈕；離開遊戲時亦自動儲存；總冠軍產生後存檔自動清除。
-  - PWA 支援：首次訪問後資源快取於本機，之後無網路亦可載入頁面並打電腦。
+- Single-player mode
+  - Supports 2- to 4-player games.
+  - Play against 1 to 3 AI bots, with a shared difficulty setting (Easy / Medium / Hard).
+  - Configure the championship coin target (1–10, default 4) before the game starts.
+  - Fully implements all 8 Love Letter card effects: Guard, Priest, Baron, Handmaid, Prince, King, Countess, Princess.
+  - Save system: the game auto-saves after the player draws a card, and a "Continue Game" button appears on the main menu; the game also auto-saves when you exit; the save is automatically cleared once a champion is crowned.
+  - PWA support: assets are cached locally after the first visit, so the page loads and single-player games work even without a network connection.
 
-- 多人連線模式
-  - 使用 Colyseus 實作房間大廳與等待室。
-  - 支援創建房間、加入房間、準備狀態、房主開始遊戲。
-  - 房主可新增 AI 電腦（電腦 A/B/C）填補空位，並設定每台電腦的難度（簡單／中等／困難）。
-  - 房主可設定總冠軍硬幣數（1–10），設定即時同步給房間所有成員。
-  - 房主可踢出真人玩家，被踢者返回大廳。
-  - 遊戲開始後會同步初始牌局資料，讓所有玩家進入同一場戰局。
-  - 聯賽結束後可由全員確認直接重開，無需回主選單重新開房間。
-  - 邀請連結：等待室可複製 `?room=<roomId>` 分享連結，朋友點開後在遊戲內彈窗直接加入；房間滿員時連結自動失效。
-  - 斷線重連：意外斷線後有 60 秒重連視窗，可點擊重連按鈕恢復遊戲或選擇棄局；F5 重整頁面後仍可在視窗內自動跳出重連提示。
-  - 斷線橫幅即時顯示哪位玩家離線；房主斷線超時後自動解散；非房主斷線超時後由房主淘汰（重連視窗、解散與淘汰計時統一為 60 秒）。
-  - 表情輪盤：遊戲中可開啟六等分表情輪盤（喜／怒／哀／思考／✗／100），送出後浮動表情顯示於對應玩家手牌區，所有人即時可見，附 3 秒冷卻。
-  - 文字聊天：遊戲中可開啟聊天面板互傳訊息，含未讀 badge 計數。
-  - 語音通話：WebRTC Mesh P2P 全連結語音，Colyseus 僅負責信令交換，含說話偵測指示。
+- Online multiplayer mode
+  - Room lobby and waiting room built with Colyseus.
+  - Supports creating rooms, joining rooms, ready states, and host-initiated game start.
+  - The host can add AI bots (Bot A/B/C) to fill empty seats and set each bot's difficulty individually (Easy / Medium / Hard).
+  - The host can set the championship coin target (1–10); the setting syncs to all room members in real time.
+  - The host can kick human players; kicked players return to the lobby.
+  - When the game starts, the initial game state is synced so all players enter the same match.
+  - After a league ends, everyone can confirm to restart directly — no need to return to the main menu and recreate the room.
+  - Invite links: the waiting room lets you copy a `?room=<roomId>` share link; friends who open it join directly via an in-game dialog. The link automatically becomes invalid when the room is full.
+  - Disconnect and reconnect: an unexpected disconnect opens a 60-second reconnection window, letting you click reconnect to resume the game or choose to forfeit; even after an F5 page refresh, the reconnect prompt automatically reappears within the window.
+  - A disconnect banner shows in real time which player is offline; if the host stays disconnected past the timeout the room is dissolved, and if a non-host player times out the host eliminates them (the reconnect window, dissolution, and elimination timers are all unified at 60 seconds).
+  - Emoji wheel: open a six-segment emoji wheel in-game (joy / anger / sadness / thinking / ✗ / 100); sent emoji float over the corresponding player's hand area, visible to everyone in real time, with a 3-second cooldown.
+  - Text chat: open the chat panel in-game to exchange messages, with an unread-message badge counter.
+  - Voice chat: full-mesh P2P WebRTC voice with Colyseus handling only the signaling, including a speaking-detection indicator.
 
-- AI 邏輯
-  - 三種難度（簡單／中等／困難），單機模式全部電腦統一設定，多人連線可每台個別設定。
-  - 難度差異：
+- AI logic
+  - Three difficulty levels (Easy / Medium / Hard); in single-player mode all bots share one setting, while in multiplayer each bot can be configured individually.
+  - Difficulty differences:
 
-    | AI&#8288;行&#8288;為 | 簡單 | 中等 | 困難 |
+    | AI&#8288;behavior | Easy | Medium | Hard |
     | --- | --- | --- | --- |
-    | 記&#8288;憶&#8288;資&#8288;訊 | 不記憶神父、國王、男爵資訊 | 會記住已知手牌 | 同中等，並額外運用男爵線索 |
-    | 衛&#8288;兵&#8288;猜&#8288;牌 | 偏隨機，不避開猜錯紀錄 | 優先猜已知牌，避開曾猜錯的牌，按剩餘張數加權 | 同中等，並額外用男爵對決結果縮小猜牌範圍 |
-    | 出&#8288;牌&#8288;策&#8288;略 | 接近隨機，但盡量不丟公主 | 衛兵優先處理已知目標；男爵避開已知必敗對象 | 同中等，男爵額外用剩餘牌分布估算勝率、挑最有利對象；侍女更懂自保 |
-    | 進&#8288;階&#8288;判&#8288;斷 | 無 | 知道對手有公主時，王子可逼其棄牌 | 會施壓硬幣領先者；國王偷高牌會避開衛兵反殺風險 |
-    | 共&#8288;通&#8288;防&#8288;呆 | 盡量避免明顯自殺式出牌 | 同左 | 同左 |
+    | Memory | Does not remember Priest, King, or Baron information | Remembers known hands | Same as Medium, plus makes use of Baron clues |
+    | Guard&#8288;guessing | Mostly random, does not avoid past wrong guesses | Prioritizes known cards, avoids previously wrong guesses, weights by remaining card counts | Same as Medium, plus uses Baron duel outcomes to narrow the guess range |
+    | Play&#8288;strategy | Near-random, but avoids discarding the Princess when possible | Guard targets known hands first; Baron avoids opponents known to beat it | Same as Medium; Baron additionally estimates win rates from the remaining card distribution and picks the most favorable target; Handmaid is used more wisely for self-protection |
+    | Advanced&#8288;judgment | None | Uses the Prince to force a discard when it knows an opponent holds the Princess | Pressures the coin leader; avoids King-stealing high cards when a Guard counter-kill is a risk |
+    | Common&#8288;safeguards | Avoids obviously suicidal plays whenever possible | Same as Easy | Same as Easy |
 
-- 音樂與音效
-  - 五個場景（主選單、遊戲中、當局勝利、當局失敗、總冠軍）可在遊戲設置中個別選曲並試聽。
-  - 淘汰音效、結算音效、奪冠音效均使用玩家自選的對應插槽曲目。
-  - 靜音按鈕於各畫面均可使用，設定存於 localStorage。
+- Music and sound effects
+  - Five scenes (main menu, in-game, round victory, round defeat, championship) can each have their own track, selectable and previewable in the game settings.
+  - Elimination, round-end, and championship sound effects all use the player-selected track for the corresponding slot.
+  - A mute button is available on every screen, with the preference stored in localStorage.
 
-- 手機版 UI
-  - 針對直向手機螢幕重構戰場比例。
-  - 出牌統計改為懸浮按鈕。
-  - 對戰紀錄改為彈窗檢視，釋放主畫面空間。
-  - 卡牌提示文字與卡牌綁在同一個垂直容器中，避免提示字重疊。
+- Mobile UI
+  - Battlefield proportions restructured for portrait phone screens.
+  - The played-card statistics moved to a floating button.
+  - Battle logs moved into a modal view, freeing up space on the main screen.
+  - Card hint text is bound to the same vertical container as the card, preventing overlapping hints.
 
-## 技術棧
+## Tech Stack
 
 - TypeScript
 - Vite
 - Vanilla DOM
 - CSS Grid / Flexbox
 - Colyseus
-- WebRTC (Mesh P2P 語音)
+- WebRTC (Mesh P2P voice)
 - Web Audio API
 - Playwright
 
-## 專案結構
+## Project Structure
 
 ```text
 .
@@ -107,36 +113,36 @@
 │   ├── audio/
 │   └── icons/
 ├── src/
-│   ├── main.ts              # 主入口：場景切換、回合流程、事件串接
+│   ├── main.ts              # Main entry: scene switching, turn flow, event wiring
 │   ├── style.css
-│   ├── i18n.ts              # 多語言字串
-│   ├── utils.ts             # 純工具函式
-│   ├── assets/cards/        # 卡牌圖片
+│   ├── i18n.ts              # Multilingual strings
+│   ├── utils.ts             # Pure utility functions
+│   ├── assets/cards/        # Card images
 │   ├── audio/
-│   │   └── music.ts         # BGM / SFX 控制
-│   ├── domain/              # 遊戲領域邏輯（純函式，無 DOM）
-│   │   ├── cards.ts         # 卡牌定義與牌組
-│   │   ├── game-state.ts    # 遊戲狀態型別
-│   │   ├── online-types.ts  # 線上同步型別
-│   │   ├── ai-memory.ts     # AI 記憶與線索系統
-│   │   └── ai-strategy.ts   # AI 出牌 / 猜牌策略
-│   ├── net/                 # 網路層
-│   │   ├── invite-url.ts    # 邀請連結工具
-│   │   ├── online-reconcile.ts   # 本地狀態對帳
-│   │   ├── online-serialization.ts # 同步序列化 / 深拷貝
-│   │   └── room-types.ts    # 大廳房間型別
+│   │   └── music.ts         # BGM / SFX control
+│   ├── domain/              # Game domain logic (pure functions, no DOM)
+│   │   ├── cards.ts         # Card definitions and deck
+│   │   ├── game-state.ts    # Game state types
+│   │   ├── online-types.ts  # Online sync types
+│   │   ├── ai-memory.ts     # AI memory and clue system
+│   │   └── ai-strategy.ts   # AI play / guess strategy
+│   ├── net/                 # Network layer
+│   │   ├── invite-url.ts    # Invite link utilities
+│   │   ├── online-reconcile.ts   # Local state reconciliation
+│   │   ├── online-serialization.ts # Sync serialization / deep copy
+│   │   └── room-types.ts    # Lobby room types
 │   ├── storage/
-│   │   └── offline-save.ts  # 單機存檔（localStorage）
-│   ├── ui/                  # UI 元件與 DOM 輔助
-│   │   ├── card-render.ts   # 卡牌 DOM 生成
-│   │   ├── chat.ts          # 聊天室控制器
-│   │   ├── elements.ts      # 常用 DOM 元素參照
-│   │   ├── emoji.ts         # 表情輪盤控制器
-│   │   ├── modal-templates.ts # Modal body builder
-│   │   ├── particles.ts     # 粒子系統
-│   │   ├── player-badges.ts # 玩家名牌 / 硬幣
-│   │   └── voice.ts         # WebRTC 語音控制器
-│   └── server/              # Colyseus 後端（Node.js，獨立編譯）
+│   │   └── offline-save.ts  # Single-player saves (localStorage)
+│   ├── ui/                  # UI components and DOM helpers
+│   │   ├── card-render.ts   # Card DOM generation
+│   │   ├── chat.ts          # Chat controller
+│   │   ├── elements.ts      # Common DOM element references
+│   │   ├── emoji.ts         # Emoji wheel controller
+│   │   ├── modal-templates.ts # Modal body builders
+│   │   ├── particles.ts     # Particle system
+│   │   ├── player-badges.ts # Player nameplates / coins
+│   │   └── voice.ts         # WebRTC voice controller
+│   └── server/              # Colyseus backend (Node.js, compiled separately)
 │       ├── index.ts
 │       ├── rooms/
 │       │   └── LoveLetterRoom.ts
@@ -147,593 +153,593 @@
 └── vite.config.ts
 ```
 
-## 本機開發
+## Local Development
 
-安裝依賴：
+Install dependencies:
 
 ```bash
 npm install
 ```
 
-啟動前端開發伺服器：
+Start the frontend dev server:
 
 ```bash
 npm run dev
 ```
 
-預設網址：
+Default URL:
 
 ```text
 http://localhost:5173
 ```
 
-建置前端：
+Build the frontend:
 
 ```bash
 npm run build
 ```
 
-預覽 production build：
+Preview the production build:
 
 ```bash
 npm run preview
 ```
 
-## Colyseus 後端
+## Colyseus Backend
 
-建置後端：
+Build the backend:
 
 ```bash
 npm run build:server
 ```
 
-啟動後端：
+Start the backend:
 
 ```bash
 npm run start:server
 ```
 
-部署到 Render 時，請確認環境變數與前端 Colyseus endpoint 設定正確。
+When deploying to Render, make sure the environment variables and the frontend's Colyseus endpoint are configured correctly.
 
-## 測試
+## Testing
 
-執行 Playwright 測試：
+Run the Playwright tests:
 
 ```bash
 npm run test:e2e
 ```
 
-## 版本資訊
+## Release Notes
 
-### v2.11.0 - 代碼審查第二輪：通知 XSS、重連冠軍門檻、AI 記憶回滾與伺服器節流
+### v2.11.0 - Second Code Review Round: Notification XSS, Reconnect Champion Threshold, AI Memory Rollback, and Server Throttling
 
-本版源自第二輪完整代碼審查，共 6 個獨立修正。
+This release comes out of a second full code review, comprising 6 independent fixes.
 
-**安全性 / 防作弊**
+**Security / anti-cheat**
 
-- 修補線上通知彈窗的儲存型 XSS：通知（衛兵淘汰／猜錯、神父窺看、王子逼棄公主等）原以 `bodyHTML` 原樣 HTML 隨 `sync_game_state` 廣播，接收端未轉義即以 `innerHTML` 渲染——任何房間成員可偽造同步 payload 在其他玩家瀏覽器執行任意腳本（名稱、戰報、卡牌提示皆已於先前版本防護，獨漏此通道）。現改為傳純文字 `bodyText`，由接收端本地組裝並轉義；保留 `bodyHTML` 欄位（送出時預先轉義）供混版本房間的舊 client 顯示，新 client 收到舊欄位也一律轉義後才渲染。
-- 伺服器端訊息頻率限制：`chat_message`／`emoji_react`／`sync_game_state` 原無伺服器端頻率上限（表情冷卻只在 client 端），改裝 client 可高頻轟炸整房（且 `maxPayload` 已放寬至 1MB）。新增每連線滑動視窗節流（sync 120／10s、聊天 10／10s、表情 8／10s），上限遠高於正常尖峰（效果連鎖約 10-20 次同步），超出者靜默丟棄，不會誤傷正常對局。
+- Patched a stored XSS in online notification modals: notifications (Guard eliminations/wrong guesses, Priest peeks, Prince forcing a Princess discard, etc.) were broadcast as raw HTML in `bodyHTML` via `sync_game_state`, and the receiving end rendered it with `innerHTML` without escaping — any room member could forge a sync payload and execute arbitrary scripts in other players' browsers (names, battle logs, and card hints were already protected in earlier releases; this channel was the one remaining gap). The payload now carries plain-text `bodyText`, assembled and escaped locally on the receiving end; the `bodyHTML` field is kept (pre-escaped on send) so older clients in mixed-version rooms can still display it, and new clients escape the legacy field before rendering as well.
+- Server-side message rate limiting: `chat_message` / `emoji_react` / `sync_game_state` previously had no server-side rate cap (the emoji cooldown existed only on the client), so a modified client could flood the whole room at high frequency (and `maxPayload` had already been raised to 1MB). Added a per-connection sliding-window throttle (sync 120 / 10s, chat 10 / 10s, emoji 8 / 10s) — limits far above normal peaks (effect chains produce roughly 10–20 syncs) — with excess messages silently dropped, so legitimate games are never affected.
 
-**多人連線**
+**Multiplayer**
 
-- 修正頁面重整後重連的 client **冠軍硬幣門檻跑掉**的問題：`initOnlineGame` 的重連分支直接 return，未重新讀取房間設定的 `championCoins`，重載後模組層預設值 4 生效——房間若設 6 枚，該 client 會在 4 枚時就跳出冠軍畫面（規則說明、排行榜文案同樣錯誤）。重連分支現與正常加入路徑一致還原門檻。
+- Fixed the championship coin threshold drifting on clients that reconnect after a page refresh: the reconnect branch of `initOnlineGame` returned early without re-reading the room's `championCoins` setting, so after a reload the module-level default of 4 took effect — in a room set to 6 coins, that client would show the champion screen at 4 coins (with the rules text and leaderboard copy equally wrong). The reconnect branch now restores the threshold the same way as the normal join path.
 
-**AI / 規則**
+**AI / rules**
 
-- 修正「點牌再取消」洗掉電腦記憶的漏洞：`executePlayCard` 在出牌當下（仍可取消的選目標／猜牌階段之前）就清除 `aiMemory` 中關於出牌者的情報與衛兵猜錯紀錄，而取消回滾只還原手牌／棄牌／戰報。玩家可反覆點牌取消，讓中等／困難 bot 忘記神父窺看與猜錯情報。`PlayRollback` 現納入兩份記憶的深拷貝快照，取消時一併還原。
+- Fixed the "select a card, then cancel" exploit that wiped bot memory: `executePlayCard` cleared the `aiMemory` intel about the card player and the Guard wrong-guess records at the moment the card was played (before the still-cancelable target/guess selection stage), while the cancel rollback only restored the hand / discards / battle log. A player could repeatedly select and cancel to make Medium/Hard bots forget Priest peeks and wrong-guess intel. `PlayRollback` now includes deep-copy snapshots of both memory stores and restores them on cancel.
 
-**維護 / 測試**
+**Maintenance / testing**
 
-- 修補 WebRTC 語音資源洩漏：`setupRemoteAudio` 於每次 `ontrack` 建立新的 `MediaStreamSource`＋`AnalyserNode` 卻不斷開舊鏈路，共用的 `AudioContext` 也從不關閉，長對局反覆加入／離開語音會累積作業系統音訊資源。現逐 peer 追蹤 source 節點、換軌與清理時 `disconnect`，離開語音時 `close()` AudioContext。
-- 更正 `server/index.ts` 過期註解：重連視窗為 60 秒（`allowReconnection(client, 60)`），非註解所寫的 20 秒。
-- 全部 36 個 E2E 測試通過；前端／後端／測試伺服器 tsc 型別檢查與 production build 通過。
+- Patched a WebRTC voice resource leak: `setupRemoteAudio` created a new `MediaStreamSource` + `AnalyserNode` on every `ontrack` without disconnecting the old chain, and the shared `AudioContext` was never closed, so repeatedly joining/leaving voice during long matches accumulated OS audio resources. Source nodes are now tracked per peer, `disconnect`ed on track changes and cleanup, and the AudioContext is `close()`d when leaving voice.
+- Corrected an outdated comment in `server/index.ts`: the reconnect window is 60 seconds (`allowReconnection(client, 60)`), not the 20 seconds the comment claimed.
+- All 36 E2E tests pass; frontend / backend / test-server tsc type checks and the production build pass.
 
-**部署提醒**：本版含後端變更（訊息頻率限制），需重新部署 Colyseus 伺服器方能完整生效。
+**Deployment note**: this release includes backend changes (message rate limiting), so the Colyseus server must be redeployed for it to take full effect.
 
-### v2.10.0 - 全面代碼審查修復：重連狀態毀損、AI 失憶、XSS 與音訊穩定性
+### v2.10.0 - Full Code Review Fixes: Reconnect State Corruption, AI Amnesia, XSS, and Audio Stability
 
-本版源自一次完整代碼審查（domain／main／net／server／ui／audio），共 13 個獨立修正。
+This release comes out of a full code review (domain / main / net / server / ui / audio), comprising 13 independent fixes.
 
-**多人連線（高優先）**
+**Multiplayer (high priority)**
 
-- 修正房主 **F5 重整頁面後重連會毀掉整場遊戲**的嚴重問題：重連路徑原本讓房主「重播本地權威狀態」，但頁面重載後記憶體裡的 `state` 是啟動時的單機假局（玩家＋電腦 A），這包假狀態會廣播給所有人並覆寫伺服器的 `latestGameState`。修正方式：新增 `lastAppliedOnlineRoomId` 追蹤本頁面生命週期內實際套用過的線上房間，房主只有在確認記憶體狀態屬於目前房間（斷線但未重整）才重播；重載後的房主改送 `request_game_data` 向伺服器拿最新快照，與訪客一致。
-- 修正**線上 bot 失憶**：`applyOnlineGameState` 每次套用同步都把 `aiMemory`／`aiExcludedGuesses`／男爵線索整包重置。bot 只在房主端運行，因此任何非房主玩家行動後的同步一到房主端，中等／困難 bot 學到的情報（神父窺看、國王交換、衛兵猜錯紀錄）就全部消失。現改為：已初始化遊戲、同一回合內，房主端保留 AI 記憶；換局與新遊戲照舊重置。
-- `endGameReason` 併入同步 payload：原本只有做出最後一擊的 client 會產生結束原因字串，其他玩家的結算彈窗原因欄是空的。
+- Fixed a severe bug where the host reconnecting after an F5 page refresh would destroy the entire game: the reconnect path had the host "replay its local authoritative state", but after a page reload the in-memory `state` is the startup-time fake single-player game (player + Bot A), and that bogus state got broadcast to everyone and overwrote the server's `latestGameState`. Fix: a new `lastAppliedOnlineRoomId` tracks which online room was actually applied during this page lifetime; the host only replays when the in-memory state is confirmed to belong to the current room (disconnected but not reloaded). A reloaded host instead sends `request_game_data` to fetch the latest snapshot from the server, just like a guest.
+- Fixed online bot amnesia: `applyOnlineGameState` reset the entire `aiMemory` / `aiExcludedGuesses` / Baron clue stores on every applied sync. Bots run only on the host, so as soon as any non-host player's action synced back to the host, everything Medium/Hard bots had learned (Priest peeks, King swaps, Guard wrong-guess records) was wiped. Now: once the game is initialized and within the same round, the host preserves AI memory; round changes and new games still reset as before.
+- `endGameReason` is now part of the sync payload: previously only the client that dealt the final blow generated the end-reason string, so other players' end-of-round modals had an empty reason field.
 
-**安全性 / 防作弊**
+**Security / anti-cheat**
 
-- 修補戰報彈窗的儲存型 XSS：`state.logs` 由其他 client 原樣同步而來（可被偽造同步注入），戰報 modal 卻未轉義即以 `innerHTML` 渲染（側欄戰報用 `textContent`、卡牌提示 v2.9.3 已轉義，獨漏此處）。現以 `escapeHTML` 轉義。
-- 踢人改為伺服器端強制斷線（`targetClient.leave()`）：原本只從房間狀態移除並通知，惡意 client 可無視通知繼續接收房間所有廣播（狀態、聊天）。
-- `emoji_react` 防冒充：`playerId` 改由伺服器依發送者 session 推導（players map 插入順序索引，與前端建立遊戲玩家順序一致），不再信任 payload，任何 client 都無法再以他人座位發送表情。
+- Patched a stored XSS in the battle log modal: `state.logs` is synced verbatim from other clients (injectable via forged syncs), yet the log modal rendered it with `innerHTML` without escaping (the sidebar log used `textContent`, and card hints were escaped in v2.9.3 — this was the one spot missed). Now escaped with `escapeHTML`.
+- Kicking now forces a server-side disconnect (`targetClient.leave()`): previously the player was only removed from room state and notified, so a malicious client could ignore the notification and keep receiving all room broadcasts (state, chat).
+- `emoji_react` impersonation protection: `playerId` is now derived server-side from the sender's session (players-map insertion-order index, matching the frontend's game player order) instead of trusting the payload, so no client can send emoji as someone else's seat.
 
-**音樂 / 音效**
+**Music / sound effects**
 
-- 修正一次 `play()` 被拒後**音訊永久卡死**的問題：音訊解鎖監聽原以 `once: true` 註冊，`playBGM` 失敗時會把 `audioUnlocked` 重設為 false 等待下一個手勢重試，但監聽器已被消耗、永遠不會再觸發，音訊就此死到頁面重載。監聽器改為常駐（解鎖後自動 no-op）。
-- 修正音效打斷載入中 BGM 導致的狀態毀損：BGM 的 `play()` promise 尚未完成時被 `playSFX` 暫停會拋 `AbortError`，原 catch 把所有拒絕一律當成 autoplay 封鎖並清空 `currentBGMFile`，破壞「同曲目早退＋`stopSFX`」快速路徑——按「前往下一局」時勝敗音樂不會被中斷（v2.8.5 修過的行為在慢載入下復發）。現對「自己暫停造成的中斷」不再重置解鎖狀態。
+- Fixed audio dying permanently after a single rejected `play()`: the audio-unlock listener was registered with `once: true`; when `playBGM` failed, `audioUnlocked` was reset to false to await the next gesture, but the listener had already been consumed and would never fire again, leaving audio dead until a page reload. The listener is now persistent (a no-op once unlocked).
+- Fixed state corruption when a sound effect interrupted a still-loading BGM: pausing a BGM whose `play()` promise hadn't resolved throws an `AbortError`, and the old catch treated every rejection as an autoplay block and cleared `currentBGMFile`, breaking the "same-track early-return + `stopSFX`" fast path — pressing "Next round" no longer interrupted the victory/defeat music (a regression of the v2.8.5 fix under slow loading). Interruptions caused by our own pause no longer reset the unlock state.
 
-**AI / 規則**
+**AI / rules**
 
-- 衛兵猜錯紀錄改在「出牌」時清除而非「抽牌」時：抽第二張牌不會改變原持牌，猜錯情報此時仍有效；提早清除讓 bot 平白丟掉一步情報。
-- 目標篩選排除空手牌玩家（防禦性）：正常流程不可達（牌庫與底牌雙耗盡時 `checkEndConditions` 會先結算），但若不變式被打破，衛兵／神父結算會在 `target.hand[0]` 崩潰。
+- Guard wrong-guess records are now cleared on "play" instead of "draw": drawing a second card doesn't change the original held card, so the wrong-guess intel is still valid at that point; clearing early made bots throw away a step of intel for nothing.
+- Target filtering now excludes players with empty hands (defensive): unreachable in normal flow (`checkEndConditions` settles first when both the deck and the burned card are exhausted), but if that invariant ever broke, Guard/Priest resolution would crash on `target.hand[0]`.
 
-**維護 / 測試**
+**Maintenance / testing**
 
-- `initGame` 補重置 `restartReadyPlayerIds`（與其他每局重置清單一致）。
-- 出牌統計計數邏輯抽成 `getPlayedCardCounts()`，側欄與 modal 共用。
-- 修正 `preserveHostBotHands` 過時註解（自 v2.8.0 bot 手牌已全量同步，該函式為防禦性 no-op），並於 CLAUDE.md 明文記載信任對等端模型的可見性取捨。
-- Playwright Chromium 加 `--autoplay-policy=no-user-gesture-required`，根絕音訊測試在高負載平行執行下的偶發失敗。
-- 全部 36 個 E2E 測試通過；前端／後端／測試伺服器 tsc 型別檢查通過。
+- `initGame` now also resets `restartReadyPlayerIds` (consistent with the other per-round reset lists).
+- Played-card counting logic extracted into `getPlayedCardCounts()`, shared by the sidebar and the modal.
+- Corrected the outdated `preserveHostBotHands` comment (bot hands have been fully synced since v2.8.0, making the function a defensive no-op), and documented the trusted-peer model's visibility trade-off explicitly in CLAUDE.md.
+- Added `--autoplay-policy=no-user-gesture-required` to Playwright Chromium, eliminating flaky audio-test failures under heavily loaded parallel runs.
+- All 36 E2E tests pass; frontend / backend / test-server tsc type checks pass.
 
-**部署提醒**：本版含後端變更（踢人斷線、emoji 防冒充），需重新部署 Colyseus 伺服器方能完整生效。
+**Deployment note**: this release includes backend changes (kick disconnect, emoji impersonation protection), so the Colyseus server must be redeployed for it to take full effect.
 
-### v2.9.4 - 伺服器端 sync_game_state 防偽驗證（部分緩解）
+### v2.9.4 - Server-Side sync_game_state Forgery Validation (Partial Mitigation)
 
-**安全性 / 防作弊**
+**Security / anti-cheat**
 
-- 在「信任對等端」的同步模型下,任何 client 都能廣播整包遊戲狀態,惡意玩家可憑空灌牌、或一瞬間把硬幣塞到冠軍門檻直接奪冠。本版於伺服器收到 `sync_game_state` 時加上一道輕量防偽守門,判定為偽造即**丟棄該同步**(不儲存、不轉發),並記錄警告。
-- 由於遊戲邏輯仍跑在 client(非伺服器權威),此守門**只拒絕在合法對局中物理上不可能的轉移**,並刻意設計成**零誤判**——誤殺一筆合法同步會造成回合卡死,代價遠高於放過作弊。兩項檢查:
-  - **牌張守恆**:16 張牌的牌庫,`deck + burned + 所有手牌 + 所有棄牌` 恆為 16,出現 `> 16` 即為灌牌。
-  - **硬幣單調**:可靠 WebSocket 排序下一次同步只結算一局,任一玩家相對上一個伺服器觀測狀態 `+2` 以上即為偽造勝利;硬幣減少則允許(新聯賽會合法歸零)。
-- 整個守門包在 `try/catch`,任何解析不確定或例外一律 **fail-open(放行)**,確保守門自身的瑕疵永遠不會擋掉合法同步。
-- **範圍說明(誠實)**:這是「抬高門檻、防君子」而非根治。能擋掉憑空灌牌、瞬間奪冠、以不可能牌數偽造他人出局等最有感的搗亂;但**擋不住**「玩家在自己合法回合內、每局僅 +1 地慢慢偽造」或「將全體硬幣偽造歸零」(後者與合法聯賽重啟無法區分)。徹底根治需改為伺服器權威結算(大型重構)。本版為純後端變更,需重新部署後端方生效。
+- Under the trusted-peer sync model, any client can broadcast a full game state, letting a malicious player conjure cards out of thin air or instantly pump their coins to the champion threshold. This release adds a lightweight forgery gate on the server when receiving `sync_game_state`: syncs judged forged are **dropped** (not stored, not forwarded) and a warning is logged.
+- Since game logic still runs on the clients (not server-authoritative), the gate **only rejects transitions that are physically impossible in a legitimate game**, and is deliberately designed for **zero false positives** — wrongly killing one legitimate sync would deadlock the turn, a cost far higher than letting a cheat through. Two checks:
+  - **Card conservation**: with a 16-card deck, `deck + burned + all hands + all discards` must always equal 16; anything `> 16` means injected cards.
+  - **Coin monotonicity**: with reliable WebSocket ordering, one sync settles at most one round, so any player gaining `+2` or more relative to the last server-observed state is a forged win; coin decreases are allowed (a new league legitimately resets to zero).
+- The whole gate is wrapped in `try/catch`; any parsing uncertainty or exception **fails open (allows the sync)**, guaranteeing that a flaw in the gate itself can never block a legitimate sync.
+- **Scope disclaimer (honest)**: this raises the bar and keeps honest people honest — it is not a cure. It stops the most disruptive tricks (conjuring cards, instant championships, faking someone's elimination with impossible card counts), but it **cannot stop** a player who forges wins slowly (+1 per round during their own legitimate turn) or forges everyone's coins back to zero (indistinguishable from a legitimate league restart). A real fix requires server-authoritative resolution (a major refactor). This release is backend-only; redeploy the backend for it to take effect.
 
-### v2.9.3 - 安全性強化與線上同步／平手結算修正
+### v2.9.3 - Security Hardening and Online Sync / Tie Settlement Fixes
 
-**安全性**
+**Security**
 
-- 修補玩家暱稱與卡牌提示造成的儲存型 XSS。暱稱會在加入房間時送至伺服器並廣播給所有人；且在「信任對等端」的同步模型下，任何 client 都能偽造整包遊戲狀態（含玩家名稱與卡牌行動提示）。部分渲染點（選擇目標按鈕、男爵／國王翻牌、卡牌行動提示）未經轉義即以 `innerHTML` 插入，惡意暱稱或偽造的提示文字可在其他玩家瀏覽器中執行。
-- 修正方式（分層）：於信任邊界以 `sanitizePlayerName`（移除 `<`／`>` 並限長）清洗暱稱 —— 伺服器 `onJoin`、`cloneOnlinePlayer`（涵蓋偽造的進站同步）、`createOnlinePlayers`；採「移除」而非 entity 編碼，確保同一字串在 `innerHTML` 與 `textContent` 兩種情境顯示一致。卡牌渲染另對 `hint.text` 補 `escapeHTML` 並將 variant class 白名單化（提示文字為自由文字、可被偽造同步直接注入，與暱稱無關）；modal 的目標按鈕與翻牌名稱亦補轉義。
+- Patched stored XSS via player nicknames and card hints. Nicknames are sent to the server on room join and broadcast to everyone; and under the trusted-peer sync model, any client can forge a full game state (including player names and card action hints). Several render points (target selection buttons, Baron/King reveals, card action hints) inserted them via `innerHTML` without escaping, so a malicious nickname or forged hint text could execute in other players' browsers.
+- Fix (layered): sanitize nicknames at the trust boundaries with `sanitizePlayerName` (strips `<` / `>` and enforces a length limit) — server `onJoin`, `cloneOnlinePlayer` (covering forged inbound syncs), and `createOnlinePlayers`. Removal was chosen over entity encoding so the same string renders identically in both `innerHTML` and `textContent` contexts. Card rendering additionally escapes `hint.text` with `escapeHTML` and whitelists the variant class (hint text is free-form and directly injectable via forged syncs, independent of nicknames); the modal's target buttons and reveal names are escaped as well.
 
-**多人連線**
+**Multiplayer**
 
-- 修正線上對局中，出衛兵並指定目標後（此時出牌已廣播給所有人），在「猜牌」視窗按取消會造成狀態不同步的問題：取消僅在本地回捲，未重新廣播，導致其他玩家仍看到已打出的衛兵與錯誤的手牌數（要等出牌方下次出牌才自癒）。修正方式：`restorePlayRollback` 於取消回捲後補送一次同步（離線無副作用；選目標階段取消為冪等）。
+- Fixed a desync in online games where playing a Guard, choosing a target (at which point the play had already been broadcast to everyone), and then pressing cancel in the guess dialog rolled back only locally without re-broadcasting — other players kept seeing the played Guard and a wrong hand count (self-healing only on the player's next play). Fix: `restorePlayRollback` now sends one extra sync after the cancel rollback (a no-op offline; canceling at the target-selection stage is idempotent).
 
-**遊戲規則**
+**Game rules**
 
-- 修正牌庫耗盡比點數結算時，若多名存活者「點數與棄牌總和皆相同」，只有一人獲得硬幣的問題。依情書規則平手者應共同獲勝、各得一枚：`endGame` 計入主勝者，其餘並列者於 `checkEndConditions` 補上，並透過同步帶給所有 client。攤牌彈窗改為高亮所有並列勝者，平手亦寫入戰報（新增 `log.tieWin`）。
+- Fixed the deck-exhaustion showdown so that when multiple survivors tie on both hand value and discard total, they all win instead of just one. Per Love Letter rules, tied players win together and each gains a coin: `endGame` counts the primary winner and `checkEndConditions` adds the remaining tied winners, synced to all clients. The showdown modal now highlights all tied winners, and ties are written to the battle log (new `log.tieWin`).
 
-**已知限制**
+**Known limitations**
 
-- 「信任對等端」同步模型下，伺服器仍信任任意 client 送出的完整遊戲狀態（在不破壞非房主回合與男爵／國王對決確認流程的前提下無法單純限制來源），根治需改為伺服器權威結算；本版先以上述邊界清洗與輸出轉義消弭其可被利用的 XSS 面。
+- Under the trusted-peer sync model the server still trusts full game states from any client (the source cannot simply be restricted without breaking non-host turns and the Baron/King duel confirmation flow); the real fix is server-authoritative resolution. This release removes the exploitable XSS surface via the boundary sanitization and output escaping above.
 
-**測試**
+**Testing**
 
-- 前端與後端（`npm run build`、`npm run build:server`）型別檢查／編譯皆通過。
+- Frontend and backend (`npm run build`, `npm run build:server`) type checks / builds pass.
 
-### v2.9.2 - 男爵／國王／王子連鎖參與者斷線造成回合卡死修正
+### v2.9.2 - Fix for Turn Deadlock When a Baron / King / Prince Chain Participant Disconnects
 
-**多人連線**
+**Multiplayer**
 
-- 修正多人連線中（3 人以上局，罕見但會硬卡死）出男爵或國王指定真人對手、或王子強制對手棄牌連鎖時，若該對手在「按確認／解強制效果」之前斷線，出牌方的回合會永久卡住、無法推進的問題。男爵對決與國王交換需雙方按確認，王子連鎖需被指定者自行解強制效果；對手斷線後該確認／解算永遠不會送達，而房主斷線淘汰流程並未釋放這些待處理互動。
-- 修正方式（房主端，於 `eliminateDisconnectedPlayer` 釋放）：
-  - 男爵／國王：對手（target）斷線 → **代為補確認**，讓仍在線的出牌方完成結算（補確認是唯一能穿過 preserve-interaction 防護傳到出牌方的訊號）；出牌方（actor）斷線 → 作廢該互動（其結算只在已離線的客戶端執行），回合改由淘汰的回合交接推進。
-  - 王子連鎖：丟棄斷線者作為 reactor 的強制效果項；佇列因此清空時，用其 `returnTurnPlayerId` 接續被擱置的回合。
-- 另加結算防護，避免「對手已被淘汰」污染狀態：國王交換前檢查雙方仍存活且有手牌（否則作廢，避免房主＝出牌方時換到空手牌）；男爵比牌前若任一方已不在場則作廢（不讓存活方輸給已斷線者）。
+- Fixed a rare but hard-locking bug in online games (3+ players): when a Baron or King targeted a human opponent, or a Prince forced-discard chain was pending, and that opponent disconnected before pressing confirm / resolving the forced effect, the card player's turn would hang forever. Baron duels and King swaps require both sides to confirm, and Prince chains require the targeted player to resolve the forced effect themselves; once the opponent disconnects, that confirmation/resolution never arrives, and the host's disconnect-elimination flow did not release these pending interactions.
+- Fix (host-side, released in `eliminateDisconnectedPlayer`):
+  - Baron / King: if the opponent (target) disconnects → **confirm on their behalf**, letting the still-online card player finish resolution (a proxy confirmation is the only signal that can pass through the preserve-interaction guard to reach the card player); if the card player (actor) disconnects → void the interaction (its resolution would only run on the now-offline client) and advance the turn via the elimination handoff.
+  - Prince chains: drop the disconnected player's forced-effect entry as reactor; if the queue empties as a result, resume the suspended turn using its `returnTurnPlayerId`.
+- Added resolution guards against "opponent already eliminated" state pollution: the King swap now checks both sides are still alive with cards in hand (otherwise voided, preventing the host-as-actor from swapping into an empty hand); the Baron comparison is voided if either side is no longer present (a survivor can no longer lose to someone who already disconnected).
 
-**測試**
+**Testing**
 
-- 新增 `tests/departed-player-release.spec.ts`（8 案）：男爵／國王 target 補確認、actor 作廢、無關玩家不變、重複確認去重、強制效果佇列排空與接棒回合、保留其他 reactor。核心決策邏輯抽成 `online-reconcile.ts` 的純函式以便測試。
-- 完整 36 個 E2E／純邏輯測試通過，確認無迴歸。
+- Added `tests/departed-player-release.spec.ts` (8 cases): Baron/King target proxy confirmation, actor voiding, unrelated players untouched, duplicate-confirmation dedup, forced-effect queue draining with turn handoff, and preserving other reactors. The core decision logic was extracted into pure functions in `online-reconcile.ts` for testability.
+- Full suite of 36 E2E / pure-logic tests passes, confirming no regressions.
 
-### v2.9.1 - 換局未重設「手牌已被對手得知」旗標修正
+### v2.9.1 - Fix for "Hand Known to Opponent" Flag Not Resetting Between Rounds
 
-**AI 邏輯**
+**AI logic**
 
-- 修正換到下一局時，玩家的 `handKnownToOpponent`（神父窺看／國王交換後標記「目前手牌已被對手得知」）旗標未被重設的問題。新一局手牌是重新發的、根本沒人看過，但該旗標會從上一局殘留為 `true`，誤導 AI 判斷。
-- 影響：上一局被神父看過、且未被王子/國王清除旗標的玩家，進入新一局後 AI 會誤以為手牌已曝光 —— 開局即可能對自己打王子去「洗掉」其實沒人看過的手牌，或過度灌高侍女出牌權重自保。
-- 根因：`startNextRound`（單機與多人「下一局」共用路徑）重用既有 player 物件並重設 hand／保護／存活／棄牌／翻牌狀態，卻獨漏 `handKnownToOpponent`；所有「新發牌」路徑（單機開局、線上初始牌局）皆有設 `false`，唯獨換局漏掉。
-- 修正方式：在 `startNextRound` 每位玩家的重設區塊補上 `handKnownToOpponent = false`。
+- Fixed the `handKnownToOpponent` flag (set after a Priest peek or King swap to mark "my current hand is known to an opponent") not being reset when moving to the next round. The new round's hands are freshly dealt and nobody has seen them, yet the flag lingered as `true` from the previous round, misleading the AI.
+- Impact: a player who was Priest-peeked in the previous round (and whose flag wasn't cleared by a Prince/King) would enter the new round with the AI wrongly believing their hand was exposed — potentially playing a Prince on itself at the start to "flush" a hand nobody had actually seen, or over-weighting Handmaid plays for self-protection.
+- Root cause: `startNextRound` (the shared path for single-player and multiplayer "next round") reuses existing player objects and resets hand / protection / alive / discards / reveal state, but missed `handKnownToOpponent`; every "fresh deal" path (single-player start, online initial deal) sets it to `false` — only the round transition missed it.
+- Fix: add `handKnownToOpponent = false` to each player's reset block in `startNextRound`.
 
-**測試**
+**Testing**
 
-- 新增 `tests/round-reset-hand-known.spec.ts`：透過 DEV-only 測試 hook 將所有玩家標記為「手牌已曝光」，觸發換局後驗證旗標全部歸零；移除修正時測試確實失敗，恢復後通過。
-- 現有 27 個 E2E／純邏輯測試全數通過，確認無迴歸。
+- Added `tests/round-reset-hand-known.spec.ts`: uses a DEV-only test hook to mark all players' hands as exposed, triggers a round change, and verifies every flag resets; the test fails with the fix removed and passes with it restored.
+- All 27 existing E2E / pure-logic tests pass, confirming no regressions.
 
-### v2.9.0 - 多人連線神父私密提示誤貼手牌修正
+### v2.9.0 - Fix for Priest Private Hint Wrongly Attached to Own Hand in Multiplayer
 
-**多人連線**
+**Multiplayer**
 
-- 修正多人連線中（極難觸發，連打多局後偶發一次）自己手牌底下會冒出神父「你看到了 ○○○」私密提示的問題。此提示原本只該出現在自己打出、躺在棄牌堆的那張神父底下。
-- 根因：卡牌 id 每一局都從 `card-0` 重新編號，同一個 id 在不同局會指向不同的牌；非房主端收到同步後，`restoreLocalPrivateHints` 會依 card id 把上一局的私密提示貼回新收到的牌。當新一局的手牌恰好重用了上一張神父的 id，過時提示就被張冠李戴貼到手牌上並標記為自己可見。
-- 修正方式（兩道防線）：(1) `createDeck` 改用 session 全域遞增的卡牌 id，整場遊戲不再重複，根除跨局 id 撞號；(2) `restoreLocalPrivateHints` 新增回合防護，收到的 `roundIndex` 與本地不同（換局）時完全不還原私密提示。
+- Fixed a bug in online games (extremely hard to trigger — occasional, once every several rounds) where a Priest "You saw ○○○" private hint would appear under your own hand card. That hint should only ever appear under the Priest you played, lying in the discard pile.
+- Root cause: card ids restarted from `card-0` every round, so the same id pointed to different cards in different rounds. On non-host clients, `restoreLocalPrivateHints` re-attached the previous round's private hints to newly received cards by card id. When a new round's hand card happened to reuse the id of last round's Priest, the stale hint got pasted onto the hand card and marked visible to self.
+- Fix (two lines of defense): (1) `createDeck` now uses a session-wide incrementing card id, so ids never repeat within a session, eliminating cross-round id collisions at the source; (2) `restoreLocalPrivateHints` gained a round guard — when the received `roundIndex` differs from the local one (round change), private hints are not restored at all.
 
-**測試**
+**Testing**
 
-- 新增 `tests/private-hint-reconcile.spec.ts` 純邏輯回歸測試：涵蓋卡牌 id 跨牌組唯一、同回合正常還原、跨回合 id 撞號時不外洩（重現此 bug）、舊版無 `roundIndex` payload 仍以 id 還原；移除回合防護時跨回合測試確實失敗，恢復後通過。
-- 現有 23 個 E2E 測試全數通過，確認無迴歸。
+- Added `tests/private-hint-reconcile.spec.ts` pure-logic regression tests: covering card-id uniqueness across decks, normal same-round restoration, no leakage on cross-round id collision (reproducing this bug), and legacy payloads without `roundIndex` still restoring by id; the cross-round test fails with the round guard removed and passes with it restored.
+- All 23 existing E2E tests pass, confirming no regressions.
 
-### v2.8.5 - 下一局開始時中斷勝/敗音樂修正
+### v2.8.5 - Fix for Victory/Defeat Music Not Interrupting When the Next Round Starts
 
-**音樂 / 音效**
+**Music / sound effects**
 
-- 修正一局結束時，結算彈窗會播放當局勝利／失敗音樂（在一次性的 `sfxAudio` 上播放，並暫停循環的遊戲背景音樂）；按下「前往下一局」後，勝/敗音樂不會被中斷，而是繼續播到自然結束才恢復遊戲背景音樂的問題。根因：`showScene('game-scene')` 會呼叫 `playBGM(gameTrack)`，但因遊戲曲目仍是當前背景音樂檔，該函式直接早退（early-return），既未恢復背景音樂也未停止勝/敗音效。
-- 修正方式：`playBGM` 在「同一首背景音樂但被一次性音效暫停」時，改以新增的 `stopSFX()` 強制中斷該音效並立即恢復遊戲背景音樂。離線與多人連線（房主／非房主）皆涵蓋，因所有進入下一局的路徑最後都會經過 `showScene('game-scene')`。
-- 新增狀態層 Playwright 回歸測試 `tests/music-next-round.spec.ts`（透過 DEV-only 的 `window.__testAudioState` 讀取內部音訊狀態），驗證按下「前往下一局」後勝/敗音效確實被中斷、遊戲背景音樂恢復為作用中曲目。
+- Fixed the end-of-round settlement modal's victory/defeat music (played on the one-shot `sfxAudio`, pausing the looping in-game BGM) not being interrupted after pressing "Next round" — it kept playing to its natural end before the in-game BGM resumed. Root cause: `showScene('game-scene')` calls `playBGM(gameTrack)`, but since the game track was still the current BGM file, the function early-returned without resuming the BGM or stopping the victory/defeat SFX.
+- Fix: when `playBGM` hits the "same BGM but paused by a one-shot SFX" case, it now uses the new `stopSFX()` to force-stop the SFX and immediately resume the in-game BGM. Covers both offline and multiplayer (host and non-host), since every path into the next round ultimately goes through `showScene('game-scene')`.
+- Added a state-level Playwright regression test `tests/music-next-round.spec.ts` (reading internal audio state via the DEV-only `window.__testAudioState`), verifying that pressing "Next round" actually interrupts the victory/defeat SFX and restores the in-game BGM as the active track.
 
-### v2.8.4 - 重新開始聯賽後結算彈窗消失與硬幣歸零修正
+### v2.8.4 - Fix for Missing Settlement Modals and Coin Reset After Restarting a League
 
-**多人連線**
+**Multiplayer**
 
-- 修正多人連線中按下「重新開始」後，下一聯賽每局結束時結算／淘汰彈窗不顯示、玩家被直接帶往下一局，且硬幣統計被歸零的問題。根因：非房主端的「重新開始確認名單」(`restartReadyPlayerIds`) 只在遊戲結束的同步分支以合併方式更新，卻未在「新局開始」的一般同步分支重設（與 `nextRoundReadyPlayerIds` 不對稱）。全員確認重開後，這份過時的「全員已確認」名單滯留在非房主端，並隨其下一次遊戲結束同步回傳房主；房主誤判全員要求重開，於下一局結束時自動觸發 `startNewLeague()`，導致硬幣歸零並在任何人看到彈窗前關閉它。
-- 修正方式：在一般（非遊戲結束）同步分支一併以伺服器資料重設 `restartReadyPlayerIds`，與 `nextRoundReadyPlayerIds` 對稱。
-- 新增 `tests/restart-modal.spec.ts` 回歸測試：驗證一局結束時雙方都能看到結算彈窗，並涵蓋重新開始後由非房主結束下一局時，雙方仍能看到彈窗、硬幣正確保留。
+- Fixed a bug in online games where, after pressing "Restart", every round of the next league ended with no settlement/elimination modal shown — players were taken straight to the next round and the coin tally was reset to zero. Root cause: on non-host clients, the restart confirmation list (`restartReadyPlayerIds`) was only merged in the game-over sync branch and never reset in the regular "new round" sync branch (asymmetric with `nextRoundReadyPlayerIds`). After a unanimous restart, that stale "everyone confirmed" list lingered on non-host clients and was sent back to the host with their next game-over sync; the host wrongly concluded everyone had requested a restart and auto-triggered `startNewLeague()` at the end of the next round, zeroing the coins and closing the modal before anyone saw it.
+- Fix: the regular (non-game-over) sync branch now also resets `restartReadyPlayerIds` from server data, symmetric with `nextRoundReadyPlayerIds`.
+- Added a `tests/restart-modal.spec.ts` regression test: verifies both players see the settlement modal at the end of a round, and covers the post-restart case where the non-host ends the next round — both players still see the modal and coins are correctly preserved.
 
-### v2.8.3 - 主選單按鈕樣式修正
+### v2.8.3 - Main Menu Button Style Fix
 
 **UI**
 
-- 修正「繼續遊戲」按鈕在有存檔時與「開始遊戲」同時顯示為亮紅色的問題。移除 `#continue-game-btn` 獨立紅色 CSS 規則及 HTML 中多餘的 `primary` class，使「繼續遊戲」恢復為一般按鈕樣式，僅「開始遊戲」保留主色調。
+- Fixed the "Continue Game" button appearing in bright red alongside "Start Game" when a save exists. Removed the standalone red CSS rule for `#continue-game-btn` and the redundant `primary` class in the HTML, restoring "Continue Game" to the regular button style with only "Start Game" keeping the primary color.
 
-### v2.8.2 - 手機版卡牌說明遮擋修正
+### v2.8.2 - Mobile Card Description Overlap Fix
 
-**手機版 UI**
+**Mobile UI**
 
-- 修正手機版點選手牌後，卡牌說明彈窗被「當前回合黃色外框線」橫穿、文字被蓋住的問題。卡牌說明原本被困在 `#player-hand` 的 stacking context（`z-index: 2`）內，贏不過 `.active-turn::before` 黃框（`z-index: 30`）。
-- 同一修正一併解決手牌較小（如 3 電腦局）時，卡牌說明往上彈出探進對手區、被對手面板蓋住的遮擋問題。
-- 做法：選取卡牌時將整個 `#player-hand`（連同內部說明）提升至 `z-index: 40`，使說明同時蓋過黃框與對手區。已於 WebKit（iOS Safari 引擎）驗證。
+- Fixed the card description popup on mobile being crossed by the yellow "current turn" outline and having its text covered after tapping a hand card. The description was trapped inside `#player-hand`'s stacking context (`z-index: 2`) and could not beat the `.active-turn::before` yellow frame (`z-index: 30`).
+- The same fix also resolves the overlap where, with a smaller hand (e.g. a 3-bot game), the description popped upward into the opponent area and was covered by the opponent panels.
+- Approach: when a card is selected, the whole `#player-hand` (including the inner description) is raised to `z-index: 40`, so the description covers both the yellow frame and the opponent area. Verified on WebKit (the iOS Safari engine).
 
-### v2.8.1 - 殘局卡死修正與文字校正
+### v2.8.1 - Endgame Deadlock Fix and Text Corrections
 
-**規則修正**
+**Rules fixes**
 
-- 修正「牌庫與底牌皆耗盡」殘局中的回合卡死：當兩張王子的連鎖效果在牌庫與底牌都用盡時逼某位存活玩家棄牌，該玩家會抽不到牌而手牌歸零；原本攤牌條件要求所有存活者「恰好持有 1 張牌」，導致永遠不觸發攤牌、回合無限卡住。現改為「至多 1 張牌」即進行攤牌，空手牌點數視為最低排序。
+- Fixed a turn deadlock in the "deck and burned card both exhausted" endgame: when a chain of two Princes forced a surviving player to discard while both the deck and the burned card were used up, that player couldn't draw and ended up with an empty hand; the showdown condition required all survivors to hold "exactly 1 card", so the showdown never triggered and the turn hung forever. The condition is now "at most 1 card", with an empty hand ranked as the lowest value.
 
-**文字 / 維護**
+**Text / maintenance**
 
-- `log.baronTie` 改名為 `log.baronFinalReveal`（該訊息實為剩兩人時的雙方攤牌，並非平手），避免日後誤解；真正的平手提示 `hint.baronTie` 維持不變。
-- 校正三處斷線計時器的過時註解（誤寫「20 s」），更正為與伺服器重連視窗一致的「60 s」。
+- Renamed `log.baronTie` to `log.baronFinalReveal` (the message is actually the two-player final reveal, not a tie) to prevent future confusion; the real tie hint `hint.baronTie` is unchanged.
+- Corrected three outdated disconnect-timer comments (wrongly saying "20 s") to "60 s", matching the server's reconnect window.
 
-### v2.8.0 - 多人連線對電腦出牌修正
+### v2.8.0 - Fix for Playing Cards Against Bots in Multiplayer
 
-**多人連線**
+**Multiplayer**
 
-- 修正非房主玩家對電腦出牌時無法正確結算的問題：因電腦手牌被遮蔽為 `type: 0`，神父窺看只看到「未知牌(0)」、衛兵猜中卻判定猜錯導致電腦不出局，男爵／國王／王子對電腦亦同樣失準。
-- 電腦手牌改為與真人手牌相同方式完整同步，畫面照常以「?」隱藏（僅在遊戲結束／男爵翻牌時顯示），讓任一玩家對電腦的目標效果都能正確結算。此修正接續 v2.2.1 的房主端 `preserveHostBotHands` 對帳，從源頭移除遮蔽造成的非房主結算錯誤。
+- Fixed effects not resolving correctly when a non-host player targeted a bot: because bot hands were masked as `type: 0`, the Priest peek only showed "unknown card (0)", a correct Guard guess was judged wrong so the bot wasn't eliminated, and Baron/King/Prince against bots misfired the same way.
+- Bot hands are now fully synced the same way as human hands, while the UI still hides them as "?" (revealed only at game end / Baron reveals), so any player's targeted effects against bots resolve correctly. This builds on v2.2.1's host-side `preserveHostBotHands` reconciliation by removing the masking-induced non-host resolution errors at the source.
 
-**測試 / 建置**
+**Testing / build**
 
-- 修正 dev-only 測試 hook 的 `tsc` 編譯錯誤（`window` 轉型需經 `unknown`），`npm run build` 恢復正常。
-- 修正「取消目標選擇」E2E 測試在「伯爵夫人＋國王／王子」牌型下的偶發失敗（該牌型受伯爵夫人強制出牌規則限制）。
-- 完整 20 個 E2E 測試通過。
+- Fixed a `tsc` compile error in the dev-only test hook (the `window` cast must go through `unknown`); `npm run build` works again.
+- Fixed a flaky "cancel target selection" E2E test under the "Countess + King/Prince" hand (constrained by the Countess forced-play rule).
+- Full suite of 20 E2E tests passes.
 
-### v2.7.0 - 穩定性修正
+### v2.7.0 - Stability Fixes
 
-**多人連線**
+**Multiplayer**
 
-- 修正上一局贏家在「下一局準備」期間離線/棄局時，新一局的先手仍指向該已出局玩家，導致沒有任何人能推進回合、遊戲卡死的問題；先手現會自動順延給下一位存活玩家。
-- 修正伺服器重連逾時 log 的秒數文字（與實際 60 秒重連視窗一致）。
+- Fixed a deadlock where, if the previous round's winner went offline / forfeited during the "next round ready" phase, the new round's first turn still pointed at that departed player, so nobody could advance the turn; the first turn now automatically passes to the next surviving player.
+- Fixed the seconds shown in the server's reconnect-timeout log (now consistent with the actual 60-second reconnect window).
 
-**單機**
+**Single-player**
 
-- 單機 bot 的預設難度與多人連線一致（困難）。
+- Single-player bots now default to the same difficulty as multiplayer (Hard).
 
-### v2.6.0 - AI 策略強化
+### v2.6.0 - AI Strategy Enhancements
 
-**衛兵 / 神父 / 侍女**
+**Guard / Priest / Handmaid**
 
-- 衛兵猜測改為依「剩餘張數」加權（含男爵線索推得的縮小範圍），稀有牌被猜中的機率不再被高估。
-- 神父優先窺看尚未掌握手牌的對手，讓每次偷看的情報價值最大化。
-- 侍女在手握高牌（國王／伯爵夫人／公主）或手牌已被對手得知時，提高出牌權重自保（困難）。
+- Guard guesses are now weighted by remaining card counts (including ranges narrowed by Baron clues), so rare cards are no longer over-guessed.
+- The Priest prioritizes peeking at opponents whose hands are still unknown, maximizing the intel value of each peek.
+- The Handmaid gains play weight for self-protection when holding a high card (King / Countess / Princess) or when the hand is known to an opponent (Hard).
 
-**男爵**
+**Baron**
 
-- 出牌權重改用算牌估算勝率：僅在「所有合法對手都必敗」時才放棄男爵，多人局不再因單一強敵而完全不出。
-- 目標選擇改挑勝率最高的安全對象，而非硬幣領先者，避免放掉穩贏的一擊。
-- 平手視為安全（不淘汰任何人），不再被當成必敗而過度迴避。
+- Play weight is now computed via card counting to estimate win rates: the Baron is only shelved when every legal opponent is a guaranteed loss, so multi-player games no longer avoid it entirely because of a single strong opponent.
+- Target selection now picks the safe opponent with the highest win rate rather than the coin leader, no longer passing up a guaranteed kill.
+- Ties are treated as safe (nobody is eliminated) instead of being over-avoided as guaranteed losses.
 
-**王子 / 國王 / 威脅意識**
+**Prince / King / threat awareness**
 
-- 記得對手握有公主時，會優先用王子逼其棄牌達成秒殺（目標選擇 + 出牌權重雙重強化）。
-- 國王偷取更高的牌僅在場上衛兵全數用盡時才進行——交換會讓對手得知你的新手牌，留有衛兵時容易被反殺。
-- 困難難度新增威脅意識：在沒有特定情報目標時，對硬幣領先者加權施壓。
+- When it remembers an opponent holds the Princess, it prioritizes the Prince to force a discard for an instant kill (reinforced in both target selection and play weight).
+- The King only steals a higher card when all Guards are out of play — a swap reveals your new hand to the opponent, making a Guard counter-kill likely otherwise.
+- Hard difficulty adds threat awareness: with no specific intel-based target, it weights pressure onto the coin leader.
 
-**架構**
+**Architecture**
 
-- 上述策略接續 v2.5.0 的模組化拆分，實作於 `domain/ai-strategy.ts` 與 `domain/ai-memory.ts`，`main.ts` 僅負責回合流程串接。
-- 完整 19 個 E2E 測試通過，驗證強化後行為無迴歸。
+- These strategies build on the v2.5.0 modular split, implemented in `domain/ai-strategy.ts` and `domain/ai-memory.ts`, with `main.ts` handling only turn-flow wiring.
+- Full suite of 19 E2E tests passes, verifying no behavioral regressions from the enhancements.
 
-### v2.5.0 - 代碼架構重構
+### v2.5.0 - Codebase Architecture Refactor
 
-**模組化與可維護性提升**
+**Modularity and maintainability**
 
-- 大規模重構：`main.ts` 從 5202 行縮減至 4026 行（-23%），將遊戲邏輯、UI、網路、AI 按職責分離。
-- 新增 15 個內聚模組：
-  - **domain**：`ai-memory.ts`(AI 記憶系統)、`ai-strategy.ts`(AI 出牌/猜牌邏輯)、`online-types.ts`(線上同步型別)
-  - **ui**：`card-render.ts`(卡牌 DOM 生成)、`modal-templates.ts`(7 種 modal body builder)、`player-badges.ts`(玩家名牌)、`voice.ts`、`chat.ts`、`particles.ts`
-  - **net**：`online-serialization.ts`(線上同步序列化/深拷貝)、`online-reconcile.ts`(本地對帳)、`room-types.ts`(大廳房型別)、`invite-url.ts`(邀請連結工具)
-  - **其他**：`utils.ts`(純工具函式)
-- 架構改進：AI 邏輯與記憶系統、卡牌渲染、modal HTML 組裝均已從 main 分離，降低單一檔案複雜度。
-- 依賴線索清晰：各模組顯式傳入所需狀態(state / localPlayerId / isHost)，無隱藏全域狀態依賴。
-- 測試覆蓋：完整 19 個 E2E 測試通過(單機對戰、多人連線、斷線重連、聊天、邀請連結等)，驗證重構無行為迴歸。
-- 文檔補強：AI 記憶系統、線上同步細節已加入程式碼註釋，便於未來維護與擴展。
+- Large-scale refactor: `main.ts` shrank from 5202 to 4026 lines (-23%), separating game logic, UI, networking, and AI by responsibility.
+- 15 new cohesive modules:
+  - **domain**: `ai-memory.ts` (AI memory system), `ai-strategy.ts` (AI play/guess logic), `online-types.ts` (online sync types)
+  - **ui**: `card-render.ts` (card DOM generation), `modal-templates.ts` (7 modal body builders), `player-badges.ts` (player nameplates), `voice.ts`, `chat.ts`, `particles.ts`
+  - **net**: `online-serialization.ts` (online sync serialization / deep copy), `online-reconcile.ts` (local reconciliation), `room-types.ts` (lobby room types), `invite-url.ts` (invite link utilities)
+  - **misc**: `utils.ts` (pure utility functions)
+- Architectural improvements: AI logic and memory, card rendering, and modal HTML assembly are all extracted from main, reducing single-file complexity.
+- Clear dependency wiring: each module receives its required state explicitly (state / localPlayerId / isHost), with no hidden global-state dependencies.
+- Test coverage: full suite of 19 E2E tests passes (single-player battles, multiplayer, disconnect/reconnect, chat, invite links, etc.), verifying no behavioral regressions from the refactor.
+- Documentation: the AI memory system and online sync details are now documented in code comments for future maintenance and extension.
 
-### v2.4.0 - 多人房間邀請連結
+### v2.4.0 - Multiplayer Room Invite Links
 
-**房間邀請連結**
+**Room invite links**
 
-- 房間等待室新增「邀請朋友」彈窗，所有玩家都能查看房間 ID 與完整分享連結。
-- 分享連結使用 `?room=<roomId>`，可直接貼到 LINE 或 Discord；朋友點開後輸入玩家名稱即可加入房間。
-- 加入流程改為遊戲內彈窗，不再依賴瀏覽器 `prompt()`。
-- 邀請連結會依房間即時容量判斷：真人與 AI 電腦合計滿 4 人時不可加入；移除電腦或空出座位後，同一條連結會重新有效。
-- 後端同步公開 AI 電腦數量，讓大廳與邀請連結的滿房判斷和伺服器硬擋一致。
+- The waiting room gained an "Invite friends" dialog where every player can view the room ID and the full share link.
+- The share link uses `?room=<roomId>` and can be pasted straight into LINE or Discord; friends who open it just enter a player name to join the room.
+- The join flow moved into an in-game dialog, no longer relying on the browser `prompt()`.
+- Invite links respect the room's live capacity: joining is blocked when humans plus AI bots total 4; removing a bot or freeing a seat makes the same link valid again.
+- The backend also publishes the AI bot count, keeping the lobby's and invite link's full-room checks consistent with the server-side hard block.
 
-**測試**
+**Testing**
 
-- 新增 Playwright e2e 覆蓋：複製邀請連結、點連結加入、加滿電腦後連結失效、移除電腦後同一連結恢復有效。
+- Added Playwright e2e coverage: copying the invite link, joining via the link, the link becoming invalid after filling with bots, and the same link becoming valid again after removing a bot.
 
-### v2.3.0 - PWA 離線支援與單機存檔系統
+### v2.3.0 - PWA Offline Support and Single-Player Save System
 
-**PWA 離線支援**
+**PWA offline support**
 
-- 重新啟用 Service Worker，首次訪問後資源快取於本機，之後無網路亦可載入頁面並打電腦。
-- 新增 `<link rel="manifest">` 與 apple-touch-icon，符合 PWA 安裝條件。
-- 使用 `beforeinstallprompt` 攔截瀏覽器自動彈出的安裝提示，僅保留瀏覽器原生安裝入口（網址列圖示），避免干擾一般玩家。
+- Re-enabled the Service Worker: assets are cached locally after the first visit, so the page loads and games against bots work without a network connection.
+- Added `<link rel="manifest">` and an apple-touch-icon, meeting the PWA install criteria.
+- Uses `beforeinstallprompt` to intercept the browser's automatic install prompt, keeping only the browser's native install entry point (the address-bar icon) to avoid disturbing regular players.
 
-**單機存檔系統**
+**Single-player save system**
 
-- 主選單新增「繼續遊戲」按鈕（亮紅色，與「開始遊戲」視覺區分），僅在存檔存在時顯示。
-- 遊戲操作列新增「存檔」按鈕，位於「查看紀錄」與「離開遊戲」之間，點擊後跳出確認 modal。
-- **Option A 自動存檔**：玩家抽牌後自動寫入 `localStorage`，防止 save scumming（存檔點在抽牌之後，手牌已固定）。
-- **Option B 離開存檔**：點擊「離開遊戲」確認返回主選單時，自動儲存當下狀態（含電腦打到一半的局面）。
-- 讀取電腦回合的存檔時，顯示「回到上一局遊戲中，按下確認後遊戲繼續」提示，玩家確認後電腦自動接著出牌。
-- 存檔在總冠軍產生時自動清除；開始新遊戲會在第一次抽牌時覆蓋舊存檔。
-- 存檔僅適用於單機（打電腦）模式，多人連線模式不顯示存檔按鈕。
+- The main menu gained a "Continue Game" button (bright red, visually distinct from "Start Game"), shown only when a save exists.
+- The in-game action bar gained a "Save" button between "View Logs" and "Exit Game", opening a confirmation modal on click.
+- **Option A — auto-save**: the game auto-saves to `localStorage` after the player draws a card, preventing save scumming (the save point is after the draw, when the hand is already fixed).
+- **Option B — save on exit**: confirming "Exit Game" back to the main menu automatically saves the current state (including mid-turn bot play).
+- Loading a save taken during a bot's turn shows a "Back to the previous game — press confirm to continue" prompt; after confirming, the bot automatically resumes its play.
+- Saves are automatically cleared when a champion is crowned; starting a new game overwrites the old save on the first draw.
+- Saves apply only to single-player (vs. bots) mode; the save button is hidden in multiplayer.
 
-### v2.2.1 - 多人連線同步與桌機表情輪盤修正
+### v2.2.1 - Multiplayer Sync and Desktop Emoji Wheel Fixes
 
-**多人連線修正**
+**Multiplayer fixes**
 
-- 修正非房主同步狀態時，電腦玩家的遮蔽手牌 `type: 0` 可能覆蓋房主權威狀態，導致電腦打出 `card.0 (0)` 的問題。
-- 主機端現在會保留本地真實電腦手牌，避免遮蔽資料污染 AI 後續出牌。
-- 卡牌名稱顯示加入未知牌 fallback，避免非法牌型直接露出 i18n key。
+- Fixed masked bot hands (`type: 0`) potentially overwriting the host's authoritative state during non-host sync, causing bots to play `card.0 (0)`.
+- The host now preserves its local, real bot hands, preventing masked data from polluting subsequent AI plays.
+- Card name display gained an unknown-card fallback, so invalid card types no longer leak raw i18n keys.
 
-**桌機版介面修正**
+**Desktop UI fixes**
 
-- 修正多人連線時，桌機版表情輪盤按鈕被桌機 CSS `display: none !important` 蓋掉，沒有出現在上方列的問題。
-- 線上桌機 topbar 調整為：回合、牌堆、離開遊戲、表情輪盤、聊天室、語音按鈕。
+- Fixed the desktop emoji wheel button being hidden by the desktop CSS `display: none !important` in multiplayer, never appearing in the top bar.
+- The online desktop topbar is now: turn, deck, exit game, emoji wheel, chat, voice buttons.
 
-### v2.2.0 - 表情輪盤、頂欄精簡與斷線重連強化
+### v2.2.0 - Emoji Wheel, Top Bar Cleanup, and Reconnection Improvements
 
-**頂欄按鈕精簡與重排**
+**Top bar button cleanup and rearrangement**
 
-- 按鈕名稱縮短：「查看對戰紀錄」→「查看紀錄」、「離開本局遊戲」→「離開遊戲」。
-- 線上模式頂列改為四等分（當前回合 ／ 牌堆剩餘 ／ 出牌統計 ／ 麥克風＋喇叭），麥克風與喇叭圖示上移至頂列。
-- 線上操作列改為四等分（表情輪盤 ／ 查看紀錄 ／ 聊天室 ／ 離開遊戲）；輪到自己抽牌時自動擴為五等分（加上抽牌）。
-- 離線模式佈局不受影響。
+- Shortened button labels: "View Battle Log" → "View Logs", "Leave This Game" → "Exit Game".
+- The online top row is now split into four equal parts (current turn / deck remaining / played-card stats / mic + speaker), with the mic and speaker icons moved up into the top row.
+- The online action bar is split into four equal parts (emoji wheel / view logs / chat / exit game), automatically expanding to five when it's your turn to draw (adding the draw button).
+- The offline layout is unaffected.
 
-**表情輪盤**
+**Emoji wheel**
 
-- 操作列新增「表情輪盤」按鈕，點擊後於畫面中央彈出半透明六等分圓形輪盤。
-- 六種表情：喜（😊）／怒（😡）／哀（😢）／思考（🤔）／✗（❌）／100（💯）。
-- 送出後表情以「浮動 + 淡出」動畫顯示於對應玩家的手牌區，與手牌同大小，所有線上玩家即時可見（持續約 2 秒）。
-- 透過 Colyseus `emoji_react` 訊息廣播，送出後有 3 秒冷卻。
+- The action bar gained an "Emoji wheel" button that pops up a translucent six-segment circular wheel in the center of the screen.
+- Six emoji: joy (😊) / anger (😡) / sadness (😢) / thinking (🤔) / ✗ (❌) / 100 (💯).
+- Sent emoji appear with a "float + fade" animation over the corresponding player's hand area, the same size as a hand card, visible to all online players in real time (lasting about 2 seconds).
+- Broadcast via the Colyseus `emoji_react` message, with a 3-second cooldown after sending.
 
-**遊戲結束後快速開始下一局**
+**Quick next round after a game ends**
 
-- 勝利者彈窗關閉（返回戰場）後，操作列直接顯示「開始下一局」按鈕，無需先點「查看結果」。
-- 線上五等分、離線四等分自動排列；「開始下一局」採綠色強調，「查看結果」改為純文字樣式。
+- After closing the winner dialog (returning to the battlefield), the action bar directly shows a "Start next round" button — no need to press "View results" first.
+- Layouts adjust automatically (five-way online, four-way offline); "Start next round" uses a green accent while "View results" becomes a plain text style.
 
-**斷線重連強化**
+**Reconnection improvements**
 
-- 伺服器重連視窗由 20 秒延長為 60 秒；重連倒數視窗、房主斷線解散計時、非房主淘汰計時全部對齊為 60 秒，避免「視窗內重連卻發現遊戲已解散／自己已被淘汰」。
-- 重連 token 改存 `sessionStorage`，F5 重整頁面後仍可在視窗內自動跳出重連提示。
-- 修正房主重連後卡住多餘「遊戲開始」彈窗的問題。
-- 新增房主斷線／房主重連的 E2E 測試覆蓋。
+- The server's reconnect window was extended from 20 to 60 seconds; the reconnect countdown dialog, host-disconnect dissolution timer, and non-host elimination timer are all aligned at 60 seconds, avoiding "reconnected within the window only to find the game dissolved / yourself eliminated".
+- The reconnect token moved to `sessionStorage`, so the reconnect prompt still automatically appears within the window after an F5 page refresh.
+- Fixed the host getting stuck on a redundant "Game start" dialog after reconnecting.
+- Added E2E test coverage for host disconnect / host reconnect.
 
-**多人連線規則修正**
+**Multiplayer rules fix**
 
-- 修正線上模式中，王子強迫電腦棄牌時棄牌效果（如衛兵）未觸發的問題，行為與單機模式一致。
+- Fixed discard effects (e.g. the Guard's) not triggering when a Prince forced a bot to discard in online mode; behavior now matches single-player.
 
 
-### v2.1.0 - 桌機版頂欄按鈕視覺與顯示邏輯修正
+### v2.1.0 - Desktop Top Bar Button Visual and Display Logic Fixes
 
-**頂欄按鈕統一命名**
+**Unified top bar button naming**
 
-- 原「回主選單」按鈕統一改名為「離開本局遊戲」，與多人連線模式用語一致。
-- 離線模式點擊仍會彈出確認視窗後返回主選單；線上模式行為不變（棄局確認）。
+- The old "Back to Main Menu" button was renamed to "Leave This Game", matching the multiplayer wording.
+- In offline mode, clicking still shows a confirmation dialog before returning to the main menu; online behavior is unchanged (forfeit confirmation).
 
-**桌機版頂欄欄位自動調整**
+**Desktop top bar auto-adjusting columns**
 
-- 離線（打電腦）模式：頂欄改為三等分（當前回合 ／ 牌堆剩餘 ／ 離開本局遊戲），不再因聊天室欄位缺席而留有空白。
-- 線上（多人連線）模式：頂欄維持四欄（當前回合 ／ 牌堆剩餘 ／ 離開本局遊戲 ／ 聊天室），行為不變。
-- 以 `body.online-game-active` CSS class 動態切換欄位數，無需額外 JS 操作。
+- Offline (vs. bots) mode: the top bar becomes three equal columns (current turn / deck remaining / leave this game), no longer leaving a gap where the chat column would be.
+- Online (multiplayer) mode: the top bar keeps four columns (current turn / deck remaining / leave this game / chat), unchanged.
+- Column count switches dynamically via the `body.online-game-active` CSS class, with no extra JS.
 
-**桌機版按鈕外觀修正**
+**Desktop button appearance fixes**
 
-- 修正「聊天室」與「離開本局遊戲」按鈕在桌機版外觀不明顯的問題，兩者現在各有獨立配色：
-  - 「離開本局遊戲」：深紅琥珀色背景，強調「離開」的語意。
-  - 「聊天室」：深海軍藍背景，與離開按鈕形成視覺區別。
-- 修正 CSS `display: flex !important` 覆蓋 JS `display: none` 導致聊天室與離開按鈕在離線桌機版錯誤顯示的問題。
+- Fixed the "Chat" and "Leave This Game" buttons being visually indistinct on desktop; each now has its own color scheme:
+  - "Leave This Game": deep red-amber background, emphasizing the "leave" semantics.
+  - "Chat": deep navy background, visually distinct from the leave button.
+- Fixed CSS `display: flex !important` overriding JS `display: none`, which wrongly showed the chat and leave buttons in offline desktop mode.
 
 
-### v2.0.0 - 遊戲設定整合、桌機版頂欄重排與多人連線進階設定
+### v2.0.0 - Consolidated Game Settings, Desktop Top Bar Redesign, and Advanced Multiplayer Settings
 
-**單機遊戲設定畫面整合**
+**Consolidated single-player settings screen**
 
-- 原本「選人數 → 選各別難度」兩步驟流程，合併為單一「遊戲設定」畫面。
-- 三項設定均以左右箭頭（◀▶）調整：
-  - **電腦人數**：1 ／ 2（預設）／ 3
-  - **電腦難度**：簡單 ／ 中等 ／ 困難（預設），全部電腦統一使用同一難度。
-  - **總冠軍硬幣數**：1–10（預設 4），決定多少枚硬幣可奪冠。
-- 底部「開始遊戲」與「返回」按鈕。
+- The old two-step flow ("pick player count → pick each difficulty") is merged into a single "Game Settings" screen.
+- All three settings are adjusted with left/right arrows (◀▶):
+  - **Number of bots**: 1 / 2 (default) / 3
+  - **Bot difficulty**: Easy / Medium / Hard (default), shared by all bots.
+  - **Championship coins**: 1–10 (default 4), determining how many coins win the championship.
+- "Start Game" and "Back" buttons at the bottom.
 
-**桌機版頂欄重排**
+**Desktop top bar redesign**
 
-- 頂欄改為全水平單列：左側顯示當前回合與牌堆剩餘，右側對齊操作按鈕群。
-- 操作按鈕（查看對戰紀錄 ／ 聊天室 ／ 離開本局遊戲）橫排，右側以細分隔線隔開麥克風與喇叭圖示。
-- 解決舊版桌機版按鈕垂直堆疊的問題。
+- The top bar is now a single horizontal row: current turn and deck remaining on the left, action buttons aligned on the right.
+- Action buttons (view battle log / chat / leave this game) are laid out horizontally, with a thin divider separating the mic and speaker icons on the right.
+- Resolves the old desktop layout's vertically stacked buttons.
 
-**多人連線進階設定（房間等待室）**
+**Advanced multiplayer settings (room waiting room)**
 
-- 每個電腦欄位右側顯示當前難度，房主可用 ◀▶ 調整（簡單 ／ 中等 ／ 困難），其他成員只看到當前值。
-- 玩家列表底部新增「冠軍硬幣數」列，房主可用 ◀▶ 設定（1–10），其他成員即時看到更新。
-- 設定值透過 Colyseus schema 即時廣播，房間所有人同步顯示。
+- Each bot row shows its current difficulty on the right; the host adjusts it with ◀▶ (Easy / Medium / Hard) while other members see the current value.
+- A "Championship coins" row was added below the player list; the host sets it with ◀▶ (1–10) and other members see updates in real time.
+- Settings are broadcast in real time via the Colyseus schema, kept in sync for everyone in the room.
 
-**遊戲說明更新**
+**Game guide updates**
 
-- 章節順序調整為：1. 遊戲流程 → 2. 勝負判定 → 3. 次局規則與聯賽勝利 → 4. 卡牌種類與效果。
-- 遊戲流程新增「（請看 4. 卡牌種類與效果）」交叉參照。
-- 冠軍硬幣數由玩家設定動態決定，說明文字即時反映目前設定值，不再固定顯示「4 枚」。
+- Section order adjusted to: 1. Game flow → 2. Win conditions → 3. Next-round rules and league victory → 4. Card types and effects.
+- The game flow section gained a "(see 4. Card types and effects)" cross-reference.
+- The championship coin count is now driven by the player's setting; the guide text reflects the current value instead of a hard-coded "4 coins".
 
-### v1.9.0 - 遊戲設置、音樂自選系統與電腦難度設定
+### v1.9.0 - Game Settings, Custom Music System, and Bot Difficulty Settings
 
-**遊戲設置子選單**
+**Game settings submenu**
 
-- 主選單新增「遊戲設置」入口，點擊後顯示子選單，包含「音樂設置」與「語言設置」兩個選項。
-- 語言設置從主選單獨立按鈕移入遊戲設置，介面更整潔。
+- The main menu gained a "Game Settings" entry opening a submenu with "Music Settings" and "Language Settings".
+- Language settings moved from a standalone main menu button into game settings, for a cleaner interface.
 
-**音樂設置**
+**Music settings**
 
-- 五個音樂插槽各自獨立選曲：主選單、遊戲中、當局勝利、當局失敗、總冠軍。
-- 使用左右箭頭（◀▶）切換曲目，切換時立即試聽，方便確認曲目。
-- 進入音樂設置時背景音樂自動暫停，離開時恢復；「返回」恢復原設定，「確認」套用新選擇。
-- 音樂檔案透過 Vite `import.meta.glob` 自動偵測 `public/audio/{menu,game,winner,loser,champion}/` 子資料夾，直接將 MP3 丟入對應資料夾即可加入選單。
-- 選擇結果存於 localStorage，重開頁面後維持上次設定。
+- Five music slots, each independently selectable: main menu, in-game, round victory, round defeat, championship.
+- Switch tracks with left/right arrows (◀▶), with immediate preview on switch for easy auditioning.
+- Background music pauses automatically on entering music settings and resumes on leaving; "Back" restores the original settings, "Confirm" applies the new selection.
+- Music files are auto-discovered via Vite's `import.meta.glob` from the `public/audio/{menu,game,winner,loser,champion}/` subfolders — just drop MP3s into the matching folder to add them to the menu.
+- Selections are stored in localStorage and persist across page reloads.
 
-**電腦難度設定**
+**Bot difficulty settings**
 
-- 選完電腦人數後，新增難度設定畫面，每台電腦（電腦 A/B/C）各自以左右箭頭選擇簡單／中等／困難，預設中等。
-- 可按「返回」回到人數選擇畫面重新調整。
-- 三種難度差異：
-  - **簡單**：無記憶（神父/國王/男爵資訊不存），衛兵只根據棄牌統計隨機猜測，出牌策略隨機。
-  - **中等**：有記憶、衛兵避免重複猜失敗的牌、有基本策略（男爵避開已知必敗目標），但不使用男爵推論線索。
-  - **困難**（原有 AI 行為）：完整記憶 + 男爵勝利後推論對手手牌範圍，衛兵猜測進一步優化。
+- After choosing the number of bots, a new difficulty screen lets each bot (Bot A/B/C) be set individually with left/right arrows to Easy / Medium / Hard, defaulting to Medium.
+- A "Back" button returns to the player-count screen for readjustment.
+- The three difficulty levels:
+  - **Easy**: no memory (Priest/King/Baron information is not stored), Guard guesses randomly based only on discard statistics, play strategy is random.
+  - **Medium**: has memory, the Guard avoids repeating failed guesses, and basic strategy applies (the Baron avoids known losing targets), but Baron inference clues are not used.
+  - **Hard** (the original AI behavior): full memory plus post-Baron-victory inference of the opponent's hand range, with further optimized Guard guessing.
 
-**修正**
+**Fixes**
 
-- 修正手機版點擊後觸發頁面放大（double-tap zoom）的問題，加入全域 `touch-action: manipulation`。
-- 修正遊戲設置面板開啟時右上角靜音按鈕消失的問題（z-index 層級重新整理）。
+- Fixed double-tap zoom being triggered by taps on mobile, adding a global `touch-action: manipulation`.
+- Fixed the mute button in the top-right corner disappearing while the game settings panel was open (z-index layering reorganized).
 
-### v1.8.0 - 文字聊天室、語音通話與手機版頂欄重設計
+### v1.8.0 - Text Chat, Voice Chat, and Mobile Top Bar Redesign
 
-**文字聊天室（多人連線限定）**
+**Text chat (multiplayer only)**
 
-- 遊戲中右上角新增「聊天室」按鈕，點擊後從畫面底部滑入聊天面板。
-- 支援 Enter 鍵或點擊「送出」傳送訊息，每則訊息顯示發送者名稱與內容，透過 Colyseus 即時廣播給房間所有玩家。
-- 未讀訊息計數 badge：聊天面板關閉時，有新訊息會在按鈕旁顯示未讀數字；打開面板後自動清零。
-- 每局遊戲開始時聊天記錄自動清空，訊息長度上限 200 字元。
-- 點擊背景遮罩或面板右上角 ✕ 均可關閉聊天面板。
-- 離線（電腦對戰）模式不顯示聊天按鈕。
+- A "Chat" button was added to the top-right in-game; clicking it slides a chat panel in from the bottom of the screen.
+- Send messages with Enter or the "Send" button; each message shows the sender's name and content, broadcast in real time to everyone in the room via Colyseus.
+- Unread message badge: while the panel is closed, new messages show an unread count next to the button; opening the panel clears it.
+- Chat history is automatically cleared when each game starts; messages are capped at 200 characters.
+- Clicking the backdrop or the ✕ in the panel's top-right closes the chat panel.
+- The chat button is hidden in offline (vs. bots) mode.
 
-**語音通話（多人連線限定）**
+**Voice chat (multiplayer only)**
 
-- 遊戲中頂欄新增麥克風按鈕，點擊後加入語音頻道（需授予麥克風權限）。
-- 採用 WebRTC 全連結 Mesh 拓樸，最多 4 人兩兩直連，無需中繼伺服器傳輸音訊；Colyseus 僅用於交換 offer/answer/ICE candidate 信令。
-- 說話偵測：Web Audio API AnalyserNode 每 100ms 取樣，偵測到音量超出閾值時，對應對手名稱旁顯示「說話中」指示。
-- 麥克風可個別靜音（橘色），整體喇叭可靜音（與現有靜音按鈕連動）。
-- 玩家斷線或離開語音頻道時，自動釋放麥克風並通知其他參與者。
-- STUN-only 穿透（`stun.l.google.com:19302`），極少數嚴格 NAT 環境可能無法連線。
-- 離線（電腦對戰）模式不顯示麥克風按鈕。
+- A microphone button was added to the in-game top bar; clicking it joins the voice channel (microphone permission required).
+- Uses a full-mesh WebRTC topology — up to 4 players connected pairwise, with no relay server carrying audio; Colyseus is used only to exchange offer/answer/ICE candidate signaling.
+- Speaking detection: a Web Audio API AnalyserNode samples every 100ms and shows a "speaking" indicator next to the corresponding opponent's name when the volume exceeds a threshold.
+- Microphones can be muted individually (orange), and the overall speaker can be muted (tied to the existing mute button).
+- When a player disconnects or leaves the voice channel, their microphone is released automatically and other participants are notified.
+- STUN-only traversal (`stun.l.google.com:19302`); a small number of strict NAT environments may fail to connect.
+- The microphone button is hidden in offline (vs. bots) mode.
 
-**手機版頂欄重設計**
+**Mobile top bar redesign**
 
-- 原本單列按鈕改為兩列：第一列為狀態資訊（當前回合 35% / 牌堆剩餘 25% / 出牌統計 25% / 圖示 15%），第二列為動作按鈕（各按鈕等寬平均分配）。
-- 多人連線時第二列顯示：抽牌 / 查看對戰紀錄 / 聊天室 / 回主選單；單機時隱藏聊天室按鈕。
-- 麥克風與喇叭改為 SVG inline 圖示，支援 CSS class 切換狀態（靜音、語音啟用、說話中）。
+- The old single-row buttons became two rows: the first row is status info (current turn 35% / deck remaining 25% / played-card stats 25% / icons 15%), the second is action buttons (equal widths).
+- In multiplayer the second row shows: draw / view battle log / chat / back to main menu; in single-player the chat button is hidden.
+- The mic and speaker became inline SVG icons with CSS class state switching (muted, voice active, speaking).
 
-**修正**
+**Fixes**
 
-- 修正多電腦對戰卡死問題：2 隻以上電腦輪番出牌時，第二隻起的電腦回合因 mutex 時序問題無法觸發，導致遊戲凍結。
-- 修正仕女（侍女）保護藍色邊框在手機版底部被 overflow 截斷的問題（與 v1.6.0 黃色 active-turn 邊框同一根因，改用 `::before` 偽元素繪製）。
+- Fixed a multi-bot deadlock: with 2 or more bots taking turns, the second bot's turn onward failed to trigger due to a mutex timing issue, freezing the game.
+- Fixed the Handmaid protection blue border being clipped by overflow at the bottom on mobile (same root cause as the v1.6.0 yellow active-turn border; now drawn with a `::before` pseudo-element).
 
-### v1.7.0 - 桌機版 UI 重設計、斷線重連系統與目標通知彈窗
+### v1.7.0 - Desktop UI Redesign, Disconnect/Reconnect System, and Target Notification Modals
 
-**桌機版遊戲畫面重設計**
+**Desktop game screen redesign**
 
-- 全新桌機版戰場布局：固定頂欄（牌堆剩餘、回合資訊）、出牌統計側欄、對手區與玩家區以 CSS Grid 等高分割，1–2 位對手各有最佳比例。
-- 玩家區新增桌機版抽牌按鈕，與手牌並排呈現，操作更直覺。
-- 對手棄牌固定尺寸（90×126px）、手牌容器固定 220px，橫排版面一致整齊。
+- Brand-new desktop battlefield layout: fixed top bar (deck remaining, turn info), played-card statistics sidebar, and opponent/player areas split equal-height with CSS Grid, with optimized proportions for 1–2 opponents.
+- The player area gained a desktop draw button, presented alongside the hand for more intuitive play.
+- Opponent discards use a fixed size (90×126px) and the hand container is fixed at 220px, keeping the horizontal layout tidy and consistent.
 
-**多人連線斷線重連**
+**Multiplayer disconnect/reconnect**
 
-- 意外斷線後伺服器保留 20 秒重連視窗，玩家可在倒數計時中點擊「重新連線」恢復遊戲，或選擇「棄局離開」。
-- 斷線通知橫幅：對手斷線時遊戲頂部顯示橫幅，標示哪位玩家目前離線。
-- 房主斷線：非房主端顯示 20 秒等待橫幅，超時未重連則顯示「遊戲中斷」彈窗並解散本局。
-- 非房主斷線：房主端計時 20 秒後自動淘汰對應玩家，遊戲繼續進行。
-- 主動離開：點擊「回主選單」確認後即時標記棄局，對手端立即收到「遊戲中斷」通知。
+- After an unexpected disconnect, the server keeps a 20-second reconnect window; the player can click "Reconnect" during the countdown to resume, or choose "Forfeit and leave".
+- Disconnect banner: when an opponent disconnects, a banner at the top of the game shows which player is currently offline.
+- Host disconnect: non-host clients show a 20-second waiting banner; if the host doesn't reconnect in time, a "Game interrupted" dialog appears and the match is dissolved.
+- Non-host disconnect: the host eliminates the player after a 20-second timer and the game continues.
+- Voluntary exit: confirming "Back to main menu" immediately marks a forfeit, and opponents instantly receive the "Game interrupted" notification.
 
-**多人連線目標通知彈窗**
+**Multiplayer target notification modals**
 
-- 衛兵：猜中時對手收到含牌名的淘汰通知；猜錯時對手收到「猜測未命中」通知。
-- 神父：被偷看的玩家收到通知，顯示對方看到的牌名。
-- 國王：被交換的玩家收到含雙方牌圖的交換說明彈窗。
-- 王子：被迫棄牌的玩家收到含棄牌圖示的強制棄牌通知。
+- Guard: on a correct guess, the target receives an elimination notice including the card name; on a wrong guess, the target receives a "guess missed" notice.
+- Priest: the peeked player is notified, shown which card the opponent saw.
+- King: the swapped player receives a swap explanation modal with both cards pictured.
+- Prince: the forced-discard player receives a notice with the discarded card's image.
 
-### v1.6.0 - 手機版遊戲畫面布局優化
+### v1.6.0 - Mobile Game Screen Layout Optimization
 
-**手機版遊戲畫面**
+**Mobile game screen**
 
-- 將出牌統計按鈕移入上方狀態列，避免固定浮動按鈕遮擋遊戲區域。
-- 手機版玩家區改為左側手牌、右側棄牌的配置，讓玩家手牌與棄牌紀錄更容易掃視。
-- 壓縮上方資訊區 padding 與間距，在不縮小按鈕與提示文字高度的前提下，釋放更多空間給下方遊戲區。
-- 修正手機版當前回合黃色邊框在玩家區底部斷線的問題，改由上層框線完整呈現。
+- Moved the played-card statistics button into the top status bar, so the fixed floating button no longer covers the play area.
+- The mobile player area now places the hand on the left and discards on the right, making both easier to scan.
+- Compressed the top info area's padding and spacing, freeing more room for the game area below without shrinking button or hint text heights.
+- Fixed the current-turn yellow border breaking at the bottom of the player area on mobile, now rendered as a complete overlay frame.
 
-### v1.5.0 - 主選單視覺重設計與遊戲體驗優化
+### v1.5.0 - Main Menu Visual Redesign and Gameplay Polish
 
-**主選單重設計**
+**Main menu redesign**
 
-- 全新古典宮廷風格主選單：深色大氣背景（緋紅/紫色放射漸層）、呼吸動畫、細緻菱格紋理與暗角效果。
-- 金色粒子系統：畫面上漂浮的愛心、星芒、信封等金色光點，帶有正弦波飄動與淡入淡出生命週期。
-- 標題區金色漸層字（情書）＋ Cinzel 英文副標（Love Letter），搭配金色光暈脈動動畫。
-- 玻璃擬態面板（Glassmorphism）：毛玻璃模糊背景、金色邊框、角落菱形裝飾與內框線。
-- 按鈕深緋紅漸層底色，滑鼠懸停時有金色光澤掃過效果（shimmer ribbon）。
-- 手機版選單寬度與按鈕比例獨立調校，視覺效果與桌面版一致。
+- Brand-new classical court-style main menu: a dark, atmospheric background (crimson/purple radial gradient), breathing animation, fine diamond-lattice texture, and vignette effects.
+- Golden particle system: floating golden hearts, star sparkles, and envelopes drifting with sine-wave motion and fade-in/fade-out lifecycles.
+- Title area with gold-gradient lettering (情書) plus a Cinzel English subtitle (Love Letter), with a pulsing golden glow animation.
+- Glassmorphism panel: frosted-glass blur, golden borders, corner diamond ornaments, and inner frame lines.
+- Buttons with a deep-crimson gradient base and a golden shimmer ribbon sweeping across on hover.
+- Mobile menu width and button proportions tuned independently, visually consistent with desktop.
 
-**遊戲體驗修正**
+**Gameplay fixes**
 
-- 出局說明彈窗：被衛兵猜中、王子強制棄公主、牌堆歸零攤牌等情境，現在會顯示說明彈窗，不再跳過太快。
-- 音效只對本機玩家播放：電腦出局不再觸發失敗音效，勝利音效也只播給實際贏家。
-- 手機版出牌統計面板高度從 68vh 縮小至 38vh，不再遮住玩家手牌。
-- 修正手機版「保護中」標籤被 overflow:hidden 裁切的問題，改為顯示在方塊框內右上角。
+- Elimination explanation modals: being guessed by a Guard, a Prince forcing a Princess discard, and the deck-empty showdown now show explanatory dialogs instead of flashing past.
+- Sound effects now play only for the local player: bot eliminations no longer trigger the defeat sound, and the victory sound plays only for the actual winner.
+- The mobile played-card statistics panel shrank from 68vh to 38vh, no longer covering the player's hand.
+- Fixed the mobile "Protected" label being clipped by overflow:hidden; it now displays inside the panel's top-right corner.
 
-### v1.4.0 - 音樂、音效與多人 AI 電腦
+### v1.4.0 - Music, Sound Effects, and Multiplayer AI Bots
 
-**新功能**
+**New features**
 
-- 新增進入畫面（Splash Screen），首次點擊/觸碰後淡入主選單並立即播放背景音樂，解決瀏覽器自動播放限制。
-- 新增背景音樂系統：主選單與大廳播放《Royal Intrigue》，遊戲中播放《A Game of Hearts》，場景切換時自動淡換。
-- 新增音效：淘汰玩家時播放《Farewell, Chevalier》，結算時播放《The Victor's Token》，奪冠時播放《Love Conquers All》。
-- 新增靜音按鈕，遊戲中顯示於「回主選單」列右側，主選單與大廳則固定於右上角，偏好存於 localStorage。
-- 多人連線房間新增「新增電腦」功能，房主可加入最多 3 名 AI（電腦 A/B/C）填補空位，1 真人 + 電腦即可開始。
-- 多人連線房間新增踢人功能，房主可將真人玩家踢出，被踢者返回大廳並收到通知。
-- 移除 PWA（安裝提示、manifest、service worker）。
+- Added a splash screen: after the first click/tap, the main menu fades in and background music starts immediately, working around browser autoplay restrictions.
+- Added a background music system: the main menu and lobby play "Royal Intrigue", in-game plays "A Game of Hearts", with automatic crossfades on scene changes.
+- Added sound effects: "Farewell, Chevalier" on player elimination, "The Victor's Token" at round end, and "Love Conquers All" on winning the championship.
+- Added a mute button, shown to the right of the "Back to main menu" row in-game and fixed to the top-right in the main menu and lobby, with the preference stored in localStorage.
+- Multiplayer rooms gained an "Add bot" feature: the host can add up to 3 AI bots (Bot A/B/C) to fill empty seats, and 1 human + bots is enough to start.
+- Multiplayer rooms gained a kick feature: the host can kick human players, who return to the lobby with a notification.
+- Removed PWA (install prompt, manifest, service worker).
 
-### v1.3.0 - 多語言支援與多人連線穩定性更新
+### v1.3.0 - Multilingual Support and Multiplayer Stability Update
 
-**新功能**
+**New features**
 
-- 新增語言切換功能，主選單可在繁體中文與 English 之間切換，偏好設定存於 localStorage。
-- 冠軍彈窗新增「重新開始聯賽」按鈕，全員確認後可直接清零硬幣重開一輪，無需回主選單重新開房間。
-- 多人遊戲中可直接點「回主選單」離開目前戰局。
+- Added language switching: the main menu toggles between Traditional Chinese and English, with the preference stored in localStorage.
+- The champion dialog gained a "Restart league" button: once everyone confirms, coins reset and a new league starts directly, without returning to the main menu to recreate the room.
+- Players can leave the current match directly via "Back to main menu" during multiplayer games.
 
-**多人連線修正**
+**Multiplayer fixes**
 
-- 修正聯賽打完後重新創房無法開局的問題（`roundIndex` 守衛未正確檢查 `onlineGameInitialized`，誤判新局同步訊息已過時）。
-- 修正出牌後、確認目標前，對手畫面會提前看到已打出的牌。
-- 新增 10 秒短暫斷線寬限期，避免網路抖動或頁籤暫停時誤觸「遊戲中斷」彈窗。
-- 修正主機在遊戲進行中離開，客端未顯示「遊戲中斷」彈窗的問題。
-- 修正下一局準備流程的競態條件，確保多人同時確認時不會重複觸發換局。
-- 加入 `roundIndex` 單調計數器，過濾前一局遺留的 `sync_game_state` 訊息。
+- Fixed being unable to start a game after recreating a room once a league finished (the `roundIndex` guard didn't properly check `onlineGameInitialized`, wrongly treating new-round sync messages as stale).
+- Fixed opponents' screens prematurely showing a played card after the play but before target confirmation.
+- Added a 10-second grace period for brief disconnects, avoiding false "Game interrupted" dialogs on network jitter or tab suspension.
+- Fixed clients not showing the "Game interrupted" dialog when the host left mid-game.
+- Fixed a race condition in the next-round ready flow, ensuring simultaneous confirmations don't trigger the round change twice.
+- Added a monotonic `roundIndex` counter to filter `sync_game_state` messages left over from the previous round.
 
-### v1.2.0 - 連鎖規則與 AI 推理更新
+### v1.2.0 - Chain Rules and AI Inference Update
 
-- 修正王子強制棄牌連鎖在多人連線時的同步流程，確保被迫棄掉國王等牌時會先補抽，再執行棄牌效果。
-- 優化男爵對決後的 AI 推理：若輸家亮出侍女、王子、國王或伯爵夫人，AI 會提高衛兵出牌權重並優先猜測男爵勝方。
-- 將「已出局」狀態移到玩家名稱旁，避免在桌機與手機版遮住卡牌和出牌提示。
-- 保留淘汰玩家牌區的灰階淡化效果，讓戰場狀態更清楚但不干擾閱讀。
+- Fixed the sync flow of the Prince forced-discard chain in multiplayer, ensuring a player forced to discard a King (etc.) draws a replacement first, then resolves the discard effect.
+- Improved AI inference after Baron duels: if the loser reveals a Handmaid, Prince, King, or Countess, the AI raises its Guard play weight and prioritizes guessing at the Baron winner.
+- Moved the "Eliminated" status next to the player's name, so it no longer covers cards and play hints on desktop and mobile.
+- Kept the grayscale fade on eliminated players' card areas, keeping the battlefield state clear without hindering readability.
 
-### v1.1.0 - UI 體驗更新
+### v1.1.0 - UI Experience Update
 
-- 重構手機版戰場配置，讓 1 到 3 名電腦玩家時都能使用更一致的橫向區域。
-- 調整玩家與電腦區域比例，讓手牌區、棄牌區與提示文字在手機上更好閱讀。
-- 改善卡牌提示文字位置，減少多張棄牌時的重疊問題。
-- 補強男爵與國王效果的彈窗資訊，玩家對電腦時也能查看雙方手牌。
-- 優化卡牌名稱、點數與描述層級，讓手機版卡牌資訊更清楚。
+- Restructured the mobile battlefield layout for a more consistent horizontal arrangement with 1 to 3 bot players.
+- Adjusted player/bot area proportions so the hand area, discard area, and hint text read better on phones.
+- Improved card hint text placement, reducing overlap with multiple discards.
+- Enhanced the Baron and King effect dialogs, so players can view both hands even against bots.
+- Refined the hierarchy of card names, values, and descriptions for clearer card info on mobile.
 
-### v1.0.0 - 初版發布
+### v1.0.0 - Initial Release
 
-- 完成《情書 Love Letter》核心規則與 8 種角色卡效果。
-- 支援玩家與 1 到 3 名電腦 AI 進行單機對戰。
-- 加入多人連線大廳、房間建立、加入房間與準備流程。
-- 實作 AI 記憶與基礎策略判斷，讓電腦玩家能依已知資訊出牌。
-- 支援手機版介面、出牌統計與對戰紀錄。
+- Completed the core *Love Letter* rules and all 8 character card effects.
+- Support for single-player battles against 1 to 3 AI bots.
+- Added the multiplayer lobby, room creation, room joining, and ready flow.
+- Implemented AI memory and basic strategic judgment, letting bots play based on known information.
+- Support for the mobile UI, played-card statistics, and battle logs.
