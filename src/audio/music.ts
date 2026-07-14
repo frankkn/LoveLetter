@@ -271,9 +271,15 @@ export function playBGM(filenameOrUrl: string) {
         return;
     }
     preloadAudio(filenameOrUrl);
+    // Switching tracks: kill any in-flight one-shot (win/lose jingle, champion
+    // theme) and its onended. Clear bgmPausedForSFX FIRST so stopSFX doesn't
+    // resume the old track — the new src starts right below. Without this the
+    // jingle kept playing under the new BGM, and the champion theme's onended
+    // later hijacked the menu music over to the game track.
+    bgmPausedForSFX = false;
+    if (!sfxAudio.paused && !sfxAudio.ended) stopSFX();
     bgmAudio.loop = true;
     currentBGMFile = filenameOrUrl;
-    bgmPausedForSFX = false;
     bgmAudio.src = filenameOrUrl.includes('/') ? filenameOrUrl : getAudioSrc(filenameOrUrl);
     bgmAudio.currentTime = 0;
     bgmAudio.play().catch((error: unknown) => {
