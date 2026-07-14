@@ -2523,6 +2523,15 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
     );
 
     if (shouldPreserveBaronDuelInteraction) {
+        // Union the confirmations: an in-flight sync sent before our own
+        // confirmation landed must not erase it locally, or the duel modal
+        // pops a second time asking the player to re-confirm.
+        if (pendingBaronDuel && incomingPendingBaronDuel) {
+            incomingPendingBaronDuel.confirmedPlayerIds = Array.from(new Set([
+                ...pendingBaronDuel.confirmedPlayerIds,
+                ...incomingPendingBaronDuel.confirmedPlayerIds
+            ]));
+        }
         pendingBaronDuel = incomingPendingBaronDuel;
         onlineGameInitialized = true;
         void handlePendingBaronDuel();
@@ -2530,6 +2539,13 @@ function applyOnlineGameState(data: OnlineGameStateData, isInitialLoad = false) 
     }
 
     if (shouldPreserveKingExchangeInteraction) {
+        // Same confirmation union as the Baron duel above.
+        if (pendingKingExchange && incomingPendingKingExchange) {
+            incomingPendingKingExchange.confirmedPlayerIds = Array.from(new Set([
+                ...pendingKingExchange.confirmedPlayerIds,
+                ...incomingPendingKingExchange.confirmedPlayerIds
+            ]));
+        }
         pendingKingExchange = incomingPendingKingExchange;
         onlineGameInitialized = true;
         void handlePendingKingExchange();
