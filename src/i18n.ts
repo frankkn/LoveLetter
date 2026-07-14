@@ -156,6 +156,11 @@ const zh: TransMap = {
     'player.botC':  '電腦 C',
     'player.statusSuffix': '狀態',
 
+    // Voice / chat
+    'voice.speaking':  '說話中',
+    'voice.micDenied': '無法取得麥克風權限，請在瀏覽器設定中允許麥克風存取。',
+    'chat.empty':      '還沒有訊息，說點什麼吧！',
+
     // Common buttons
     'btn.confirm':       '確定',
     'btn.cancel':        '取消',
@@ -530,6 +535,11 @@ const en: TransMap = {
     'player.botB':  'Bot B',
     'player.botC':  'Bot C',
     'player.statusSuffix': '',
+
+    // Voice / chat
+    'voice.speaking':  'Speaking',
+    'voice.micDenied': 'Cannot access the microphone. Please allow microphone access in your browser settings.',
+    'chat.empty':      'No messages yet — say something!',
 
     // Common buttons
     'btn.confirm':       'OK',

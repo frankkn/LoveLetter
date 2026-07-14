@@ -1,3 +1,5 @@
+import { t } from '../i18n.js';
+
 export interface ChatMsg {
     sessionId: string;
     name: string;
@@ -56,7 +58,7 @@ export function createChatController(options: ChatControllerOptions): ChatContro
         if (messages.length === 0) {
             const empty = document.createElement('div');
             empty.className = 'chat-msg chat-msg-system';
-            empty.textContent = '還沒有訊息，說點什麼吧！';
+            empty.textContent = t('chat.empty');
             messagesEl.appendChild(empty);
             return;
         }

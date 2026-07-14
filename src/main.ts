@@ -407,7 +407,7 @@ function render() {
         }
         botArea.innerHTML = `
             ${isWinner ? `<div class="winner-crown" title="${t('game.winner')}">♛</div>` : ''}
-            <h3>${getPlayerTitleHTML(bot)}<span class="voice-speaking-dot" title="說話中"></span></h3>
+            <h3>${getPlayerTitleHTML(bot)}<span class="voice-speaking-dot" title="${t('voice.speaking')}"></span></h3>
             <div class="opp-body">
                 <div class="opp-hand-zone zone-box zone-hand">
                     <span class="zone-label-text">${t('game.handLabel')}</span>
@@ -1980,14 +1980,15 @@ function createInitialOnlineGameData(roomState: RoomWaitViewState): OnlineGameDa
     const burnedCard = deck.pop() || null;
     const players = createOnlinePlayers(roomState.players);
 
-    // Append bot players after real players
-    const BOT_NAMES = ['電腦 A', '電腦 B', '電腦 C'];
+    // Append bot players after real players. Names are baked into the synced
+    // state, so all clients see them in the HOST's language.
+    const BOT_NAMES = [t('player.botA'), t('player.botB'), t('player.botC')];
     const botCount = roomState.botCount ?? 0;
     const botDifficulties = roomState.botDifficulties ?? [];
     for (let i = 0; i < botCount; i++) {
         players.push({
             id: players.length,
-            name: BOT_NAMES[i] ?? `電腦 ${i + 1}`,
+            name: BOT_NAMES[i] ?? t('player.fallback', String(i + 1)),
             isBot: true,
             difficulty: (botDifficulties[i] ?? 'hard') as BotDifficulty,
             coins: 0,
@@ -2872,7 +2873,7 @@ function renderRoomWaitArea(roomState: RoomWaitViewState | SyncedRoomState) {
     });
 
     // Build bot rows
-    const BOT_NAMES_DISPLAY = ['電腦 A', '電腦 B', '電腦 C'];
+    const BOT_NAMES_DISPLAY = [t('player.botA'), t('player.botB'), t('player.botC')];
     const DIFF_LABELS: Record<string, string> = { easy: t('difficulty.easy'), medium: t('difficulty.medium'), hard: t('difficulty.hard') };
     const botRows = Array.from({ length: botCount }, (_, i) => {
         const diff = normalizedState.botDifficulties[i] ?? 'hard';
@@ -2892,7 +2893,7 @@ function renderRoomWaitArea(roomState: RoomWaitViewState | SyncedRoomState) {
         return `
             <div class="room-player-row bot-slot">
                 <div class="room-player-name">
-                    <strong>${escapeHTML(BOT_NAMES_DISPLAY[i] ?? `電腦 ${i + 1}`)}</strong>
+                    <strong>${escapeHTML(BOT_NAMES_DISPLAY[i] ?? t('player.fallback', String(i + 1)))}</strong>
                     ${diffSelector}
                 </div>
                 <div class="room-player-actions">

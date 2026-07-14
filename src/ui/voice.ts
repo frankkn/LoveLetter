@@ -1,3 +1,5 @@
+import { t } from '../i18n.js';
+
 interface VoiceRoom {
     send(type: string, message?: unknown): void;
 }
@@ -176,7 +178,7 @@ export function createVoiceController(options: VoiceControllerOptions): VoiceCon
             options.getRoom()?.send('webrtc_join_voice');
             updateMicButtonState();
         } catch {
-            alert('無法取得麥克風權限，請在瀏覽器設定中允許麥克風存取。');
+            alert(t('voice.micDenied'));
         }
     }
 
