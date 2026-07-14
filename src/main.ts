@@ -3257,6 +3257,14 @@ async function connectLobbyRoom() {
             15_000,
             `Lobby connection timed out. Please confirm the Colyseus backend is reachable: ${colyseusEndpoint}`
         );
+        const joinedLobbyRoom = lobbyRoom;
+        // If the lobby socket drops (server restart / network blip), clear the
+        // stale handle so the refresh button reconnects instead of no-opping.
+        // resetClientState removes listeners before leaving, so this only fires
+        // on real disconnects, not on our own cleanup.
+        joinedLobbyRoom.onLeave(() => {
+            if (lobbyRoom === joinedLobbyRoom) lobbyRoom = null;
+        });
         lobbyRoom.onMessage<RoomAvailable<LobbyRoomMetadata>[] | { rooms?: RoomAvailable<LobbyRoomMetadata>[] }>('rooms', message => {
             const rooms = Array.isArray(message) ? message : message.rooms ?? [];
             lobbyRooms = rooms
