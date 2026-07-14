@@ -211,6 +211,31 @@ npm run test:e2e
 
 ## Release Notes
 
+### v2.12.0 - Third Code Review Round: Stale Reconnect Modal, Frozen Lobby, Confirmation Overwrites, and WebRTC Throttling
+
+This release comes out of a third full code review, comprising 6 independent fixes.
+
+**Multiplayer**
+
+- Fixed the bogus "disconnected" modal caused by stale reconnect tokens: `bindGameRoom` wrote the reconnection token to sessionStorage the moment a room was created/joined, and the wait-room "leave room" action never cleared it. Every later page load (including an F5 in the wait room) then popped a reconnect modal that was doomed to fail — players who leave before the game starts are removed server-side with no reconnection window. The token is now persisted only once the game actually starts (`initOnlineGame`) and cleared on a voluntary leave.
+- Fixed the room list freezing permanently after the lobby connection dropped: `connectLobbyRoom` returned early whenever `lobbyRoom` was set, but nothing ever cleared the dead handle on disconnect, so after a server restart or network blip the refresh button became a permanent no-op until a full page reload. An `onLeave` handler now clears the stale handle (intentional cleanup removes listeners first, so it never misfires).
+- Fixed Baron duel / King exchange confirmations being erased by stale syncs: the interaction-preserving path in `applyOnlineGameState` overwrote the whole pending object with the incoming copy, so an in-flight sync sent before our just-recorded confirmation landed on the peer would wipe it locally and pop the reveal modal a second time. Confirmations for the same duel only ever grow, so they are now merged as a set union.
+
+**Security / hardening**
+
+- Added server-side rate limits to the WebRTC signaling handlers: chat/emoji/sync were throttled in v2.11.0, but `webrtc_signal` could still relay arbitrary payloads to a chosen player at socket speed and `webrtc_join_voice` allowed unbounded room-wide broadcasts — an in-room harassment/DoS vector. Reuses the existing sliding-window throttle (signal 120 / 10s, voice join/leave 10 / 10s), with ceilings far above legitimate traffic (trickle ICE to 3 peers bursts a few dozen messages).
+
+**Audio**
+
+- Fixed one-shot SFX not being interrupted when the BGM switches tracks: `playBGM` only killed an in-flight win/lose jingle on the same-track fast path. Switching to a different track (e.g. changing scenes while a jingle was playing) left the jingle running under the new BGM, and the champion theme's `onended` then hijacked the menu music over to the game track. Any track switch now stops the pending one-shot and clears its `onended` first.
+
+**Maintenance / i18n**
+
+- Translated the remaining hardcoded Chinese UI strings: online-room bot names (the offline path already used `player.botA/B/C`), the voice "speaking" tooltip, the empty-chat placeholder, and the mic-permission alert — English-locale players previously saw Chinese in these spots. Added `voice.speaking` / `voice.micDenied` / `chat.empty` keys; bot names ship inside the synced state, so all clients see them in the host's language.
+- All 36 E2E tests pass; frontend / backend tsc type checks and the production build pass.
+
+**Deployment note**: this release includes backend changes (WebRTC signaling throttling), so the Colyseus server must be redeployed for it to take full effect.
+
 ### v2.11.0 - Second Code Review Round: Notification XSS, Reconnect Champion Threshold, AI Memory Rollback, and Server Throttling
 
 This release comes out of a second full code review, comprising 6 independent fixes.
