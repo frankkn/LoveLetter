@@ -2710,6 +2710,11 @@ function applyOnlineGameData(data: OnlineGameData) {
 function initOnlineGame(roomState: RoomWaitViewState) {
     if (onlineGameInitialized) return;
 
+    // Game is live — persist the reconnect token for the page-reload flow.
+    if (savedReconnectionToken) {
+        sessionStorage.setItem('ll_reconnect_token', savedReconnectionToken);
+    }
+
     const selfPlayer = roomState.players.find(player => player.id === roomState.selfId);
 
     // ── Reconnect path ──────────────────────────────────────────────────────
@@ -3126,8 +3131,12 @@ function bindGameRoom(room: Room<unknown, SyncedRoomState>, isReconnect = false)
     voiceController.resetVoiceConnections();
     activeGameRoom = room;
     // Save the token immediately so onLeave can use it even after the socket closes.
+    // Persist to sessionStorage only once the game has actually started (initOnlineGame):
+    // a pre-game token is useless — the server deletes pre-game leavers with no
+    // reconnection window — and a stale one makes every later page load pop a
+    // spurious reconnect modal.
     savedReconnectionToken = room.reconnectionToken ?? null;
-    if (savedReconnectionToken) {
+    if (isReconnect && savedReconnectionToken) {
         sessionStorage.setItem('ll_reconnect_token', savedReconnectionToken);
     }
 
@@ -3641,6 +3650,10 @@ async function sendForfeitAndLeave() {
 async function leaveCurrentRoom() {
     const leavingRoom = activeGameRoom;
     activeGameRoom = null;
+    // Voluntary leave: drop the reconnect token or the next page load would
+    // pop a doomed reconnect modal for a room we chose to leave.
+    savedReconnectionToken = null;
+    sessionStorage.removeItem('ll_reconnect_token');
     await leaveRoomIfConnected(leavingRoom);
 
     currentRoomWaitState = null;
