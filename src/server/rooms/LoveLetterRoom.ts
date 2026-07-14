@@ -230,6 +230,9 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
 
         // 加入語音頻道：回傳現有參與者給新加入者，並廣播給其他人
         this.onMessage("webrtc_join_voice", client => {
+            // Legitimate clients join/leave voice a handful of times per game;
+            // the ceiling only stops broadcast spam from a modified client.
+            if (!this.allowMessage(client.sessionId, "voice", 10, 10_000)) return;
             const existing = [...this.voiceSessionIds];
             this.voiceSessionIds.add(client.sessionId);
             client.send("webrtc_voice_state", { type: 'you_joined', existingParticipants: existing });
@@ -238,12 +241,16 @@ export class LoveLetterRoom extends Room<{ state: GameRoomState }> {
 
         // 離開語音頻道
         this.onMessage("webrtc_leave_voice", client => {
+            if (!this.allowMessage(client.sessionId, "voice", 10, 10_000)) return;
             this.voiceSessionIds.delete(client.sessionId);
             this.broadcast("webrtc_voice_state", { type: 'peer_left', sessionId: client.sessionId }, { except: client });
         });
 
         // P2P 信令中繼（offer / answer / ice candidate）
         this.onMessage("webrtc_signal", (client, data: { to: string; type: string; payload: unknown }) => {
+            // Trickle ICE to 3 peers legitimately bursts a few dozen messages;
+            // the ceiling only stops a client relaying floods at socket speed.
+            if (!this.allowMessage(client.sessionId, "signal", 120, 10_000)) return;
             const target = this.clients.find(c => c.sessionId === data.to);
             if (target) {
                 target.send("webrtc_signal", { from: client.sessionId, type: data.type, payload: data.payload });
